@@ -1,10 +1,34 @@
 package pkgmgr_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/pkgmgr"
 )
+
+func TestUninstallArgv(t *testing.T) {
+	cases := map[string][]string{
+		"brew":   {"brew", "uninstall", "fzf"},
+		"apt":    {"sudo", "apt-get", "remove", "-y", "fzf"},
+		"dnf":    {"sudo", "dnf", "remove", "-y", "fzf"},
+		"pacman": {"sudo", "pacman", "-Rs", "--noconfirm", "fzf"},
+		"zypper": {"sudo", "zypper", "remove", "-y", "fzf"},
+		"apk":    {"sudo", "apk", "del", "fzf"},
+	}
+	for mgr, want := range cases {
+		got := pkgmgr.UninstallArgv(mgr, []string{"fzf"})
+		if strings.Join(got, " ") != strings.Join(want, " ") {
+			t.Fatalf("%s: got %v want %v", mgr, got, want)
+		}
+	}
+	if got := pkgmgr.UninstallArgv("unknown", []string{"fzf"}); got != nil {
+		t.Fatalf("unknown manager: got %v want nil", got)
+	}
+	if got := pkgmgr.UninstallArgv("apt", []string{"fzf", "zoxide"}); strings.Join(got, " ") != "sudo apt-get remove -y fzf zoxide" {
+		t.Fatalf("multi-pkg apt: got %v", got)
+	}
+}
 
 func TestDetectManagerMacOSPrefersBrew(t *testing.T) {
 	r := &pkgmgr.MockRunner{LookOK: map[string]bool{"brew": true}}

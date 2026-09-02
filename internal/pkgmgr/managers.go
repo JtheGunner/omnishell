@@ -47,6 +47,29 @@ func outputNonEmpty(r Runner, name string, args ...string) (bool, error) {
 	return strings.TrimSpace(string(out)) != "", nil
 }
 
+// UninstallArgv returns the argv (sudo-prefixed where the manager requires it)
+// that removes pkgs with the named manager, or nil for an unknown manager.
+// It is a pure function: announcing the sudo prompt and running the command are
+// the engine's job.
+func UninstallArgv(manager string, pkgs []string) []string {
+	switch manager {
+	case "brew":
+		return append([]string{"brew", "uninstall"}, pkgs...)
+	case "apt":
+		return append([]string{"sudo", "apt-get", "remove", "-y"}, pkgs...)
+	case "dnf":
+		return append([]string{"sudo", "dnf", "remove", "-y"}, pkgs...)
+	case "pacman":
+		return append([]string{"sudo", "pacman", "-Rs", "--noconfirm"}, pkgs...)
+	case "zypper":
+		return append([]string{"sudo", "zypper", "remove", "-y"}, pkgs...)
+	case "apk":
+		return append([]string{"sudo", "apk", "del"}, pkgs...)
+	default:
+		return nil
+	}
+}
+
 // newManager builds the concrete Manager for name, or nil for an unknown name.
 func newManager(name string, r Runner) Manager {
 	switch name {
