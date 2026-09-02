@@ -73,11 +73,11 @@ type OptionSchema struct {
 // Manifest is a parsed manifest.toml.
 type Manifest struct {
 	Module    ModuleMeta              `toml:"module"`
-	Platforms []string               `toml:"platforms"`
-	Shells    []string               `toml:"shells"`
-	Requires  []string               `toml:"requires"`
-	After     []string               `toml:"after"`
-	Packages  Packages               `toml:"packages"`
+	Platforms []string                `toml:"platforms"`
+	Shells    []string                `toml:"shells"`
+	Requires  []string                `toml:"requires"`
+	After     []string                `toml:"after"`
+	Packages  Packages                `toml:"packages"`
 	Options   map[string]OptionSchema `toml:"options"`
 }
 

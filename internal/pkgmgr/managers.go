@@ -17,7 +17,7 @@ type cmdManager struct {
 	installArgv func(pkgs []string) []string
 }
 
-func (m cmdManager) Name() string   { return m.name }
+func (m cmdManager) Name() string    { return m.name }
 func (m cmdManager) NeedsSudo() bool { return m.sudo }
 func (m cmdManager) Detect() bool    { _, err := m.runner.Look(m.bin); return err == nil }
 

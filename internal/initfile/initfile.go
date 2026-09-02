@@ -120,7 +120,8 @@ func MatchesGeneratedForm(shell, content string) bool {
 // Returns true iff:
 // (a) content has no parseable Content hash: header line, OR
 // (b) the SHA-256 recomputed from the section bodies actually present in content
-//     differs from that header hash.
+//
+//	differs from that header hash.
 func DetectHandEdit(content string, sections []Section) (bool, error) {
 	headerHash, ok := ParseHeaderHash(content)
 	if !ok {
