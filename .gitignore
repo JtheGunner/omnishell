@@ -6,3 +6,6 @@
 
 # SDD scratch workspace
 .superpowers/
+
+# IDE
+.idea/

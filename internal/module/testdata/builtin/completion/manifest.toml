@@ -1,0 +1,9 @@
+platforms = ["macos", "linux"]
+shells = ["zsh", "bash"]
+
+[module]
+id = "completion"
+name = "Completion"
+description = "compinit + case-insensitive matching"
+version = "1.0.0"
+schema = 1

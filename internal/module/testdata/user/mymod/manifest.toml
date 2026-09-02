@@ -1,0 +1,9 @@
+platforms = ["linux"]
+shells = ["bash"]
+
+[module]
+id = "mymod"
+name = "My Module"
+description = "custom"
+version = "0.1.0"
+schema = 1
