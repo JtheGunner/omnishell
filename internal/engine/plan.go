@@ -1,6 +1,10 @@
 package engine
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/JtheGunner/omnishell/internal/config"
 	"github.com/JtheGunner/omnishell/internal/graph"
 	"github.com/JtheGunner/omnishell/internal/lockfile"
@@ -238,4 +242,69 @@ func equalStringSet(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// RenderPlan formats a plan for the user.
+func RenderPlan(p Plan) string {
+	var b strings.Builder
+	mgr := p.PackageManager
+	if !p.ManagerAvailable {
+		mgr = "none detected"
+	}
+	fmt.Fprintf(&b, "Plan (package manager: %s, shells: %s)\n\n", mgr, strings.Join(p.ManagedShells, ", "))
+
+	var nInstall, nUpdate, nRemove, nUnchanged int
+	line := func(mp ModulePlan) {
+		if mp.DegradedReason != "" {
+			fmt.Fprintf(&b, "  %-8s %-20s %s\n", "degraded", mp.ID, mp.DegradedReason)
+		}
+		switch mp.Action {
+		case ActionInstall, ActionUpdate:
+			extra := ""
+			if len(mp.Shells) > 0 {
+				extra = "snippet: " + strings.Join(mp.Shells, ",")
+			}
+			if len(mp.MissingPackages) > 0 {
+				names := make([]string, len(mp.MissingPackages))
+				for i, pp := range mp.MissingPackages {
+					names[i] = pp.Name + " (" + pp.Manager + ")"
+				}
+				extra += "   packages: " + strings.Join(names, ", ")
+			}
+			fmt.Fprintf(&b, "  %-8s %-20s %s\n", string(mp.Action), mp.ID, strings.TrimSpace(extra))
+		case ActionRemove:
+			fmt.Fprintf(&b, "  %-8s %-20s %s\n", "remove", mp.ID, mp.Reason)
+		}
+	}
+
+	for _, id := range p.Order {
+		mp := p.Modules[id]
+		switch mp.Action {
+		case ActionInstall:
+			nInstall++
+		case ActionUpdate:
+			nUpdate++
+		case ActionUnchanged:
+			nUnchanged++
+		}
+		if mp.Action != ActionUnchanged {
+			line(mp)
+		}
+	}
+
+	var removals []string
+	for id, mp := range p.Modules {
+		if mp.Action == ActionRemove {
+			removals = append(removals, id)
+		}
+	}
+	sort.Strings(removals)
+	for _, id := range removals {
+		nRemove++
+		line(p.Modules[id])
+	}
+
+	fmt.Fprintf(&b, "\n%d to install, %d to update, %d to remove, %d unchanged\n",
+		nInstall, nUpdate, nRemove, nUnchanged)
+	return b.String()
 }

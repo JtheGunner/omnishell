@@ -1,0 +1,7 @@
+Plan (package manager: apt, shells: bash)
+
+  install  completion           snippet: bash
+  install  fzf                  snippet: bash   packages: fzf (apt)
+  remove   zoxide               no longer enabled
+
+2 to install, 0 to update, 1 to remove, 0 unchanged
