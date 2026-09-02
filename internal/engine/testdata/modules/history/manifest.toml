@@ -1,0 +1,16 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = ["completion"]
+
+[module]
+id          = "history"
+name        = "History"
+description = "shell history sizing"
+version     = "1.0.0"
+schema      = 1
+
+[options.size]
+type    = "int"
+default = 50000
+help    = "HISTSIZE / SAVEHIST"
