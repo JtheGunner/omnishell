@@ -68,6 +68,3 @@ func DetectManager(goos string, r Runner) (Manager, bool) {
 	}
 	return nil, false
 }
-
-// newManager builds the concrete Manager for name. Fully implemented in Task 15.
-func newManager(name string, r Runner) Manager { return nil } // replaced in Task 15
