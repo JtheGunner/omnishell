@@ -1,0 +1,17 @@
+[omnishell]
+version = 1
+shells = ["zsh", "bash"]
+
+[modules.completion]
+enabled = true
+
+[modules.fzf]
+enabled = true
+[modules.fzf.options]
+ctrl_r = true
+default_opts = "--height 40% --reverse"
+
+[modules.history]
+enabled = false
+[modules.history.options]
+size = 50000
