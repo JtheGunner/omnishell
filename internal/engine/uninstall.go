@@ -97,7 +97,7 @@ func (e Engine) Uninstall(lockPath string, opts UninstallOptions) (Result, error
 		if _, err := bk.Save(rcPath); err != nil {
 			return res, err
 		}
-		updated, _ := rcfile.RemoveBlock(content)
+		updated, _ := rcfile.RemoveBlock(content) // 2nd value is `changed` (bool), not an error; always true after BlockPresent
 		if err := atomicfile.WriteFile(rcPath, []byte(updated), 0o644); err != nil {
 			return res, fmt.Errorf("write rc file %s: %w", rcPath, err)
 		}
