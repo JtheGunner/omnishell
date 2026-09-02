@@ -262,7 +262,7 @@ func RenderPlan(p Plan) string {
 		case ActionInstall, ActionUpdate:
 			extra := ""
 			if len(mp.Shells) > 0 {
-				extra = "snippet: " + strings.Join(mp.Shells, ",")
+				extra = "snippet: " + strings.Join(mp.Shells, ", ")
 			}
 			if len(mp.MissingPackages) > 0 {
 				names := make([]string, len(mp.MissingPackages))

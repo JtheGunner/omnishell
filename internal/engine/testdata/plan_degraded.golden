@@ -1,0 +1,7 @@
+Plan (package manager: none detected, shells: bash)
+
+  degraded git                  no package manager detected
+  install  git                  
+  install  fzf                  snippet: bash
+
+2 to install, 0 to update, 0 to remove, 0 unchanged

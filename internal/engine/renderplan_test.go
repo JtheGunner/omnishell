@@ -31,7 +31,40 @@ func TestRenderPlanFresh(t *testing.T) {
 	got := engine.RenderPlan(p)
 	golden := filepath.Join("testdata", "plan_fresh.golden")
 	if *update {
-		os.WriteFile(golden, []byte(got), 0o644)
+		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != string(want) {
+		t.Fatalf("RenderPlan mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestRenderPlanWithDegraded(t *testing.T) {
+	p := engine.Plan{
+		Order:            []string{"git", "fzf"},
+		ManagedShells:    []string{"bash"},
+		PackageManager:   "apt",
+		ManagerAvailable: false,
+		HasChanges:       true,
+		Modules: map[string]engine.ModulePlan{
+			"git": {ID: "git", Action: engine.ActionInstall, Shells: []string{},
+				DegradedReason: "no package manager detected",
+				Manifest: module.Manifest{Module: module.ModuleMeta{ID: "git", Version: "1.0.0"}}},
+			"fzf": {ID: "fzf", Action: engine.ActionInstall, Shells: []string{"bash"},
+				Manifest: module.Manifest{Module: module.ModuleMeta{ID: "fzf", Version: "1.0.0"}}},
+		},
+	}
+	got := engine.RenderPlan(p)
+	golden := filepath.Join("testdata", "plan_degraded.golden")
+	if *update {
+		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	want, err := os.ReadFile(golden)
 	if err != nil {
