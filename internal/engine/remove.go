@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -36,7 +37,10 @@ func (e Engine) Remove(cfg config.Config, cfgPath, lockPath, moduleID string, pu
 	preEntry := preLock.Modules[moduleID]
 
 	if opts.DryRun {
-		res, aerr := e.Apply(cfg, cfgPath, lockPath, opts)
+		// Never touch config.toml on a dry run. Plan against an in-memory copy
+		// with moduleID disabled so the dry plan genuinely shows the removal
+		// instead of an "unchanged" the user's flags did not ask for.
+		res, aerr := e.Apply(withModuleDisabled(cfg, moduleID), cfgPath, lockPath, opts)
 		res.Modules = amendRemoved(res.Modules, moduleID, purge)
 		return res, aerr
 	}
@@ -50,19 +54,42 @@ func (e Engine) Remove(cfg config.Config, cfgPath, lockPath, moduleID string, pu
 		return Result{}, err
 	}
 
+	// ErrDegraded is a partial-success sentinel: Apply still rewrote the init
+	// files and the lock (dropping moduleID), so the purge must still run.
+	// Any other error is fatal and aborts before the purge.
 	res, err := e.Apply(reloaded, cfgPath, lockPath, opts)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrDegraded) {
 		return res, err
 	}
+	degradedErr := err
 
 	if purge {
-		if err := e.purgeModule(moduleID, preEntry); err != nil {
-			return res, err
+		if perr := e.purgeModule(moduleID, preEntry); perr != nil {
+			return res, perr
 		}
 	}
 
 	res.Modules = amendRemoved(res.Modules, moduleID, purge)
+	if degradedErr != nil {
+		// Keep the exit-1 / degraded warning, but only after the purge ran.
+		return res, fmt.Errorf("removed %q; apply reported: %w", moduleID, degradedErr)
+	}
 	return res, nil
+}
+
+// withModuleDisabled returns a copy of cfg with moduleID's Enabled flag cleared.
+// cfg and its Modules map are left untouched.
+func withModuleDisabled(cfg config.Config, moduleID string) config.Config {
+	out := cfg
+	out.Modules = make(map[string]config.ModuleConfig, len(cfg.Modules))
+	for k, v := range cfg.Modules {
+		out.Modules[k] = v
+	}
+	if mc, ok := out.Modules[moduleID]; ok {
+		mc.Enabled = false
+		out.Modules[moduleID] = mc
+	}
+	return out
 }
 
 // purgeModule uninstalls omnishell-installed packages, runs the remove.sh hook,
