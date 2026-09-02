@@ -62,6 +62,28 @@ func TestDetectHandEdit(t *testing.T) {
 	}
 }
 
+func TestMatchesGeneratedForm(t *testing.T) {
+	ts := time.Date(2026, 9, 2, 22, 41, 3, 0, time.UTC)
+	content := initfile.Build("zsh", sections(), ts)
+
+	if !initfile.MatchesGeneratedForm("zsh", content) {
+		t.Fatal("pristine Build output should match its generated form")
+	}
+
+	if initfile.MatchesGeneratedForm("zsh", content+"\n# tampered\n") {
+		t.Fatal("trailing edit outside markers should not match")
+	}
+
+	headerEdit := strings.Replace(content, "Content hash: ", "Content hash: sha256:0000", 1)
+	if initfile.MatchesGeneratedForm("zsh", headerEdit) {
+		t.Fatal("altered header line should not match")
+	}
+
+	if initfile.MatchesGeneratedForm("zsh", "no header here") {
+		t.Fatal("content without a header should not match")
+	}
+}
+
 func TestContentHashOrderSensitive(t *testing.T) {
 	s := sections()
 	swapped := []initfile.Section{s[1], s[0], s[2]}

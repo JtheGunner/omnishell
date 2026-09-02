@@ -165,6 +165,35 @@ func TestApplyDryRunWritesNothing(t *testing.T) {
 	}
 }
 
+func TestApplyConfigChangeNeedsNoForce(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	e := applyEngine(t, home, &pkgmgr.MockManager{NameV: "apt", DetectV: true}, &out)
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n")
+	cfg, _ := config.Load(cfgPath)
+	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	// A plain config change (no tampering of init.bash) must apply without --force.
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n[modules.history]\nenabled=true\n")
+	cfg2, _ := config.Load(cfgPath)
+
+	res, err := e.Apply(cfg2, cfgPath, lockPath, engine.ApplyOptions{Yes: true})
+	if err != nil {
+		t.Fatalf("plain config change required force: %v", err)
+	}
+	if !res.Changed {
+		t.Fatal("config change made no change")
+	}
+	body, _ := os.ReadFile(filepath.Join(home, ".config", "omnishell", "init.bash"))
+	if !strings.Contains(string(body), "omnishell:history") {
+		t.Fatalf("init.bash missing history section:\n%s", body)
+	}
+}
+
 func TestApplyHandEditGuard(t *testing.T) {
 	home := t.TempDir()
 	var out bytes.Buffer

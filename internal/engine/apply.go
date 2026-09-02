@@ -111,7 +111,10 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	}
 
 	// Write phase — only now touch disk.
-	bk, _ := backup.NewSession(e.Platform.ConfigDir, e.now())
+	bk, err := backup.NewSession(e.Platform.ConfigDir, e.now())
+	if err != nil {
+		return res, fmt.Errorf("create backup session: %w", err)
+	}
 	res.BackupDir = bk.Dir
 	if err := os.MkdirAll(bk.Dir, 0o755); err != nil {
 		return res, fmt.Errorf("create backup dir %s: %w", bk.Dir, err)

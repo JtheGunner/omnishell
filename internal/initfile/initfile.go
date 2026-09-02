@@ -85,6 +85,37 @@ func ParseHeaderHash(content string) (string, bool) {
 	return "", false
 }
 
+// parseGeneratedAt reads the "Generated:" RFC3339 stamp from the header.
+func parseGeneratedAt(content string) (time.Time, bool) {
+	for _, line := range strings.Split(content, "\n") {
+		i := strings.Index(line, "Generated:")
+		if i < 0 {
+			continue
+		}
+		ts := strings.TrimSpace(line[i+len("Generated:"):])
+		t, err := time.Parse(time.RFC3339, ts)
+		return t, err == nil
+	}
+	return time.Time{}, false
+}
+
+// MatchesGeneratedForm reports whether content is byte-for-byte what Build would
+// produce for the sections currently written in it: a parseable header with a
+// Content hash line, a parseable "Generated:" timestamp, and a body that is
+// exactly Build(shell, <sections parsed from content>, <that timestamp>).
+// It detects trailing/header/inter-section tampering that DetectHandEdit (which
+// only hashes in-marker section bodies) cannot.
+func MatchesGeneratedForm(shell, content string) bool {
+	if _, ok := ParseHeaderHash(content); !ok {
+		return false
+	}
+	gen, ok := parseGeneratedAt(content)
+	if !ok {
+		return false
+	}
+	return Build(shell, extractSectionsFromContent(content), gen) == content
+}
+
 // DetectHandEdit reports whether content has been hand-edited.
 // Returns true iff:
 // (a) content has no parseable Content hash: header line, OR

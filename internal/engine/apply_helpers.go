@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/JtheGunner/omnishell/internal/atomicfile"
 	"github.com/JtheGunner/omnishell/internal/backup"
@@ -340,69 +339,14 @@ func (e Engine) buildSections(plan Plan, rendered map[[2]string]string,
 
 // initFileHandEdited reports whether the on-disk init file was edited by hand.
 // It fires when initfile.DetectHandEdit flags in-marker tampering, or when the
-// file no longer rebuilds exactly from its own declared sections (which catches
-// edits outside the marker blocks). A normal config change leaves a pristine
-// file that still rebuilds, so it never trips the guard.
+// file no longer matches the exact form Build would produce for its own declared
+// sections (which catches edits outside the marker blocks). A normal config
+// change leaves a pristine file that still matches, so it never trips the guard.
 func (e Engine) initFileHandEdited(shell, existing string, newSections []initfile.Section) bool {
 	if edited, _ := initfile.DetectHandEdit(existing, newSections); edited {
 		return true
 	}
-	if _, ok := initfile.ParseHeaderHash(existing); !ok {
-		return true
-	}
-	gen, ok := parseGeneratedAt(existing)
-	if !ok {
-		return true
-	}
-	return initfile.Build(shell, parseInitSections(existing), gen) != existing
-}
-
-// parseGeneratedAt reads the "Generated:" RFC3339 stamp from an init file header.
-func parseGeneratedAt(content string) (time.Time, bool) {
-	for _, line := range strings.Split(content, "\n") {
-		i := strings.Index(line, "Generated:")
-		if i < 0 {
-			continue
-		}
-		ts := strings.TrimSpace(line[i+len("Generated:"):])
-		t, err := time.Parse(time.RFC3339, ts)
-		return t, err == nil
-	}
-	return time.Time{}, false
-}
-
-// parseInitSections extracts the module marker blocks from an init file.
-func parseInitSections(content string) []initfile.Section {
-	var out []initfile.Section
-	var cur *initfile.Section
-	var body []string
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "# >>> omnishell:") && strings.HasSuffix(line, ">>>") {
-			rest := line[len("# >>> omnishell:"):]
-			vs := strings.Index(rest, "(v")
-			ve := strings.Index(rest, ")")
-			if vs > 0 && ve > vs {
-				cur = &initfile.Section{ID: strings.TrimSpace(rest[:vs-1]), Version: rest[vs+2 : ve]}
-				body = nil
-			}
-			continue
-		}
-		if cur != nil && strings.HasPrefix(line, "# <<< omnishell:") && strings.HasSuffix(line, "<<<") {
-			b := strings.Join(body, "\n")
-			if len(body) > 0 {
-				b += "\n"
-			}
-			cur.Body = b
-			out = append(out, *cur)
-			cur = nil
-			body = nil
-			continue
-		}
-		if cur != nil {
-			body = append(body, line)
-		}
-	}
-	return out
+	return !initfile.MatchesGeneratedForm(shell, existing)
 }
 
 // ensureRC guarantees the marker block in a shell's rc file, backing it up first
