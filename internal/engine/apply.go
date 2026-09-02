@@ -1,0 +1,161 @@
+package engine
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/JtheGunner/omnishell/internal/atomicfile"
+	"github.com/JtheGunner/omnishell/internal/backup"
+	"github.com/JtheGunner/omnishell/internal/buildinfo"
+	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/initfile"
+	"github.com/JtheGunner/omnishell/internal/lockfile"
+)
+
+// Sentinel errors the CLI maps to specific exit codes.
+var (
+	// ErrAborted is returned (not printed) when Prompt answers no.
+	ErrAborted = errors.New("aborted by user")
+	// ErrHandEdited is wrapped when an init file was hand-edited and --force was not given.
+	ErrHandEdited = errors.New("init file has been edited by hand")
+	// ErrDegraded is returned when at least one module ended up degraded.
+	ErrDegraded = errors.New("one or more modules are degraded")
+)
+
+// ApplyOptions are the flags of `omnishell apply`.
+type ApplyOptions struct {
+	DryRun, Yes, NoPackages, Force, Verbose bool
+}
+
+// ModuleResult is the per-module outcome of an apply.
+type ModuleResult struct {
+	ID     string
+	Action ModuleAction
+	Status string // applied | degraded | skipped | removed | unchanged
+	Note   string
+}
+
+// Result is the outcome of Apply.
+type Result struct {
+	DryRun           bool
+	PlanText         string
+	Modules          []ModuleResult
+	InitFilesWritten []string
+	BackupDir        string
+	Changed          bool
+}
+
+// Apply brings the system to the desired state described by cfg. It loads the
+// lock from lockPath itself and writes it back on success. Nothing is written to
+// disk before the hand-edit guard passes; every rc/init write is preceded by a
+// backup and performed atomically.
+func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOptions) (Result, error) {
+	lock, _, err := lockfile.Load(lockPath)
+	if err != nil {
+		return Result{}, err
+	}
+
+	plan, err := ComputePlan(e, cfg, lock, opts.NoPackages)
+	if err != nil {
+		return Result{}, err // a ConfigError propagates unchanged
+	}
+
+	res := Result{PlanText: RenderPlan(plan)}
+
+	if opts.DryRun {
+		res.DryRun = true
+		return res, nil
+	}
+
+	// Idempotent no-op: no planned changes and the on-disk init/rc files still
+	// match the lock.
+	if !plan.HasChanges && !e.initOrRCDrift(plan, lock) {
+		return res, nil
+	}
+
+	if !opts.Yes && e.Prompt != nil {
+		fmt.Fprintln(e.Stdout, res.PlanText)
+		if !e.Prompt("Proceed?") {
+			return res, ErrAborted
+		}
+	}
+
+	degraded := map[string]string{}
+	vendorPaths := map[string][]string{}
+	installedNow := map[string]map[string]bool{}
+
+	if !opts.NoPackages {
+		e.installPackages(plan, degraded, vendorPaths, installedNow)
+	}
+	e.runCheckHooks(plan, degraded)
+
+	rendered := e.renderAll(plan, degraded)
+
+	sectionsByShell := map[string][]initfile.Section{}
+	for _, shell := range plan.ManagedShells {
+		sectionsByShell[shell] = e.buildSections(plan, rendered, degraded, shell)
+	}
+
+	// Hand-edit guard — before any write.
+	for _, shell := range plan.ManagedShells {
+		initPath := e.initPath(shell)
+		existing, rerr := os.ReadFile(initPath)
+		if rerr != nil {
+			continue
+		}
+		if e.initFileHandEdited(shell, string(existing), sectionsByShell[shell]) && !opts.Force {
+			return res, fmt.Errorf("%w: %s (run with --force to overwrite)", ErrHandEdited, initPath)
+		}
+	}
+
+	// Write phase — only now touch disk.
+	bk, _ := backup.NewSession(e.Platform.ConfigDir, e.now())
+	res.BackupDir = bk.Dir
+	if err := os.MkdirAll(bk.Dir, 0o755); err != nil {
+		return res, fmt.Errorf("create backup dir %s: %w", bk.Dir, err)
+	}
+
+	newLock := e.rebuildLock(cfg, plan, lock, degraded, vendorPaths, installedNow)
+
+	for _, shell := range plan.ManagedShells {
+		initPath := e.initPath(shell)
+		sections := sectionsByShell[shell]
+		if _, err := bk.Save(initPath); err != nil {
+			return res, err
+		}
+		content := initfile.Build(shell, sections, e.now())
+		if err := atomicfile.WriteFile(initPath, []byte(content), 0o644); err != nil {
+			return res, fmt.Errorf("write init file %s: %w", initPath, err)
+		}
+		res.InitFilesWritten = append(res.InitFilesWritten, initPath)
+		newLock.InitFiles[shell] = lockfile.FileState{
+			Path:        e.homeRelative(initPath),
+			ContentHash: initfile.ContentHash(sections),
+		}
+		if err := e.ensureRC(shell, initPath, bk, &newLock); err != nil {
+			return res, err
+		}
+	}
+
+	newLock.Schema = lockfile.SchemaVersion
+	newLock.OmnishellVersion = buildinfo.Version
+	newLock.LastApply = e.now().UTC().Format(time.RFC3339)
+	newLock.Platform = string(e.Platform.OS)
+	if plan.ManagerAvailable {
+		newLock.PackageManager = plan.PackageManager
+	}
+	if err := newLock.Write(lockPath); err != nil {
+		return res, fmt.Errorf("write lockfile %s: %w", lockPath, err)
+	}
+
+	res.Changed = true
+	res.Modules = summarise(plan, degraded)
+	for _, m := range res.Modules {
+		if m.Status == "degraded" {
+			return res, ErrDegraded
+		}
+	}
+	return res, nil
+}
