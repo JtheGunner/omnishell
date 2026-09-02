@@ -3,9 +3,33 @@ package module_test
 import (
 	"os"
 	"testing"
+	"testing/fstest"
 
 	"github.com/JtheGunner/omnishell/internal/module"
 )
+
+func TestTemplateSurfacesNonNotExistReadError(t *testing.T) {
+	// "zsh.tmpl" exists as a directory, so fs.ReadFile fails with an error
+	// that is not fs.ErrNotExist. Template must return that error, not (,,nil).
+	m := module.Module{FS: fstest.MapFS{
+		"zsh.tmpl/inner": {Data: []byte("x")},
+	}}
+	body, has, err := m.Template("zsh")
+	if err == nil {
+		t.Fatalf("want a read error, got body=%q has=%v err=nil", body, has)
+	}
+	if has || body != "" {
+		t.Fatalf("want empty result on error, got body=%q has=%v", body, has)
+	}
+}
+
+func TestTemplateMissingIsNotAnError(t *testing.T) {
+	m := module.Module{FS: fstest.MapFS{}}
+	body, has, err := m.Template("zsh")
+	if err != nil || has || body != "" {
+		t.Fatalf("missing template: body=%q has=%v err=%v", body, has, err)
+	}
+}
 
 func TestLoadRegistryMergesBuiltinAndUser(t *testing.T) {
 	reg, err := module.LoadRegistry(os.DirFS("testdata/builtin"), "testdata/user")

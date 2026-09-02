@@ -1,6 +1,7 @@
 package module
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -60,7 +61,10 @@ func loadFrom(fsys fs.FS, src Source, display string, into map[string]Module, on
 		}
 		data, err := fs.ReadFile(sub, "manifest.toml")
 		if err != nil {
-			return fmt.Errorf("module %q: missing manifest.toml", folder)
+			if errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("module %q: missing manifest.toml", folder)
+			}
+			return fmt.Errorf("module %q: reading manifest.toml: %w", folder, err)
 		}
 		mf, err := ParseManifest(data)
 		if err != nil {

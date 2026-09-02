@@ -1,6 +1,7 @@
 package module
 
 import (
+	"errors"
 	"io/fs"
 	"path"
 )
@@ -25,10 +26,10 @@ type Module struct {
 func (m Module) Template(shell string) (string, bool, error) {
 	data, err := fs.ReadFile(m.FS, shell+".tmpl")
 	if err != nil {
-		if _, isPathErr := err.(*fs.PathError); isPathErr || err == fs.ErrNotExist {
+		if errors.Is(err, fs.ErrNotExist) {
 			return "", false, nil
 		}
-		return "", false, nil
+		return "", false, err
 	}
 	return string(data), true, nil
 }
