@@ -17,13 +17,18 @@ type Section struct {
 	Body    string
 }
 
+// blank reports whether the section's Body is empty or only whitespace.
+func (s Section) blank() bool {
+	return strings.TrimSpace(s.Body) == ""
+}
+
 // ContentHash is an order-sensitive hash of the module sections only.
 // It skips empty sections (matching what Build outputs).
 func ContentHash(sections []Section) string {
 	var b strings.Builder
 	for _, s := range sections {
 		// Skip empty sections, matching Build behavior
-		if strings.TrimSpace(s.Body) == "" {
+		if s.blank() {
 			continue
 		}
 		b.WriteString(">>>")
@@ -53,7 +58,7 @@ func Build(shell string, sections []Section, generatedAt time.Time) string {
 	fmt.Fprintf(&b, "# ─────────────────────────────────────────────────────────────\n")
 
 	for _, s := range sections {
-		if strings.TrimSpace(s.Body) == "" {
+		if s.blank() {
 			continue
 		}
 		body := s.Body
@@ -80,7 +85,11 @@ func ParseHeaderHash(content string) (string, bool) {
 	return "", false
 }
 
-// DetectHandEdit reports whether content diverges from the expected sections.
+// DetectHandEdit reports whether content has been hand-edited.
+// Returns true iff:
+// (a) content has no parseable Content hash: header line, OR
+// (b) the SHA-256 recomputed from the section bodies actually present in content
+//     differs from that header hash.
 func DetectHandEdit(content string, sections []Section) (bool, error) {
 	headerHash, ok := ParseHeaderHash(content)
 	if !ok {
@@ -88,16 +97,16 @@ func DetectHandEdit(content string, sections []Section) (bool, error) {
 	}
 	// Extract sections from file and check if file has been hand-edited
 	extracted := extractSectionsFromContent(content)
-	extractedHash := ContentHash(extracted)
 
-	// If the extracted content hash doesn't match the header hash,
-	// the file has been hand-edited
-	if headerHash != extractedHash {
-		return true, nil
+	// If no sections were parsed (header exists but no markers), fall back to
+	// the caller's expected sections so a truncated/gutted file still counts as edited
+	if len(extracted) == 0 {
+		return headerHash != ContentHash(sections), nil
 	}
 
-	// File hasn't been tampered with, but check if sections have changed
-	return headerHash != ContentHash(sections), nil
+	// File has parseable sections; compare their hash to the header hash.
+	// Pure tamper detection: only cares about what's in the file, not the parameter.
+	return headerHash != ContentHash(extracted), nil
 }
 
 // extractSectionsFromContent extracts Section objects from file content.
