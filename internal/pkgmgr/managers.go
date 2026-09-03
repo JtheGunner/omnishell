@@ -2,8 +2,22 @@ package pkgmgr
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
+
+// runningAsRoot reports whether the current process's effective uid is 0.
+// Overridable in tests. When true, package-manager commands skip the sudo prefix.
+var runningAsRoot = os.Geteuid() == 0
+
+// sudoPrefix returns the argv prefix for a privileged command: nil when
+// already root, otherwise []string{"sudo"}.
+func sudoPrefix() []string {
+	if runningAsRoot {
+		return nil
+	}
+	return []string{"sudo"}
+}
 
 // cmdManager is a Manager driven by a per-manager command table. It is
 // responsible only for building the correct argv (including prepending
@@ -18,7 +32,7 @@ type cmdManager struct {
 }
 
 func (m cmdManager) Name() string    { return m.name }
-func (m cmdManager) NeedsSudo() bool { return m.sudo }
+func (m cmdManager) NeedsSudo() bool { return m.sudo && !runningAsRoot }
 func (m cmdManager) Detect() bool    { _, err := m.runner.Look(m.bin); return err == nil }
 
 func (m cmdManager) IsInstalled(pkg string) (bool, error) { return m.isInstalled(m.runner, pkg) }
@@ -47,24 +61,24 @@ func outputNonEmpty(r Runner, name string, args ...string) (bool, error) {
 	return strings.TrimSpace(string(out)) != "", nil
 }
 
-// UninstallArgv returns the argv (sudo-prefixed where the manager requires it)
-// that removes pkgs with the named manager, or nil for an unknown manager.
-// It is a pure function: announcing the sudo prompt and running the command are
-// the engine's job.
+// UninstallArgv returns the argv (sudo-prefixed where the manager requires it
+// and the process is not already root) that removes pkgs with the named
+// manager, or nil for an unknown manager. It is a pure function: announcing the
+// sudo prompt and running the command are the engine's job.
 func UninstallArgv(manager string, pkgs []string) []string {
 	switch manager {
 	case "brew":
 		return append([]string{"brew", "uninstall"}, pkgs...)
 	case "apt":
-		return append([]string{"sudo", "apt-get", "remove", "-y"}, pkgs...)
+		return append(append(sudoPrefix(), "apt-get", "remove", "-y"), pkgs...)
 	case "dnf":
-		return append([]string{"sudo", "dnf", "remove", "-y"}, pkgs...)
+		return append(append(sudoPrefix(), "dnf", "remove", "-y"), pkgs...)
 	case "pacman":
-		return append([]string{"sudo", "pacman", "-Rs", "--noconfirm"}, pkgs...)
+		return append(append(sudoPrefix(), "pacman", "-Rs", "--noconfirm"), pkgs...)
 	case "zypper":
-		return append([]string{"sudo", "zypper", "remove", "-y"}, pkgs...)
+		return append(append(sudoPrefix(), "zypper", "remove", "-y"), pkgs...)
 	case "apk":
-		return append([]string{"sudo", "apk", "del"}, pkgs...)
+		return append(append(sudoPrefix(), "apk", "del"), pkgs...)
 	default:
 		return nil
 	}
@@ -92,7 +106,7 @@ func newManager(name string, r Runner) Manager {
 				return strings.Contains(string(out), "install ok installed"), nil
 			},
 			installArgv: func(p []string) []string {
-				return append([]string{"sudo", "apt-get", "install", "-y"}, p...)
+				return append(append(sudoPrefix(), "apt-get", "install", "-y"), p...)
 			},
 		}
 	case "dnf":
@@ -100,7 +114,7 @@ func newManager(name string, r Runner) Manager {
 			name: "dnf", bin: "dnf", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
 			installArgv: func(p []string) []string {
-				return append([]string{"sudo", "dnf", "install", "-y"}, p...)
+				return append(append(sudoPrefix(), "dnf", "install", "-y"), p...)
 			},
 		}
 	case "pacman":
@@ -108,7 +122,7 @@ func newManager(name string, r Runner) Manager {
 			name: "pacman", bin: "pacman", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "pacman", "-Q", pkg) },
 			installArgv: func(p []string) []string {
-				return append([]string{"sudo", "pacman", "-S", "--noconfirm"}, p...)
+				return append(append(sudoPrefix(), "pacman", "-S", "--noconfirm"), p...)
 			},
 		}
 	case "zypper":
@@ -116,7 +130,7 @@ func newManager(name string, r Runner) Manager {
 			name: "zypper", bin: "zypper", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
 			installArgv: func(p []string) []string {
-				return append([]string{"sudo", "zypper", "install", "-y"}, p...)
+				return append(append(sudoPrefix(), "zypper", "install", "-y"), p...)
 			},
 		}
 	case "apk":
@@ -125,7 +139,9 @@ func newManager(name string, r Runner) Manager {
 			isInstalled: func(r Runner, pkg string) (bool, error) {
 				return outputNonEmpty(r, "apk", "info", "-e", pkg)
 			},
-			installArgv: func(p []string) []string { return append([]string{"sudo", "apk", "add"}, p...) },
+			installArgv: func(p []string) []string {
+				return append(append(sudoPrefix(), "apk", "add"), p...)
+			},
 		}
 	default:
 		return nil

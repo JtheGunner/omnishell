@@ -14,10 +14,10 @@ jobs:
       - name: Install prerequisites
         run: |
           set -eux
-          if command -v apt-get; then apt-get update && apt-get install -y golang git ca-certificates; fi
-          if command -v dnf; then dnf install -y golang git; fi
-          if command -v pacman; then pacman -Sy --noconfirm go git; fi
-          if command -v apk; then apk add --no-cache go git bash; fi
+          if command -v apt-get; then apt-get update && apt-get install -y golang git ca-certificates sudo; fi
+          if command -v dnf; then dnf install -y golang git sudo; fi
+          if command -v pacman; then pacman -Sy --noconfirm go git sudo; fi
+          if command -v apk; then apk add --no-cache go git bash sudo; fi
       - uses: actions/checkout@v4
       - run: sh test/e2e/run.sh
   macos:
