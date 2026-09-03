@@ -83,6 +83,24 @@ func activeSet(plan Plan, degraded map[string]string) map[string]bool {
 	return out
 }
 
+// plannedDegraded returns id -> DegradedReason for every module the plan alone
+// marks degraded while it still has a snippet to emit for some managed shell
+// (the len(Shells)==0 "no snippet anywhere" case is handled by the skip path).
+// Apply, Doctor and initOrRCDrift all seed their `degraded` map from this so the
+// three of them compute initfile.ContentHash over the identical section set —
+// otherwise the hash Apply stores and the hash the other two recompute can
+// never agree, and a stably-degraded module rewrites init.<shell> forever.
+func plannedDegraded(plan Plan) map[string]string {
+	out := map[string]string{}
+	for _, id := range plan.Order {
+		mp := plan.Modules[id]
+		if mp.DegradedReason != "" && len(mp.Shells) > 0 {
+			out[id] = mp.DegradedReason
+		}
+	}
+	return out
+}
+
 // initOrRCDrift reports whether, for any managed shell, the would-be init file
 // hash differs from the lock, the on-disk init file exists but was hand-edited,
 // or the rc file lacks the marker block. Used only for the idempotent no-op
@@ -90,7 +108,7 @@ func activeSet(plan Plan, degraded map[string]string) map[string]bool {
 // --force repair of an out-of-band edit that left the marker sections intact),
 // so it must not bail out early.
 func (e Engine) initOrRCDrift(plan Plan, lock lockfile.Lock) bool {
-	degraded := map[string]string{}
+	degraded := plannedDegraded(plan)
 	rendered := e.renderAll(plan, degraded)
 	for _, shell := range plan.ManagedShells {
 		sections := e.buildSections(plan, rendered, degraded, shell)

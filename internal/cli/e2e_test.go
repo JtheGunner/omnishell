@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/JtheGunner/omnishell/internal/cli"
 	"github.com/JtheGunner/omnishell/internal/pkgmgr"
@@ -224,4 +225,61 @@ func TestJourneyNoPackageManager(t *testing.T) {
 	if strings.Contains(got, "omnishell:fzf") {
 		t.Fatalf("fzf section should have been skipped (degraded):\n%s", got)
 	}
+
+	// Spec §1: apply run twice with no config change is a no-op — no writes, no
+	// new backup — even when a module is permanently degraded.
+	initZsh := filepath.Join(home, ".config", "omnishell", "init.zsh")
+	backupsDir := filepath.Join(home, ".config", "omnishell", "backups")
+
+	mtimeBefore := mustModTime(t, initZsh)
+	backupsBefore := countEntries(t, backupsDir)
+
+	code, out = run("apply", "--yes")
+	if code != 1 {
+		t.Fatalf("second apply exit = %d, want 1 (fzf still degraded); out:\n%s", code, out)
+	}
+	if got := mustModTime(t, initZsh); !got.Equal(mtimeBefore) {
+		t.Fatalf("second apply rewrote init.zsh (mtime %v -> %v)", mtimeBefore, got)
+	}
+	if got := countEntries(t, backupsDir); got != backupsBefore {
+		t.Fatalf("second apply created a new backup dir (%d -> %d)", backupsBefore, got)
+	}
+
+	code, out = run("doctor")
+	if code != 3 {
+		t.Fatalf("doctor exit = %d, want 3; out:\n%s", code, out)
+	}
+	if !strings.Contains(out, "module-degraded:fzf") {
+		t.Fatalf("doctor should report module-degraded:fzf:\n%s", out)
+	}
+	if strings.Contains(out, "initfile-stale") {
+		t.Fatalf("doctor should not report initfile-stale for a stably-degraded module:\n%s", out)
+	}
+	if strings.Contains(out, "pending-apply") {
+		t.Fatalf("doctor should not report pending-apply for a stably-degraded module:\n%s", out)
+	}
+	if !strings.Contains(out, "[drift] ") {
+		t.Fatalf("doctor output missing the [drift] line prefix:\n%s", out)
+	}
+}
+
+func mustModTime(t *testing.T, path string) time.Time {
+	t.Helper()
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	return fi.ModTime()
+}
+
+func countEntries(t *testing.T, dir string) int {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0
+		}
+		t.Fatalf("readdir %s: %v", dir, err)
+	}
+	return len(entries)
 }

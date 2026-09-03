@@ -68,7 +68,10 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 		return DoctorReport{}, err
 	}
 
-	degraded := map[string]string{}
+	// Seed the same planner-degraded set Apply uses, so the sections we hash
+	// below exclude exactly what Apply excluded — otherwise a stably-degraded
+	// module makes Doctor cry "initfile-stale" forever.
+	degraded := plannedDegraded(plan)
 	rendered := e.renderAll(plan, degraded)
 
 	// 3. Per managed shell: init file missing / hand-edited / stale.
@@ -152,7 +155,10 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 		if !ok {
 			continue
 		}
-		if mp.Action == ActionUpdate {
+		// A stably-degraded module is intentionally excluded from the init
+		// files; module-degraded:<id> is the real signal, so don't also nag
+		// pending-apply for the same module.
+		if mp.Action == ActionUpdate && degraded[id] == "" {
 			add(SeverityDrift, "pending-apply:"+id,
 				fmt.Sprintf("module %q has configuration changes not yet applied", id))
 		}

@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,6 +142,74 @@ func TestApplyIsIdempotent(t *testing.T) {
 	backups, _ := os.ReadDir(filepath.Join(home, ".config", "omnishell", "backups"))
 	if len(backups) != 1 {
 		t.Fatalf("no-op apply created a backup; backups=%d", len(backups))
+	}
+}
+
+// TestApplyStablyDegradedIsIdempotent covers the C2 regression: a module that
+// is permanently degraded by the plan (fzf needs a package, no package manager
+// exists) must not make apply rewrite init.<shell> or cut a new backup on every
+// run, and doctor must settle on module-degraded alone — no initfile-stale, no
+// pending-apply.
+func TestApplyStablyDegradedIsIdempotent(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	e := applyEngine(t, home, &pkgmgr.MockManager{NameV: "apt", DetectV: true}, &out)
+	e.ManagerOK = false
+	e.Manager = nil
+
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n[modules.fzf]\nenabled=true\n")
+	cfg, _ := config.Load(cfgPath)
+
+	res, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true})
+	if !errors.Is(err, engine.ErrDegraded) {
+		t.Fatalf("first apply err = %v, want ErrDegraded", err)
+	}
+	if !res.Changed {
+		t.Fatal("first apply made no change")
+	}
+	initBash := filepath.Join(home, ".config", "omnishell", "init.bash")
+	body, rerr := os.ReadFile(initBash)
+	if rerr != nil {
+		t.Fatalf("init.bash: %v", rerr)
+	}
+	if strings.Contains(string(body), "omnishell:fzf") {
+		t.Fatalf("degraded fzf leaked into init.bash:\n%s", body)
+	}
+
+	info1, _ := os.Stat(initBash)
+	backups1, _ := os.ReadDir(filepath.Join(home, ".config", "omnishell", "backups"))
+
+	res2, err2 := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true})
+	if !errors.Is(err2, engine.ErrDegraded) {
+		t.Fatalf("second apply err = %v, want ErrDegraded", err2)
+	}
+	if res2.Changed {
+		t.Fatal("second apply reported a change on a stably-degraded config")
+	}
+	info2, _ := os.Stat(initBash)
+	if !info1.ModTime().Equal(info2.ModTime()) {
+		t.Fatal("second apply rewrote init.bash")
+	}
+	backups2, _ := os.ReadDir(filepath.Join(home, ".config", "omnishell", "backups"))
+	if len(backups2) != len(backups1) {
+		t.Fatalf("second apply created a new backup dir (%d -> %d)", len(backups1), len(backups2))
+	}
+
+	rep, derr := e.Doctor(cfg, cfgPath, lockPath)
+	if derr != nil {
+		t.Fatal(derr)
+	}
+	codes := map[string]bool{}
+	for _, f := range rep.Findings {
+		codes[f.Code] = true
+	}
+	if !codes["module-degraded:fzf"] {
+		t.Fatalf("doctor missing module-degraded:fzf: %+v", rep.Findings)
+	}
+	if codes["initfile-stale:bash"] || codes["pending-apply:fzf"] {
+		t.Fatalf("doctor emitted redundant findings for a stably-degraded module: %+v", rep.Findings)
 	}
 }
 

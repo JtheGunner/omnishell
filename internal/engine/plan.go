@@ -160,12 +160,21 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 			planPackages(&mp, e, mod, shells)
 		}
 
+		// A planned-degraded module emits no sections and rebuildLock records
+		// ShellsRendered=nil for it, so its expected rendered-shell set is
+		// empty — comparing against the non-empty planned shell list would flip
+		// it to ActionUpdate on every run and pin HasChanges true forever.
+		expectedShells := shellsForModule
+		if mp.DegradedReason != "" {
+			expectedShells = nil
+		}
+
 		prev, inLock := lock.Modules[id]
 		switch {
 		case !inLock:
 			mp.Action = ActionInstall
 		case prev.OptionsHash != hash || prev.ModuleVersion != mf.Module.Version ||
-			!equalStringSet(prev.ShellsRendered, shellsForModule) || len(mp.MissingPackages) > 0:
+			!equalStringSet(prev.ShellsRendered, expectedShells) || len(mp.MissingPackages) > 0:
 			mp.Action = ActionUpdate
 		default:
 			mp.Action = ActionUnchanged

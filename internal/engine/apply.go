@@ -70,8 +70,14 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	}
 
 	// Idempotent no-op: no planned changes and the on-disk init/rc files still
-	// match the lock.
+	// match the lock. A stably-degraded module is not "work to do" — it must not
+	// force a rewrite — but the exit code still has to reflect it, so report the
+	// degradation without touching disk.
 	if !plan.HasChanges && !e.initOrRCDrift(plan, lock) {
+		if pd := plannedDegraded(plan); len(pd) > 0 {
+			res.Modules = summarise(plan, pd)
+			return res, ErrDegraded
+		}
 		return res, nil
 	}
 
@@ -82,7 +88,6 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 		}
 	}
 
-	degraded := map[string]string{}
 	vendorPaths := map[string][]string{}
 	installedNow := map[string]map[string]bool{}
 
@@ -91,14 +96,11 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	// "needs packages but no package manager was detected". Without this,
 	// ComputePlan's DegradedReason was computed and then dropped, so apply wrote
 	// a snippet that doctor would immediately flag as degraded, and the exit
-	// code did not reflect the problem. The len(Shells)==0 case ("no snippet for
-	// any managed shell") is left to the existing skip path.
-	for _, id := range plan.Order {
-		mp := plan.Modules[id]
-		if mp.DegradedReason != "" && len(mp.Shells) > 0 {
-			degraded[id] = mp.DegradedReason
-		}
-	}
+	// code did not reflect the problem. The same helper seeds Doctor and
+	// initOrRCDrift so all three hash the identical section set. The
+	// len(Shells)==0 case ("no snippet for any managed shell") is left to the
+	// existing skip path.
+	degraded := plannedDegraded(plan)
 
 	if !opts.NoPackages {
 		e.installPackages(plan, degraded, vendorPaths, installedNow)
