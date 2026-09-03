@@ -26,6 +26,23 @@ func Render(tmpl string, ctx Context) (string, error) {
 		"shellquote": shellquote,
 		"pathjoin":   func(parts ...string) string { return filepath.Join(parts...) },
 		"has":        func(id string) bool { return ctx.Active[id] },
+		"has_item": func(list any, value string) bool {
+			switch v := list.(type) {
+			case []string:
+				for _, s := range v {
+					if s == value {
+						return true
+					}
+				}
+			case []any:
+				for _, e := range v {
+					if s, ok := e.(string); ok && s == value {
+						return true
+					}
+				}
+			}
+			return false
+		},
 	}
 	t, err := template.New("snippet").Option("missingkey=error").Funcs(funcs).Parse(tmpl)
 	if err != nil {

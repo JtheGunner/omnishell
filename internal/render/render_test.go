@@ -45,3 +45,14 @@ func TestRenderUnknownKeyIsError(t *testing.T) {
 		t.Fatalf("err = %v, want a missing-key error mentioning nope", err)
 	}
 }
+
+func TestHasItem(t *testing.T) {
+	ctx := render.Context{Options: map[string]any{"replace": []string{"ls", "find"}}, Active: map[string]bool{}}
+	got, err := render.Render(`{{ if has_item .Options.replace "ls" }}yes{{ end }}{{ if has_item .Options.replace "cat" }}CAT{{ end }}`, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "yes\n" {
+		t.Fatalf("got %q, want %q", got, "yes\n")
+	}
+}

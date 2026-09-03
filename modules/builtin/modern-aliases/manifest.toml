@@ -1,0 +1,27 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "modern-aliases"
+name        = "Modern CLI aliases"
+description = "Replace ls/cat/find with eza/bat/fd when selected"
+version     = "1.0.0"
+schema      = 1
+
+# Package sets are per-tool; the engine installs the whole list for the
+# detected manager. Users who only pick a subset via `replace` still get
+# all three tools installed — acceptable and simple for v1.
+[packages]
+brew   = ["eza", "bat", "fd"]
+apt    = ["eza", "bat", "fd-find"]
+dnf    = ["eza", "bat", "fd-find"]
+pacman = ["eza", "bat", "fd"]
+zypper = ["eza", "bat", "fd"]
+apk    = ["eza", "bat", "fd"]
+
+[options.replace]
+type    = "list<enum>"
+values  = ["ls", "cat", "find"]
+default = ["ls", "cat", "find"]
+help    = "Which commands to alias to modern equivalents"

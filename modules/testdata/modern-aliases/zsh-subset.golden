@@ -1,0 +1,3 @@
+command -v eza >/dev/null 2>&1 && alias ls='eza --icons --git --group-directories-first'
+command -v eza >/dev/null 2>&1 && alias ll='eza -lah --icons --git --group-directories-first'
+command -v fd >/dev/null 2>&1 && alias find='fd' || { command -v fdfind >/dev/null 2>&1 && alias find='fdfind'; }

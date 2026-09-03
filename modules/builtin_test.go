@@ -104,3 +104,17 @@ func TestFzf(t *testing.T) {
 	assertGoldenNamed(t, "fzf", "zsh-noctrlr", renderModule(t, "fzf", "zsh", off))
 	assertGoldenNamed(t, "fzf", "bash-noctrlr", renderModule(t, "fzf", "bash", off))
 }
+
+func TestZoxide(t *testing.T) {
+	opts := map[string]any{"cmd": "z"}
+	assertGolden(t, "zoxide", "zsh", renderModule(t, "zoxide", "zsh", opts))
+	assertGolden(t, "zoxide", "bash", renderModule(t, "zoxide", "bash", opts))
+}
+
+func TestModernAliases(t *testing.T) {
+	full := map[string]any{"replace": []any{"ls", "cat", "find"}}
+	subset := map[string]any{"replace": []any{"ls", "find"}}
+	assertGolden(t, "modern-aliases", "zsh", renderModule(t, "modern-aliases", "zsh", full))
+	assertGolden(t, "modern-aliases", "bash", renderModule(t, "modern-aliases", "bash", full))
+	assertGoldenNamed(t, "modern-aliases", "zsh-subset", renderModule(t, "modern-aliases", "zsh", subset))
+}

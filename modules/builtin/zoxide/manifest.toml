@@ -1,0 +1,23 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "zoxide"
+name        = "zoxide"
+description = "Smarter cd that learns your most-used directories"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+brew   = ["zoxide"]
+apt    = ["zoxide"]
+dnf    = ["zoxide"]
+pacman = ["zoxide"]
+zypper = ["zoxide"]
+apk    = ["zoxide"]
+
+[options.cmd]
+type    = "string"
+default = "z"
+help    = "Name of the jump command zoxide defines"

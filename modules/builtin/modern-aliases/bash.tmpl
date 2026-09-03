@@ -1,0 +1,10 @@
+{{- if has_item .Options.replace "ls" }}
+command -v eza >/dev/null 2>&1 && alias ls='eza --icons --git --group-directories-first'
+command -v eza >/dev/null 2>&1 && alias ll='eza -lah --icons --git --group-directories-first'
+{{- end }}
+{{- if has_item .Options.replace "cat" }}
+command -v bat >/dev/null 2>&1 && alias cat='bat'
+{{- end }}
+{{- if has_item .Options.replace "find" }}
+command -v fd >/dev/null 2>&1 && alias find='fd' || { command -v fdfind >/dev/null 2>&1 && alias find='fdfind'; }
+{{- end }}
