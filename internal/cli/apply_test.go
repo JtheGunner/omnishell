@@ -22,17 +22,20 @@ func TestApplyCommandEndToEnd(t *testing.T) {
 	home, _ := setupModuleCLITest(t)
 	configDir := filepath.Join(home, ".config", "omnishell")
 
+	// zsh is installed from the start — the natural flow. init hooks .zshrc but
+	// does NOT create init.zsh; apply creates it on the first ever run.
+	cli.SetLookPathForTest(zshPresentLookPath)
+
 	var out, errb bytes.Buffer
-	// init while no shell is detected: config.toml only, no init files yet.
 	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
 		t.Fatalf("init exit %d: %s", code, errb.String())
+	}
+	if _, err := os.Stat(filepath.Join(configDir, "init.zsh")); !os.IsNotExist(err) {
+		t.Fatalf("init created init.zsh (err=%v)", err)
 	}
 	if code := cli.Execute([]string{"enable", "completion"}, &out, &errb); code != 0 {
 		t.Fatalf("enable exit %d: %s", code, errb.String())
 	}
-
-	// Now zsh is on PATH; apply must render and hook it.
-	cli.SetLookPathForTest(zshPresentLookPath)
 
 	out.Reset()
 	errb.Reset()

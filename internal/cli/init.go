@@ -65,19 +65,13 @@ func ensureConfig(out io.Writer, cfgPath string) error {
 	}
 }
 
-// hookShell ensures an (empty) init.<shell> file exists and that the rc file
-// carries the omnishell marker block sourcing it. It is idempotent: an rc file
-// already carrying an up-to-date block is left untouched and not backed up.
+// hookShell ensures the rc file carries the omnishell marker block sourcing the
+// tool-managed init.<shell> file. It is idempotent: an rc file already carrying
+// an up-to-date block is left untouched and not backed up. The init file itself
+// is created by `apply`; the rc block guards its source with a `-f` test, so it
+// no-ops safely until then.
 func hookShell(out io.Writer, sess backup.Session, configDir, home, shell, rcPath string) error {
 	initPath := filepath.Join(configDir, "init."+shell)
-	if _, err := os.Stat(initPath); os.IsNotExist(err) {
-		if werr := atomicfile.WriteFile(initPath, []byte{}, 0o644); werr != nil {
-			return fmt.Errorf("write %s: %w", initPath, werr)
-		}
-	} else if err != nil {
-		return err
-	}
-
 	sourceTarget := homeRelative(initPath, home)
 
 	content := ""

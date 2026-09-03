@@ -343,6 +343,9 @@ func (e Engine) buildSections(plan Plan, rendered map[[2]string]string,
 // sections (which catches edits outside the marker blocks). A normal config
 // change leaves a pristine file that still matches, so it never trips the guard.
 func (e Engine) initFileHandEdited(shell, existing string, newSections []initfile.Section) bool {
+	if strings.TrimSpace(existing) == "" {
+		return false // an empty / whitespace-only file was never a real init file — safe to overwrite
+	}
 	if edited, _ := initfile.DetectHandEdit(existing, newSections); edited {
 		return true
 	}

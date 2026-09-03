@@ -40,9 +40,11 @@ func TestInitCreatesConfigAndRCBlock(t *testing.T) {
 		t.Fatalf("config.toml not created: %v", err)
 	}
 
+	// init must NOT create the init file: apply owns it. A zero-byte file here
+	// would trip apply's hand-edit guard on the first ever apply.
 	initFile := filepath.Join(home, ".config", "omnishell", "init.zsh")
-	if _, err := os.Stat(initFile); err != nil {
-		t.Fatalf("init.zsh not created: %v", err)
+	if _, err := os.Stat(initFile); !os.IsNotExist(err) {
+		t.Fatalf("init.zsh should not exist after init (err=%v)", err)
 	}
 
 	rc, _ := os.ReadFile(filepath.Join(home, ".zshrc"))
