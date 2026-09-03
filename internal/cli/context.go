@@ -107,17 +107,8 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 }
 
 // homeRelative renders path as "$HOME/..." when it lives under home, so the
-// generated rc snippet is portable; otherwise it returns path unchanged.
+// generated rc snippet is portable; otherwise it returns path unchanged. It
+// delegates to engine.HomeRelative so `init` and `apply` never disagree.
 func homeRelative(path, home string) string {
-	if home == "" {
-		return path
-	}
-	if path == home {
-		return "$HOME"
-	}
-	prefix := home + string(filepath.Separator)
-	if strings.HasPrefix(path, prefix) {
-		return "$HOME/" + filepath.ToSlash(path[len(prefix):])
-	}
-	return path
+	return engine.HomeRelative(path, home)
 }

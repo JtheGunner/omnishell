@@ -47,7 +47,7 @@ func runUninstall(cmd *cobra.Command) error {
 	res, err := e.Uninstall(lockPath, engine.UninstallOptions{PurgeConfigDir: purge, Yes: yes})
 
 	if errors.Is(err, engine.ErrAborted) {
-		fmt.Fprintln(out, "aborted")
+		fmt.Fprintln(errOut, "aborted")
 		return err
 	}
 

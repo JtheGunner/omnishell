@@ -66,18 +66,21 @@ func InstallGitFallback(fb module.Fallback, ctx FallbackContext, r Runner) (stri
 	if _, err := r.Run("git", "clone", "--depth", "1", fb.Repo, dest); err != nil {
 		return "", fmt.Errorf("git clone %s: %w", fb.Repo, err)
 	}
-	if strings.TrimSpace(fb.Run) != "" {
-		rendered, err := renderPath(fb.Run, ctx)
-		if err != nil {
-			return "", fmt.Errorf("render fallback run: %w", err)
+	if len(fb.Run) > 0 {
+		argv := make([]string, 0, len(fb.Run))
+		for _, part := range fb.Run {
+			rp, err := renderPath(part, ctx)
+			if err != nil {
+				return "", fmt.Errorf("render fallback run: %w", err)
+			}
+			argv = append(argv, rp)
 		}
-		parts := strings.Fields(rendered)
-		if len(parts) == 0 {
+		if len(argv) == 0 || argv[0] == "" {
 			return dest, nil
 		}
-		if _, err := r.Run(parts[0], parts[1:]...); err != nil {
+		if _, err := r.Run(argv[0], argv[1:]...); err != nil {
 			os.RemoveAll(dest)
-			return "", fmt.Errorf("fallback run %q: %w", rendered, err)
+			return "", fmt.Errorf("fallback run %q: %w", strings.Join(argv, " "), err)
 		}
 	}
 	return dest, nil

@@ -82,7 +82,7 @@ func TestRemovePurgeUninstallsOmnishellPackages(t *testing.T) {
 		t.Fatalf("Remove --purge: %v", err)
 	}
 	joined := strings.Join(r.Calls, "\n")
-	if !strings.Contains(joined, "sudo apt-get remove -y fzf") {
+	if !strings.Contains(joined, "sudo apt-get remove -y -- fzf") {
 		t.Fatalf("purge did not uninstall fzf; calls:\n%s", joined)
 	}
 	if !strings.Contains(out.String(), "sudo may prompt") {
@@ -169,7 +169,7 @@ func TestRemovePurgeCompletesDespiteUnrelatedDegraded(t *testing.T) {
 	if !errors.Is(err, engine.ErrDegraded) {
 		t.Fatalf("Remove: want an error wrapping ErrDegraded, got %v", err)
 	}
-	if joined := strings.Join(r.Calls, "\n"); !strings.Contains(joined, "sudo apt-get remove -y fzf") {
+	if joined := strings.Join(r.Calls, "\n"); !strings.Contains(joined, "sudo apt-get remove -y -- fzf") {
 		t.Fatalf("purge did not uninstall fzf despite the unrelated ErrDegraded; calls:\n%s", joined)
 	}
 	lock, _, _ := lockfile.Load(lockPath)

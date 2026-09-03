@@ -132,6 +132,41 @@ func TestComputePlanCollectsUnknownModules(t *testing.T) {
 	}
 }
 
+func TestComputePlanSkipsModuleNotSupportedOnPlatform(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := testEngine(t, mgr) // platform.Linux
+	// completion's fixture manifest lists platforms = [macos, linux]; force a
+	// macos-only view by swapping the platform on a copy.
+	e.Platform.OS = platform.OS("plan9")
+	cfg := config.Config{
+		Omnishell: config.OmnishellSection{Version: 1, Shells: []string{"bash"}},
+		Modules:   map[string]config.ModuleConfig{"completion": {Enabled: true}},
+	}
+	p, err := engine.ComputePlan(e, cfg, lockfile.Lock{Modules: map[string]lockfile.ModuleState{}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mp, ok := p.Modules["completion"]
+	if !ok || mp.Action != engine.ActionSkip {
+		t.Fatalf("completion plan = %+v, want ActionSkip", mp)
+	}
+	if contains(p.Order, "completion") {
+		t.Fatal("a skipped module must not be in the render order")
+	}
+	if p.HasChanges {
+		t.Fatal("a skip is not a change")
+	}
+}
+
+func contains(ss []string, v string) bool {
+	for _, s := range ss {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+
 func TestComputePlanOptionValidationError(t *testing.T) {
 	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true}
 	e := testEngine(t, mgr)

@@ -75,6 +75,10 @@ func hookShell(out io.Writer, sess backup.Session, configDir, home, shell, rcPat
 	sourceTarget := homeRelative(initPath, home)
 
 	content := ""
+	perm := os.FileMode(0o644)
+	if fi, err := os.Stat(rcPath); err == nil {
+		perm = fi.Mode().Perm()
+	}
 	if data, err := os.ReadFile(rcPath); err == nil {
 		content = string(data)
 	} else if !os.IsNotExist(err) {
@@ -89,7 +93,7 @@ func hookShell(out io.Writer, sess backup.Session, configDir, home, shell, rcPat
 	if _, err := sess.Save(rcPath); err != nil {
 		return err
 	}
-	if err := atomicfile.WriteFile(rcPath, []byte(updated), 0o644); err != nil {
+	if err := atomicfile.WriteFile(rcPath, []byte(updated), perm); err != nil {
 		return fmt.Errorf("write %s: %w", rcPath, err)
 	}
 	fmt.Fprintf(out, "hooked %s -> %s\n", rcPath, sourceTarget)

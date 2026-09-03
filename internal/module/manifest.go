@@ -24,12 +24,14 @@ type ModuleMeta struct {
 	Schema      int    `toml:"schema"`
 }
 
-// Fallback is one [[packages.fallback]] entry.
+// Fallback is one [[packages.fallback]] entry. Run is an argv array (each
+// element is rendered as a template) so a VendorDir containing spaces does not
+// break the command.
 type Fallback struct {
-	Type string `toml:"type"`
-	Repo string `toml:"repo"`
-	Dest string `toml:"dest"`
-	Run  string `toml:"run"`
+	Type string   `toml:"type"`
+	Repo string   `toml:"repo"`
+	Dest string   `toml:"dest"`
+	Run  []string `toml:"run"`
 }
 
 // Packages is the [packages] table.

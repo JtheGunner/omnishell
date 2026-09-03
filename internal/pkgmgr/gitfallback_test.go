@@ -16,7 +16,7 @@ func TestInstallGitFallbackClonesWhenAbsent(t *testing.T) {
 		Type: "git",
 		Repo: "https://example.com/fzf.git",
 		Dest: "{{.VendorDir}}/fzf",
-		Run:  "{{.VendorDir}}/fzf/install --bin",
+		Run:  []string{"{{.VendorDir}}/fzf/install", "--bin"},
 	}
 	got, err := pkgmgr.InstallGitFallback(fb, pkgmgr.FallbackContext{VendorDir: vendor, Platform: "linux", Shell: "bash"}, r)
 	if err != nil {
@@ -34,6 +34,29 @@ func TestInstallGitFallbackClonesWhenAbsent(t *testing.T) {
 	}
 	if r.Calls[1] != filepath.Join(vendor, "fzf", "install")+" --bin" {
 		t.Fatalf("run call = %q", r.Calls[1])
+	}
+}
+
+func TestInstallGitFallbackHandlesSpacesInVendorDir(t *testing.T) {
+	vendor := filepath.Join(t.TempDir(), "dir with spaces")
+	if err := os.MkdirAll(vendor, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r := &pkgmgr.MockRunner{}
+	fb := module.Fallback{
+		Type: "git",
+		Repo: "https://example.com/fzf.git",
+		Dest: "{{.VendorDir}}/fzf",
+		Run:  []string{"{{.VendorDir}}/fzf/install", "--bin"},
+	}
+	if _, err := pkgmgr.InstallGitFallback(fb, pkgmgr.FallbackContext{VendorDir: vendor, Platform: "linux"}, r); err != nil {
+		t.Fatalf("InstallGitFallback: %v", err)
+	}
+	// The run step must be a single argv element for the script path, not two
+	// tokens split on the space in "dir with spaces".
+	want := filepath.Join(vendor, "fzf", "install") + " --bin"
+	if r.Calls[1] != want {
+		t.Fatalf("run call = %q, want %q", r.Calls[1], want)
 	}
 }
 

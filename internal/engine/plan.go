@@ -60,6 +60,13 @@ type Plan struct {
 }
 
 func managedShells(cfg config.Config, info platform.Info) []string {
+	present := map[string]bool{}
+	for _, s := range info.Shells {
+		if s.Present {
+			present[s.Name] = true
+		}
+	}
+
 	want := cfg.Omnishell.Shells
 	if len(want) == 0 {
 		for _, s := range info.Shells {
@@ -74,7 +81,10 @@ func managedShells(cfg config.Config, info platform.Info) []string {
 	}
 	var out []string
 	for _, s := range platform.SupportedShells { // fixed [zsh, bash] order
-		if wantSet[s] {
+		// Only manage a shell that actually exists on this host, matching what
+		// `omnishell init` does — otherwise apply would create e.g. ~/.bashrc
+		// on a machine with no bash.
+		if wantSet[s] && present[s] {
 			out = append(out, s)
 		}
 	}
@@ -105,7 +115,7 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 	}
 
 	active := map[string]module.Manifest{}
-	var unknown []string
+	var unknown, inactive []string
 	for id, mc := range cfg.Modules {
 		if !mc.Enabled {
 			continue
@@ -118,12 +128,22 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 			continue
 		}
 		if !contains(mod.Manifest.Platforms, string(e.Platform.OS)) {
+			// Enabled and known, but not for this OS: surface it as a skip
+			// rather than pretending it does not exist.
+			inactive = append(inactive, id)
 			continue
 		}
 		active[id] = mod.Manifest
 	}
 	sort.Strings(unknown)
 	p.UnknownModules = unknown
+	for _, id := range inactive {
+		p.Modules[id] = ModulePlan{
+			ID:     id,
+			Action: ActionSkip,
+			Reason: "not supported on " + string(e.Platform.OS),
+		}
+	}
 
 	// Validate options; abort as ConfigError on failure. Iterate sorted so the
 	// surfaced error is deterministic when several modules have invalid options.
@@ -154,11 +174,19 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 		hash := module.OptionsHash(norm)
 
 		var shellsForModule []string
+		var tmplErr string
 		for _, sh := range shells {
 			if !contains(mf.Shells, sh) {
 				continue
 			}
-			if _, has, _ := mod.Template(sh); has {
+			_, has, terr := mod.Template(sh)
+			if terr != nil {
+				// A real read error (not "no such file") — don't silently
+				// treat it as "this module has no snippet".
+				tmplErr = "template read failed for " + sh + ": " + terr.Error()
+				break
+			}
+			if has {
 				shellsForModule = append(shellsForModule, sh)
 			}
 		}
@@ -167,7 +195,10 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 			ID: id, Manifest: mf, Options: norm, OptionsHash: hash,
 			Shells: shellsForModule,
 		}
-		if len(shellsForModule) == 0 {
+		switch {
+		case tmplErr != "":
+			mp.DegradedReason = tmplErr
+		case len(shellsForModule) == 0:
 			mp.DegradedReason = "no snippet for any managed shell"
 		}
 
@@ -298,6 +329,8 @@ func RenderPlan(p Plan) string {
 			fmt.Fprintf(&b, "  %-8s %-20s %s\n", string(mp.Action), mp.ID, strings.TrimSpace(extra))
 		case ActionRemove:
 			fmt.Fprintf(&b, "  %-8s %-20s %s\n", "remove", mp.ID, mp.Reason)
+		case ActionSkip:
+			fmt.Fprintf(&b, "  %-8s %-20s %s\n", "skip", mp.ID, mp.Reason)
 		}
 	}
 
@@ -328,7 +361,21 @@ func RenderPlan(p Plan) string {
 		line(p.Modules[id])
 	}
 
+	var skips []string
+	for id, mp := range p.Modules {
+		if mp.Action == ActionSkip {
+			skips = append(skips, id)
+		}
+	}
+	sort.Strings(skips)
+	for _, id := range skips {
+		line(p.Modules[id])
+	}
+
 	fmt.Fprintf(&b, "\n%d to install, %d to update, %d to remove, %d unchanged\n",
 		nInstall, nUpdate, nRemove, nUnchanged)
+	if len(skips) > 0 {
+		fmt.Fprintf(&b, "%d skipped (not supported on this platform)\n", len(skips))
+	}
 	return b.String()
 }

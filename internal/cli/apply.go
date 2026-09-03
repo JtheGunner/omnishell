@@ -75,7 +75,7 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	}
 
 	if errors.Is(err, engine.ErrAborted) {
-		fmt.Fprintln(out, "aborted")
+		fmt.Fprintln(errOut, "aborted")
 		return err
 	}
 

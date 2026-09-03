@@ -9,12 +9,12 @@ import (
 
 func TestUninstallArgv(t *testing.T) {
 	cases := map[string][]string{
-		"brew":   {"brew", "uninstall", "fzf"},
-		"apt":    {"sudo", "apt-get", "remove", "-y", "fzf"},
-		"dnf":    {"sudo", "dnf", "remove", "-y", "fzf"},
-		"pacman": {"sudo", "pacman", "-Rs", "--noconfirm", "fzf"},
-		"zypper": {"sudo", "zypper", "remove", "-y", "fzf"},
-		"apk":    {"sudo", "apk", "del", "fzf"},
+		"brew":   {"brew", "uninstall", "--", "fzf"},
+		"apt":    {"sudo", "apt-get", "remove", "-y", "--", "fzf"},
+		"dnf":    {"sudo", "dnf", "remove", "-y", "--", "fzf"},
+		"pacman": {"sudo", "pacman", "-Rs", "--noconfirm", "--", "fzf"},
+		"zypper": {"sudo", "zypper", "remove", "-y", "--", "fzf"},
+		"apk":    {"sudo", "apk", "del", "--", "fzf"},
 	}
 	for mgr, want := range cases {
 		got := pkgmgr.UninstallArgv(mgr, []string{"fzf"})
@@ -25,19 +25,19 @@ func TestUninstallArgv(t *testing.T) {
 	if got := pkgmgr.UninstallArgv("unknown", []string{"fzf"}); got != nil {
 		t.Fatalf("unknown manager: got %v want nil", got)
 	}
-	if got := pkgmgr.UninstallArgv("apt", []string{"fzf", "zoxide"}); strings.Join(got, " ") != "sudo apt-get remove -y fzf zoxide" {
+	if got := pkgmgr.UninstallArgv("apt", []string{"fzf", "zoxide"}); strings.Join(got, " ") != "sudo apt-get remove -y -- fzf zoxide" {
 		t.Fatalf("multi-pkg apt: got %v", got)
 	}
 }
 
 func TestUninstallArgvAllManagers(t *testing.T) {
 	cases := map[string]string{
-		"brew":   "brew uninstall fzf",
-		"apt":    "sudo apt-get remove -y fzf",
-		"dnf":    "sudo dnf remove -y fzf",
-		"pacman": "sudo pacman -Rs --noconfirm fzf",
-		"zypper": "sudo zypper remove -y fzf",
-		"apk":    "sudo apk del fzf",
+		"brew":   "brew uninstall -- fzf",
+		"apt":    "sudo apt-get remove -y -- fzf",
+		"dnf":    "sudo dnf remove -y -- fzf",
+		"pacman": "sudo pacman -Rs --noconfirm -- fzf",
+		"zypper": "sudo zypper remove -y -- fzf",
+		"apk":    "sudo apk del -- fzf",
 	}
 	for mgr, want := range cases {
 		if got := strings.Join(pkgmgr.UninstallArgv(mgr, []string{"fzf"}), " "); got != want {
@@ -59,11 +59,11 @@ func TestInstallArgvNoSudoWhenRoot(t *testing.T) {
 		t.Fatalf("Install: %v", err)
 	}
 	last := r.Calls[len(r.Calls)-1]
-	if last != "apt-get install -y fzf" {
-		t.Fatalf("root apt install argv = %q, want %q", last, "apt-get install -y fzf")
+	if last != "apt-get install -y -- fzf" {
+		t.Fatalf("root apt install argv = %q, want %q", last, "apt-get install -y -- fzf")
 	}
-	if got := strings.Join(pkgmgr.UninstallArgv("apt", []string{"fzf"}), " "); got != "apt-get remove -y fzf" {
-		t.Fatalf("root apt uninstall argv = %q, want %q", got, "apt-get remove -y fzf")
+	if got := strings.Join(pkgmgr.UninstallArgv("apt", []string{"fzf"}), " "); got != "apt-get remove -y -- fzf" {
+		t.Fatalf("root apt uninstall argv = %q, want %q", got, "apt-get remove -y -- fzf")
 	}
 	if m.NeedsSudo() {
 		t.Fatal("apt should not need sudo when running as root")
@@ -99,7 +99,7 @@ func TestBrewIsInstalledAndInstall(t *testing.T) {
 		Responses: map[string]pkgmgr.MockResponse{
 			"brew list --versions fzf":     {Out: []byte("fzf 0.54.0\n")},
 			"brew list --versions ripgrep": {Out: []byte("")},
-			"brew install fzf":             {Out: []byte("installed")},
+			"brew install -- fzf":          {Out: []byte("installed")},
 		},
 	}
 	m, ok := pkgmgr.DetectManager("darwin", r)
@@ -133,7 +133,7 @@ func TestAptInstallUsesSudoArgv(t *testing.T) {
 		t.Fatalf("Install: %v", err)
 	}
 	last := r.Calls[len(r.Calls)-1]
-	if last != "sudo apt-get install -y fzf zoxide" {
+	if last != "sudo apt-get install -y -- fzf zoxide" {
 		t.Fatalf("apt install argv = %q", last)
 	}
 }

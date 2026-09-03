@@ -31,7 +31,10 @@ type UninstallOptions struct {
 // RemoveAll. Without the flag ConfigDir is left intact apart from the init
 // files, and the backup lives under <ConfigDir>/backups/ as usual.
 func (e Engine) Uninstall(lockPath string, opts UninstallOptions) (Result, error) {
-	_, lockExists, _ := lockfile.Load(lockPath)
+	_, lockExists, lockErr := lockfile.Load(lockPath)
+	if lockErr != nil {
+		return Result{}, fmt.Errorf("read lock file %s: %w", lockPath, lockErr)
+	}
 
 	initPaths := make(map[string]string, len(platform.SupportedShells))
 	anyInit := false

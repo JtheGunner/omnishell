@@ -66,19 +66,21 @@ func outputNonEmpty(r Runner, name string, args ...string) (bool, error) {
 // manager, or nil for an unknown manager. It is a pure function: announcing the
 // sudo prompt and running the command are the engine's job.
 func UninstallArgv(manager string, pkgs []string) []string {
+	// The trailing "--" stops a package name that begins with "-" from being
+	// parsed as a flag. All six managers accept it.
 	switch manager {
 	case "brew":
-		return append([]string{"brew", "uninstall"}, pkgs...)
+		return append([]string{"brew", "uninstall", "--"}, pkgs...)
 	case "apt":
-		return append(append(sudoPrefix(), "apt-get", "remove", "-y"), pkgs...)
+		return append(append(sudoPrefix(), "apt-get", "remove", "-y", "--"), pkgs...)
 	case "dnf":
-		return append(append(sudoPrefix(), "dnf", "remove", "-y"), pkgs...)
+		return append(append(sudoPrefix(), "dnf", "remove", "-y", "--"), pkgs...)
 	case "pacman":
-		return append(append(sudoPrefix(), "pacman", "-Rs", "--noconfirm"), pkgs...)
+		return append(append(sudoPrefix(), "pacman", "-Rs", "--noconfirm", "--"), pkgs...)
 	case "zypper":
-		return append(append(sudoPrefix(), "zypper", "remove", "-y"), pkgs...)
+		return append(append(sudoPrefix(), "zypper", "remove", "-y", "--"), pkgs...)
 	case "apk":
-		return append(append(sudoPrefix(), "apk", "del"), pkgs...)
+		return append(append(sudoPrefix(), "apk", "del", "--"), pkgs...)
 	default:
 		return nil
 	}
@@ -93,7 +95,7 @@ func newManager(name string, r Runner) Manager {
 			isInstalled: func(r Runner, pkg string) (bool, error) {
 				return outputNonEmpty(r, "brew", "list", "--versions", pkg)
 			},
-			installArgv: func(p []string) []string { return append([]string{"brew", "install"}, p...) },
+			installArgv: func(p []string) []string { return append([]string{"brew", "install", "--"}, p...) },
 		}
 	case "apt":
 		return cmdManager{
@@ -106,7 +108,7 @@ func newManager(name string, r Runner) Manager {
 				return strings.Contains(string(out), "install ok installed"), nil
 			},
 			installArgv: func(p []string) []string {
-				return append(append(sudoPrefix(), "apt-get", "install", "-y"), p...)
+				return append(append(sudoPrefix(), "apt-get", "install", "-y", "--"), p...)
 			},
 		}
 	case "dnf":
@@ -114,7 +116,7 @@ func newManager(name string, r Runner) Manager {
 			name: "dnf", bin: "dnf", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
 			installArgv: func(p []string) []string {
-				return append(append(sudoPrefix(), "dnf", "install", "-y"), p...)
+				return append(append(sudoPrefix(), "dnf", "install", "-y", "--"), p...)
 			},
 		}
 	case "pacman":
@@ -122,7 +124,7 @@ func newManager(name string, r Runner) Manager {
 			name: "pacman", bin: "pacman", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "pacman", "-Q", pkg) },
 			installArgv: func(p []string) []string {
-				return append(append(sudoPrefix(), "pacman", "-S", "--noconfirm"), p...)
+				return append(append(sudoPrefix(), "pacman", "-S", "--noconfirm", "--"), p...)
 			},
 		}
 	case "zypper":
@@ -130,7 +132,7 @@ func newManager(name string, r Runner) Manager {
 			name: "zypper", bin: "zypper", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
 			installArgv: func(p []string) []string {
-				return append(append(sudoPrefix(), "zypper", "install", "-y"), p...)
+				return append(append(sudoPrefix(), "zypper", "install", "-y", "--"), p...)
 			},
 		}
 	case "apk":
@@ -140,7 +142,7 @@ func newManager(name string, r Runner) Manager {
 				return outputNonEmpty(r, "apk", "info", "-e", pkg)
 			},
 			installArgv: func(p []string) []string {
-				return append(append(sudoPrefix(), "apk", "add"), p...)
+				return append(append(sudoPrefix(), "apk", "add", "--"), p...)
 			},
 		}
 	default:

@@ -38,10 +38,11 @@ func (e Engine) vendorDir() string {
 	return filepath.Join(e.Platform.ConfigDir, "vendor")
 }
 
-// homeRelative rewrites a path under HomeDir to start with "$HOME"; other paths
-// are returned verbatim.
-func (e Engine) homeRelative(path string) string {
-	home := e.Platform.HomeDir
+// HomeRelative rewrites a path under home to start with "$HOME"; other paths are
+// returned verbatim. Exported so the CLI (`omnishell init`) and the engine
+// (`apply`'s ensureRC + the lock) emit byte-identical rc source lines — any
+// divergence makes the rc marker block churn on every apply.
+func HomeRelative(path, home string) string {
 	if home == "" {
 		return path
 	}
@@ -52,6 +53,11 @@ func (e Engine) homeRelative(path string) string {
 		return "$HOME" + path[len(home):]
 	}
 	return path
+}
+
+// homeRelative is the Engine-bound convenience wrapper around HomeRelative.
+func (e Engine) homeRelative(path string) string {
+	return HomeRelative(path, e.Platform.HomeDir)
 }
 
 // renderContext is the data/helper set for a module template.
@@ -385,6 +391,10 @@ func (e Engine) ensureRC(shell, initPath string, bk backup.Session, lock *lockfi
 		return nil
 	}
 	var content string
+	perm := os.FileMode(0o644)
+	if fi, err := os.Stat(rcPath); err == nil {
+		perm = fi.Mode().Perm()
+	}
 	if b, err := os.ReadFile(rcPath); err == nil {
 		content = string(b)
 	} else if !os.IsNotExist(err) {
@@ -395,7 +405,7 @@ func (e Engine) ensureRC(shell, initPath string, bk backup.Session, lock *lockfi
 	}
 	updated, changed := rcfile.EnsureBlock(content, shell, e.homeRelative(initPath))
 	if changed {
-		if err := atomicfile.WriteFile(rcPath, []byte(updated), 0o644); err != nil {
+		if err := atomicfile.WriteFile(rcPath, []byte(updated), perm); err != nil {
 			return fmt.Errorf("write rc file %s: %w", rcPath, err)
 		}
 	}
@@ -552,15 +562,25 @@ func summarise(plan Plan, degraded map[string]string) []ModuleResult {
 		out = append(out, mr)
 	}
 
-	var removals []string
+	var removals, skips []string
 	for id, mp := range plan.Modules {
-		if mp.Action == ActionRemove && !contains(plan.Order, id) {
+		if contains(plan.Order, id) {
+			continue
+		}
+		switch mp.Action {
+		case ActionRemove:
 			removals = append(removals, id)
+		case ActionSkip:
+			skips = append(skips, id)
 		}
 	}
 	sort.Strings(removals)
 	for _, id := range removals {
 		out = append(out, ModuleResult{ID: id, Action: ActionRemove, Status: "removed"})
+	}
+	sort.Strings(skips)
+	for _, id := range skips {
+		out = append(out, ModuleResult{ID: id, Action: ActionSkip, Status: "skipped", Note: plan.Modules[id].Reason})
 	}
 	return out
 }

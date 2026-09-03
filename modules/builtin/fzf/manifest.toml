@@ -21,7 +21,7 @@ apk    = ["fzf"]
 type = "git"
 repo = "https://github.com/junegunn/fzf.git"
 dest = "{{.VendorDir}}/fzf"
-run  = "{{.VendorDir}}/fzf/install --bin --no-update-rc"
+run  = ["{{.VendorDir}}/fzf/install", "--bin", "--no-update-rc"]
 
 [options.ctrl_r]
 type    = "bool"

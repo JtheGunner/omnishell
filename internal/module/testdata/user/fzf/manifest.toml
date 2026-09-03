@@ -22,7 +22,7 @@ apk    = ["fzf"]
 type = "git"
 repo = "https://github.com/junegunn/fzf.git"
 dest = "{{.VendorDir}}/fzf"
-run  = "{{.VendorDir}}/fzf/install --bin"
+run  = ["{{.VendorDir}}/fzf/install", "--bin"]
 
 [options.ctrl_r]
 type    = "bool"
