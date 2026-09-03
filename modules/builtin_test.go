@@ -59,6 +59,22 @@ func assertGolden(t *testing.T, id, shell, got string) {
 	}
 }
 
+func assertGoldenNamed(t *testing.T, id, name, got string) {
+	t.Helper()
+	p := filepath.Join("testdata", id, name+".golden")
+	if *update {
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(got), 0o644)
+	}
+	want, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != string(want) {
+		t.Fatalf("%s/%s golden mismatch:\n--- got ---\n%s\n--- want ---\n%s", id, name, got, string(want))
+	}
+}
+
 func TestCompletion(t *testing.T) {
 	assertGolden(t, "completion", "zsh", renderModule(t, "completion", "zsh", nil))
 	assertGolden(t, "completion", "bash", renderModule(t, "completion", "bash", nil))
@@ -78,4 +94,13 @@ func TestAutosuggestions(t *testing.T) {
 func TestSyntaxHighlighting(t *testing.T) {
 	assertGolden(t, "syntax-highlighting", "zsh",
 		renderModule(t, "syntax-highlighting", "zsh", nil))
+}
+
+func TestFzf(t *testing.T) {
+	on := map[string]any{"ctrl_r": true, "ctrl_t": false, "default_opts": "--height 40% --reverse --border"}
+	off := map[string]any{"ctrl_r": false, "ctrl_t": false, "default_opts": "--height 40% --reverse --border"}
+	assertGoldenNamed(t, "fzf", "zsh", renderModule(t, "fzf", "zsh", on))
+	assertGoldenNamed(t, "fzf", "bash", renderModule(t, "fzf", "bash", on))
+	assertGoldenNamed(t, "fzf", "zsh-noctrlr", renderModule(t, "fzf", "zsh", off))
+	assertGoldenNamed(t, "fzf", "bash-noctrlr", renderModule(t, "fzf", "bash", off))
 }

@@ -1,0 +1,11 @@
+export FZF_DEFAULT_OPTS='--height 40% --reverse --border'
+for _oms_kb in \
+  "$(brew --prefix 2>/dev/null)/opt/fzf/shell/key-bindings.zsh" \
+  /usr/share/fzf/key-bindings.zsh \
+  /usr/share/doc/fzf/examples/key-bindings.zsh \
+  /home/j/.config/omnishell/vendor/fzf/shell/key-bindings.zsh
+do
+  [[ -r "$_oms_kb" ]] && { source "$_oms_kb"; break; }
+done
+unset _oms_kb
+bindkey | grep -q fzf-file-widget && bindkey -r '^T'

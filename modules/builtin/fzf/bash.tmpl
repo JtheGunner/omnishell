@@ -1,0 +1,16 @@
+export FZF_DEFAULT_OPTS={{ .Options.default_opts | shellquote }}
+for _oms_kb in \
+  "$(brew --prefix 2>/dev/null)/opt/fzf/shell/key-bindings.bash" \
+  /usr/share/fzf/key-bindings.bash \
+  /usr/share/doc/fzf/examples/key-bindings.bash \
+  {{ pathjoin .VendorDir "fzf" "shell" "key-bindings.bash" }}
+do
+  [ -r "$_oms_kb" ] && { source "$_oms_kb"; break; }
+done
+unset _oms_kb
+{{- if not .Options.ctrl_r }}
+bind -r '\C-r' 2>/dev/null
+{{- end }}
+{{- if not .Options.ctrl_t }}
+bind -r '\C-t' 2>/dev/null
+{{- end }}

@@ -1,0 +1,18 @@
+export FZF_DEFAULT_OPTS={{ .Options.default_opts | shellquote }}
+for _oms_kb in \
+  "$(brew --prefix 2>/dev/null)/opt/fzf/shell/key-bindings.zsh" \
+  /usr/share/fzf/key-bindings.zsh \
+  /usr/share/doc/fzf/examples/key-bindings.zsh \
+  {{ pathjoin .VendorDir "fzf" "shell" "key-bindings.zsh" }}
+do
+  [[ -r "$_oms_kb" ]] && { source "$_oms_kb"; break; }
+done
+unset _oms_kb
+{{- if not .Options.ctrl_r }}
+bindkey | grep -q fzf-history-widget && bindkey -r '^R'
+{{- end }}
+{{- if .Options.ctrl_t }}
+# Ctrl+T left bound by key-bindings.zsh
+{{- else }}
+bindkey | grep -q fzf-file-widget && bindkey -r '^T'
+{{- end }}

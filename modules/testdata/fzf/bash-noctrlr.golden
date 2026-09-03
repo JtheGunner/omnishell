@@ -1,0 +1,12 @@
+export FZF_DEFAULT_OPTS='--height 40% --reverse --border'
+for _oms_kb in \
+  "$(brew --prefix 2>/dev/null)/opt/fzf/shell/key-bindings.bash" \
+  /usr/share/fzf/key-bindings.bash \
+  /usr/share/doc/fzf/examples/key-bindings.bash \
+  /home/j/.config/omnishell/vendor/fzf/shell/key-bindings.bash
+do
+  [ -r "$_oms_kb" ] && { source "$_oms_kb"; break; }
+done
+unset _oms_kb
+bind -r '\C-r' 2>/dev/null
+bind -r '\C-t' 2>/dev/null

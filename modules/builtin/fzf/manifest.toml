@@ -1,0 +1,39 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion", "history"]
+
+[module]
+id          = "fzf"
+name        = "FZF fuzzy finder"
+description = "Ctrl+R history search as a fuzzy, scrollable list (+ optional Ctrl+T)"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+brew   = ["fzf"]
+apt    = ["fzf"]
+dnf    = ["fzf"]
+pacman = ["fzf"]
+zypper = ["fzf"]
+apk    = ["fzf"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/junegunn/fzf.git"
+dest = "{{.VendorDir}}/fzf"
+run  = "{{.VendorDir}}/fzf/install --bin --no-update-rc"
+
+[options.ctrl_r]
+type    = "bool"
+default = true
+help    = "Bind Ctrl+R to the fzf history widget"
+
+[options.ctrl_t]
+type    = "bool"
+default = false
+help    = "Bind Ctrl+T to the fzf file widget"
+
+[options.default_opts]
+type    = "string"
+default = "--height 40% --reverse --border"
+help    = "FZF_DEFAULT_OPTS"
