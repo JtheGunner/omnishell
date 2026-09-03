@@ -1,0 +1,33 @@
+version: 2
+project_name: omnishell
+before:
+  hooks: [go mod tidy]
+builds:
+  - id: omnishell
+    main: ./cmd/omnishell
+    binary: omnishell
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/JtheGunner/omnishell/internal/buildinfo.Version={{.Version}}
+      - -X github.com/JtheGunner/omnishell/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/JtheGunner/omnishell/internal/buildinfo.Date={{.Date}}
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+checksum:
+  name_template: checksums.txt
+brews:
+  - repository:
+      owner: JtheGunner
+      name: homebrew-tap
+    homepage: https://github.com/JtheGunner/omnishell
+    description: Modular, declarative terminal configuration for macOS and Linux
+    install: bin.install "omnishell"
+    test: system "#{bin}/omnishell version"
+release:
+  github:
+    owner: JtheGunner
+    name: omnishell
