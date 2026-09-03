@@ -21,12 +21,36 @@ esac
 tag="$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')"
 [ -n "$tag" ] || { echo "could not determine latest release" >&2; exit 1; }
 
-url="https://github.com/$repo/releases/download/$tag/omnishell_${os}_${arch}.tar.gz"
+tarball="omnishell_${os}_${arch}.tar.gz"
+url="https://github.com/$repo/releases/download/$tag/$tarball"
+sums_url="https://github.com/$repo/releases/download/$tag/checksums.txt"
+
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 echo "downloading $url"
-curl -fsSL "$url" | tar -xz -C "$tmp"
+curl -fsSL "$url" -o "$tmp/$tarball"
+curl -fsSL "$sums_url" -o "$tmp/checksums.txt"
+
+expected="$(sed -n "s/^\\([0-9a-f]\\{64\\}\\)  *$tarball\$/\\1/p" "$tmp/checksums.txt")"
+[ -n "$expected" ] || { echo "no checksum for $tarball in checksums.txt" >&2; exit 1; }
+
+verify() {
+  # $@ is the checksum tool + args; reads "<hash>  <name>" on stdin.
+  ( cd "$tmp" && printf '%s  %s\n' "$expected" "$tarball" | "$@" -c - ) >/dev/null 2>&1
+}
+
+if command -v sha256sum >/dev/null 2>&1; then
+  verify sha256sum || { echo "checksum verification failed for $tarball" >&2; exit 1; }
+  echo "checksum OK ($expected)"
+elif command -v shasum >/dev/null 2>&1; then
+  verify shasum -a 256 || { echo "checksum verification failed for $tarball" >&2; exit 1; }
+  echo "checksum OK ($expected)"
+else
+  echo "warning: no sha256 tool, skipping verification" >&2
+fi
+
+tar -xz -f "$tmp/$tarball" -C "$tmp"
 mkdir -p "$bin_dir"
 install -m 0755 "$tmp/omnishell" "$bin_dir/omnishell"
 echo "installed omnishell $tag to $bin_dir/omnishell"
