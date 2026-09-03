@@ -69,3 +69,13 @@ func TestHistory(t *testing.T) {
 	assertGolden(t, "history", "zsh", renderModule(t, "history", "zsh", opts))
 	assertGolden(t, "history", "bash", renderModule(t, "history", "bash", opts))
 }
+
+func TestAutosuggestions(t *testing.T) {
+	assertGolden(t, "autosuggestions", "zsh",
+		renderModule(t, "autosuggestions", "zsh", map[string]any{"highlight_style": "fg=8"}))
+}
+
+func TestSyntaxHighlighting(t *testing.T) {
+	assertGolden(t, "syntax-highlighting", "zsh",
+		renderModule(t, "syntax-highlighting", "zsh", nil))
+}

@@ -1,0 +1,9 @@
+for _oms_f in \
+  /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  {{ pathjoin .VendorDir "zsh-syntax-highlighting" "zsh-syntax-highlighting.zsh" }}
+do
+  [[ -r "$_oms_f" ]] && { source "$_oms_f"; break; }
+done
+unset _oms_f

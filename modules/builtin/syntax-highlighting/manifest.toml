@@ -1,0 +1,23 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh"]
+after       = ["completion", "history", "fzf", "zoxide", "modern-aliases", "autosuggestions"]
+
+[module]
+id          = "syntax-highlighting"
+name        = "Syntax highlighting"
+description = "Colour commands green/red as you type depending on validity (zsh)"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+brew   = ["zsh-syntax-highlighting"]
+apt    = ["zsh-syntax-highlighting"]
+dnf    = ["zsh-syntax-highlighting"]
+pacman = ["zsh-syntax-highlighting"]
+zypper = ["zsh-syntax-highlighting"]
+apk    = ["zsh-syntax-highlighting"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/zsh-users/zsh-syntax-highlighting.git"
+dest = "{{.VendorDir}}/zsh-syntax-highlighting"

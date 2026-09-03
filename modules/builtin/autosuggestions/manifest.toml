@@ -1,0 +1,28 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh"]
+after       = ["completion", "history"]
+
+[module]
+id          = "autosuggestions"
+name        = "Autosuggestions"
+description = "Fish-style grey inline command suggestions from history (zsh)"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+brew   = ["zsh-autosuggestions"]
+apt    = ["zsh-autosuggestions"]
+dnf    = ["zsh-autosuggestions"]
+pacman = ["zsh-autosuggestions"]
+zypper = ["zsh-autosuggestions"]
+apk    = ["zsh-autosuggestions"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/zsh-users/zsh-autosuggestions.git"
+dest = "{{.VendorDir}}/zsh-autosuggestions"
+
+[options.highlight_style]
+type    = "string"
+default = "fg=8"
+help    = "ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE value"

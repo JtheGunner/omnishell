@@ -1,0 +1,10 @@
+for _oms_f in \
+  /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+  /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+  /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
+  /home/j/.config/omnishell/vendor/zsh-autosuggestions/zsh-autosuggestions.zsh
+do
+  [[ -r "$_oms_f" ]] && { source "$_oms_f"; break; }
+done
+unset _oms_f
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
