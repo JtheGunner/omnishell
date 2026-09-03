@@ -1,0 +1,32 @@
+name: e2e
+on:
+  workflow_dispatch:
+  schedule: [{ cron: '0 4 * * *' }]
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [debian:stable-slim, fedora:latest, archlinux:latest, alpine:latest]
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    steps:
+      - name: Install prerequisites
+        run: |
+          set -eux
+          if command -v apt-get; then apt-get update && apt-get install -y golang git ca-certificates; fi
+          if command -v dnf; then dnf install -y golang git; fi
+          if command -v pacman; then pacman -Sy --noconfirm go git; fi
+          if command -v apk; then apk add --no-cache go git bash; fi
+      - uses: actions/checkout@v4
+      - run: sh test/e2e/run.sh
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.23' }
+      - run: |
+          brew --version
+          HOME_BAK=$HOME
+          sh test/e2e/run.sh || exit 1
