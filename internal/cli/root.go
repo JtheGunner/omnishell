@@ -19,6 +19,8 @@ func NewRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	root.PersistentFlags().Bool("verbose", false, "verbose output")
 
 	root.AddCommand(newVersionCmd(stdout))
+	root.AddCommand(newInitCmd())
+	root.AddCommand(newListCmd())
 	return root
 }
 
