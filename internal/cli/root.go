@@ -27,6 +27,8 @@ func NewRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newApplyCmd())
 	root.AddCommand(newDiffCmd())
 	root.AddCommand(newDoctorCmd())
+	root.AddCommand(newRemoveCmd())
+	root.AddCommand(newUninstallCmd())
 	return root
 }
 
