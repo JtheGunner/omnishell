@@ -78,9 +78,12 @@ func editTable(path, moduleID, sub, key, literal string) error {
 	hdrIdx := indexOfHeader(lines, header)
 
 	if hdrIdx == -1 {
-		// Append the table (and parent table if the sub-table's parent is absent).
+		// Append the table (and an empty parent table if the sub-table's parent
+		// is absent). `set` must never change enablement — that is `enable`'s
+		// job — so the parent table is created WITHOUT an `enabled` line; it
+		// decodes fine to Enabled: false.
 		if sub != "" && indexOfHeader(lines, "[modules."+moduleID+"]") == -1 {
-			lines = append(lines, "", "[modules."+moduleID+"]", "enabled = true")
+			lines = append(lines, "", "[modules."+moduleID+"]")
 		}
 		lines = append(lines, "", header, assignment)
 		return atomicfile.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)

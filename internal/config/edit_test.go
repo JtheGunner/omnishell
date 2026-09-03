@@ -75,6 +75,27 @@ func TestSetEnabledCreatesFileFromDefault(t *testing.T) {
 	}
 }
 
+func TestSetOptionDoesNotEnableAbsentModule(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(p, []byte("[omnishell]\nversion = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// fzf is not present in the config at all.
+	if err := config.SetOption(p, "fzf", "ctrl_r", false); err != nil {
+		t.Fatalf("SetOption: %v", err)
+	}
+	c, err := config.Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Modules["fzf"].Enabled {
+		t.Fatal("set enabled a module it should not have")
+	}
+	if c.Modules["fzf"].Options["ctrl_r"] != false {
+		t.Fatalf("ctrl_r = %v, want false", c.Modules["fzf"].Options["ctrl_r"])
+	}
+}
+
 func TestSetOptionRendersLiterals(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "config.toml")
 	if err := os.WriteFile(p, []byte("[omnishell]\nversion = 1\n[modules.fzf]\nenabled = true\n"), 0o644); err != nil {

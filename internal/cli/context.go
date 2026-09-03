@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JtheGunner/omnishell/internal/config"
 	"github.com/JtheGunner/omnishell/internal/engine"
 	"github.com/JtheGunner/omnishell/internal/module"
 	"github.com/JtheGunner/omnishell/internal/pkgmgr"
@@ -74,9 +75,13 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 	cfgPath = filepath.Join(info.ConfigDir, "config.toml")
 	lockPath = filepath.Join(info.ConfigDir, "state.lock.json")
 
-	reg, rerr := module.LoadRegistry(modules.FS(), filepath.Join(info.ConfigDir, "modules"))
+	modulesDir := filepath.Join(info.ConfigDir, "modules")
+	reg, rerr := module.LoadRegistry(modules.FS(), modulesDir)
 	if rerr != nil {
-		return engine.Engine{}, "", "", fmt.Errorf("load module registry: %w", rerr)
+		// A genuinely unreadable modules dir (or a broken built-in) is a
+		// configuration-level problem: exit 2, not a bare error. A single
+		// malformed USER module no longer reaches here — LoadRegistry skips it.
+		return engine.Engine{}, "", "", config.Error{Path: modulesDir, Msg: "load module registry: " + rerr.Error()}
 	}
 
 	var runner pkgmgr.Runner

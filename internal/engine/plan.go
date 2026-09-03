@@ -54,6 +54,9 @@ type Plan struct {
 	PackageManager   string
 	ManagerAvailable bool
 	HasChanges       bool
+	// UnknownModules are ids enabled in the config that no registered module
+	// provides, sorted. Apply warns for each; Doctor emits a notice.
+	UnknownModules []string
 }
 
 func managedShells(cfg config.Config, info platform.Info) []string {
@@ -102,24 +105,36 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 	}
 
 	active := map[string]module.Manifest{}
+	var unknown []string
 	for id, mc := range cfg.Modules {
 		if !mc.Enabled {
 			continue
 		}
 		mod, ok := e.Registry.Get(id)
 		if !ok {
-			continue // unknown module id: skipped with a warning by Apply
+			// No registered module provides this id. Apply warns to stderr and
+			// Doctor emits an unknown-module notice; planning just skips it.
+			unknown = append(unknown, id)
+			continue
 		}
 		if !contains(mod.Manifest.Platforms, string(e.Platform.OS)) {
 			continue
 		}
 		active[id] = mod.Manifest
 	}
+	sort.Strings(unknown)
+	p.UnknownModules = unknown
 
-	// Validate options; abort as ConfigError on failure.
+	// Validate options; abort as ConfigError on failure. Iterate sorted so the
+	// surfaced error is deterministic when several modules have invalid options.
 	optsByID := map[string]map[string]any{}
-	for id, mf := range active {
-		norm, err := module.ValidateOptions(mf.Options, cfg.Modules[id].Options)
+	activeIDs := make([]string, 0, len(active))
+	for id := range active {
+		activeIDs = append(activeIDs, id)
+	}
+	sort.Strings(activeIDs)
+	for _, id := range activeIDs {
+		norm, err := module.ValidateOptions(active[id].Options, cfg.Modules[id].Options)
 		if err != nil {
 			return Plan{}, ConfigError{Err: err}
 		}

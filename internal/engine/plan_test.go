@@ -110,6 +110,28 @@ func TestComputePlanRemovesDisabledModuleInLock(t *testing.T) {
 	}
 }
 
+func TestComputePlanCollectsUnknownModules(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := testEngine(t, mgr)
+	cfg := config.Config{
+		Omnishell: config.OmnishellSection{Version: 1, Shells: []string{"bash"}},
+		Modules: map[string]config.ModuleConfig{
+			"completion":    {Enabled: true},
+			"nope":          {Enabled: true},
+			"alsomissing":   {Enabled: true},
+			"disabledghost": {Enabled: false},
+		},
+	}
+	p, err := engine.ComputePlan(e, cfg, lockfile.Lock{Modules: map[string]lockfile.ModuleState{}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := p.UnknownModules
+	if len(got) != 2 || got[0] != "alsomissing" || got[1] != "nope" {
+		t.Fatalf("UnknownModules = %v, want [alsomissing nope] (sorted, disabled excluded)", got)
+	}
+}
+
 func TestComputePlanOptionValidationError(t *testing.T) {
 	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true}
 	e := testEngine(t, mgr)

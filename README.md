@@ -59,8 +59,7 @@ your system until you run `omnishell apply`.
 
 ## Commands
 
-Global flag: `--verbose` (verbose output). `-h` / `--help` works on every
-command.
+`-h` / `--help` works on every command.
 
 | Command | Purpose | Flags |
 |---------|---------|-------|

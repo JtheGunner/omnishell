@@ -330,3 +330,37 @@ func TestApplyHandEditGuard(t *testing.T) {
 		t.Fatal("force apply made no change")
 	}
 }
+
+// TestApplyHandEditGuardRunsBeforeInstall proves the hand-edit guard aborts the
+// run before installPackages, so a hand-edited init file never triggers a sudo
+// prompt or a package install (I1).
+func TestApplyHandEditGuardRunsBeforeInstall(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := applyEngine(t, home, mgr, &out)
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n")
+	cfg, _ := config.Load(cfgPath)
+	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	initBash := filepath.Join(home, ".config", "omnishell", "init.bash")
+	orig, _ := os.ReadFile(initBash)
+	os.WriteFile(initBash, append(orig, []byte("\n# tampered\n")...), 0o644)
+
+	// Now enable fzf, which needs a package the mock manager has not installed.
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n[modules.fzf]\nenabled=true\n")
+	cfg2, _ := config.Load(cfgPath)
+
+	mgr.InstallCalls = nil
+	_, err := e.Apply(cfg2, cfgPath, lockPath, engine.ApplyOptions{Yes: true})
+	if err == nil || !strings.Contains(err.Error(), "force") {
+		t.Fatalf("err = %v, want hand-edit guard error", err)
+	}
+	if len(mgr.InstallCalls) != 0 {
+		t.Fatalf("guard fired but packages were still installed: %+v", mgr.InstallCalls)
+	}
+}

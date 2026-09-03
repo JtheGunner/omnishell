@@ -149,6 +149,17 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 			fmt.Sprintf("module %q shadows a built-in module", id))
 	}
 
+	// 7b. Enabled ids in the config that no registered module provides. Notice.
+	for _, id := range plan.UnknownModules {
+		add(SeverityNotice, "unknown-module:"+id,
+			fmt.Sprintf("config enables module %q but no module provides it", id))
+	}
+
+	// 7c. User module dirs that were skipped because they could not be loaded.
+	for _, m := range e.Registry.Malformed() {
+		add(SeverityNotice, "malformed-module:"+m, "user module dir skipped: "+m)
+	}
+
 	// 8. Per enabled module: config changed since the last apply.
 	for _, id := range enabledIDs {
 		mp, ok := plan.Modules[id]

@@ -58,8 +58,6 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	}
 
 	opts := engine.ApplyOptions{}
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	opts.Verbose = verbose
 	if forceDryRun {
 		opts.DryRun = true
 	} else {

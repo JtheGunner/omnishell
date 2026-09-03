@@ -26,7 +26,7 @@ var (
 
 // ApplyOptions are the flags of `omnishell apply`.
 type ApplyOptions struct {
-	DryRun, Yes, NoPackages, Force, Verbose bool
+	DryRun, Yes, NoPackages, Force bool
 }
 
 // ModuleResult is the per-module outcome of an apply.
@@ -60,6 +60,10 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	plan, err := ComputePlan(e, cfg, lock, opts.NoPackages)
 	if err != nil {
 		return Result{}, err // a ConfigError propagates unchanged
+	}
+
+	for _, id := range plan.UnknownModules {
+		fmt.Fprintf(e.Stderr, "warning: unknown module %q in config (ignored)\n", id)
 	}
 
 	res := Result{PlanText: RenderPlan(plan)}
@@ -102,6 +106,26 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	// existing skip path.
 	degraded := plannedDegraded(plan)
 
+	// Hand-edit guard — BEFORE installPackages (which may sudo-install, git
+	// clone into vendor/, and run hooks/install.sh) and BEFORE runCheckHooks.
+	// A hand-edited init file must abort the run without prompting for sudo or
+	// mutating the system. The guard only needs the planned sections; package-
+	// and hook-driven degradations merely drop sections, which the guard
+	// tolerates (it fires on in-marker tampering or edits outside the blocks).
+	guardDegraded := plannedDegraded(plan)
+	guardRendered := e.renderAll(plan, guardDegraded)
+	for _, shell := range plan.ManagedShells {
+		initPath := e.initPath(shell)
+		existing, rerr := os.ReadFile(initPath)
+		if rerr != nil {
+			continue
+		}
+		guardSections := e.buildSections(plan, guardRendered, guardDegraded, shell)
+		if e.initFileHandEdited(shell, string(existing), guardSections) && !opts.Force {
+			return res, fmt.Errorf("%w: %s (run with --force to overwrite)", ErrHandEdited, initPath)
+		}
+	}
+
 	if !opts.NoPackages {
 		e.installPackages(plan, degraded, vendorPaths, installedNow)
 	}
@@ -112,18 +136,6 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	sectionsByShell := map[string][]initfile.Section{}
 	for _, shell := range plan.ManagedShells {
 		sectionsByShell[shell] = e.buildSections(plan, rendered, degraded, shell)
-	}
-
-	// Hand-edit guard — before any write.
-	for _, shell := range plan.ManagedShells {
-		initPath := e.initPath(shell)
-		existing, rerr := os.ReadFile(initPath)
-		if rerr != nil {
-			continue
-		}
-		if e.initFileHandEdited(shell, string(existing), sectionsByShell[shell]) && !opts.Force {
-			return res, fmt.Errorf("%w: %s (run with --force to overwrite)", ErrHandEdited, initPath)
-		}
 	}
 
 	// Write phase — only now touch disk.

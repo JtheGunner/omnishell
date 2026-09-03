@@ -2,6 +2,8 @@ package module_test
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -75,13 +77,46 @@ func TestLoadRegistryMergesBuiltinAndUser(t *testing.T) {
 	}
 }
 
-func TestLoadRegistryRejectsFolderNameMismatch(t *testing.T) {
+func TestLoadRegistrySkipsMalformedUserModule(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(dir+"/wrongname", 0o755)
-	os.WriteFile(dir+"/wrongname/manifest.toml", []byte(
+	// A dir with no manifest.toml.
+	os.MkdirAll(filepath.Join(dir, "brokennomanifest"), 0o755)
+	// A dir whose folder name != module.id.
+	os.MkdirAll(filepath.Join(dir, "wrongname"), 0o755)
+	os.WriteFile(filepath.Join(dir, "wrongname", "manifest.toml"), []byte(
 		"platforms=[\"linux\"]\nshells=[\"bash\"]\n[module]\nid=\"other\"\nname=\"x\"\ndescription=\"x\"\nversion=\"1\"\nschema=1\n"), 0o644)
-	if _, err := module.LoadRegistry(os.DirFS(t.TempDir()), dir); err == nil {
-		t.Fatal("want error when folder name != module.id")
+	// A perfectly good user module.
+	os.MkdirAll(filepath.Join(dir, "good"), 0o755)
+	os.WriteFile(filepath.Join(dir, "good", "manifest.toml"), []byte(
+		"platforms=[\"linux\"]\nshells=[\"bash\"]\n[module]\nid=\"good\"\nname=\"x\"\ndescription=\"x\"\nversion=\"1\"\nschema=1\n"), 0o644)
+
+	reg, err := module.LoadRegistry(nil, dir)
+	if err != nil {
+		t.Fatalf("LoadRegistry should not fail on a malformed user module: %v", err)
+	}
+	if _, ok := reg.Get("good"); !ok {
+		t.Fatal("the good user module did not load")
+	}
+	mal := reg.Malformed()
+	if len(mal) != 2 {
+		t.Fatalf("Malformed() = %v, want 2 entries", mal)
+	}
+	joined := strings.Join(mal, "\n")
+	if !strings.Contains(joined, "brokennomanifest") || !strings.Contains(joined, "missing manifest.toml") {
+		t.Fatalf("Malformed() missing the no-manifest dir: %v", mal)
+	}
+	if !strings.Contains(joined, "wrongname") {
+		t.Fatalf("Malformed() missing the folder/id mismatch dir: %v", mal)
+	}
+}
+
+func TestLoadRegistryBuiltinMismatchIsHardError(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "wrongname"), 0o755)
+	os.WriteFile(filepath.Join(dir, "wrongname", "manifest.toml"), []byte(
+		"platforms=[\"linux\"]\nshells=[\"bash\"]\n[module]\nid=\"other\"\nname=\"x\"\ndescription=\"x\"\nversion=\"1\"\nschema=1\n"), 0o644)
+	if _, err := module.LoadRegistry(os.DirFS(dir), ""); err == nil {
+		t.Fatal("want a hard error for a malformed built-in module")
 	}
 }
 
