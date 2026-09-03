@@ -33,6 +33,44 @@ func TestEnsureBlockIdempotent(t *testing.T) {
 	}
 }
 
+func TestEnsureBlockRepairsDanglingStart(t *testing.T) {
+	// A truncated rc file: BlockStart with no BlockEnd. EnsureBlock must NOT
+	// append a second block — it repairs the file to exactly one well-formed
+	// block, and a second call is then a no-op.
+	malformed := "code\n" + rcfile.BlockStart + "\nhalf"
+	out, changed := rcfile.EnsureBlock(malformed, "zsh", "$HOME/.config/omnishell/init.zsh")
+	if !changed {
+		t.Fatal("changed = false, want true")
+	}
+	if n := strings.Count(out, rcfile.BlockStart); n != 1 {
+		t.Fatalf("want exactly one BlockStart, got %d:\n%s", n, out)
+	}
+	if !rcfile.BlockPresent(out) {
+		t.Fatalf("repaired file has no well-formed block:\n%s", out)
+	}
+	if strings.Contains(out, "half") {
+		t.Fatalf("dangling tail not removed:\n%s", out)
+	}
+	if !strings.HasPrefix(out, "code\n") {
+		t.Fatalf("content before the marker not preserved:\n%s", out)
+	}
+	again, changed := rcfile.EnsureBlock(out, "zsh", "$HOME/.config/omnishell/init.zsh")
+	if changed || again != out {
+		t.Fatalf("EnsureBlock not idempotent after repair:\n%s", again)
+	}
+}
+
+func TestRemoveBlockStripsDanglingStart(t *testing.T) {
+	malformed := "code\n" + rcfile.BlockStart + "\nhalf"
+	out, changed := rcfile.RemoveBlock(malformed)
+	if !changed {
+		t.Fatal("changed = false, want true")
+	}
+	if out != "code\n" {
+		t.Fatalf("RemoveBlock did not strip the dangling block:\n%q", out)
+	}
+}
+
 func TestEnsureBlockBashUsesSingleBracket(t *testing.T) {
 	out, _ := rcfile.EnsureBlock("", "bash", "$HOME/.config/omnishell/init.bash")
 	if !strings.Contains(out, `[ -f "$HOME/.config/omnishell/init.bash" ] && source`) {

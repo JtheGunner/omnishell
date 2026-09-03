@@ -43,6 +43,14 @@ func EnsureBlock(content, shell, initPath string) (string, bool) {
 			}
 			return content[:start] + want + content[end:], true
 		}
+		// Malformed: a BlockStart with no matching BlockEnd. Repair by
+		// discarding everything from the dangling marker to EOF and writing a
+		// fresh block there, so repeated applies cannot append blocks forever.
+		pre := strings.TrimRight(content[:start], "\n")
+		if pre == "" {
+			return want, true
+		}
+		return pre + "\n\n" + want, true
 	}
 	trimmed := strings.TrimRight(content, "\n")
 	if trimmed == "" {
@@ -57,13 +65,15 @@ func RemoveBlock(content string) (string, bool) {
 	if start < 0 {
 		return content, false
 	}
-	endIdx := strings.Index(content[start:], BlockEnd)
-	if endIdx < 0 {
-		return content, false
-	}
-	end := start + endIdx + len(BlockEnd)
-	if end < len(content) && content[end] == '\n' {
-		end++
+	var end int
+	if endIdx := strings.Index(content[start:], BlockEnd); endIdx < 0 {
+		// Dangling BlockStart with no end: strip from the marker to EOF.
+		end = len(content)
+	} else {
+		end = start + endIdx + len(BlockEnd)
+		if end < len(content) && content[end] == '\n' {
+			end++
+		}
 	}
 	pre := content[:start]
 	pre = strings.TrimRight(pre, "\n")
