@@ -84,14 +84,21 @@ func activeSet(plan Plan, degraded map[string]string) map[string]bool {
 }
 
 // initOrRCDrift reports whether, for any managed shell, the would-be init file
-// hash differs from the lock, or the rc file lacks the marker block. Used only
-// for the idempotent no-op short-circuit.
+// hash differs from the lock, the on-disk init file exists but was hand-edited,
+// or the rc file lacks the marker block. Used only for the idempotent no-op
+// short-circuit: any of these means apply has real work to do (including a
+// --force repair of an out-of-band edit that left the marker sections intact),
+// so it must not bail out early.
 func (e Engine) initOrRCDrift(plan Plan, lock lockfile.Lock) bool {
 	degraded := map[string]string{}
 	rendered := e.renderAll(plan, degraded)
 	for _, shell := range plan.ManagedShells {
 		sections := e.buildSections(plan, rendered, degraded, shell)
 		if initfile.ContentHash(sections) != lock.InitFiles[shell].ContentHash {
+			return true
+		}
+		if data, err := os.ReadFile(e.initPath(shell)); err == nil &&
+			e.initFileHandEdited(shell, string(data), sections) {
 			return true
 		}
 		rcPath := e.rcPath(shell)

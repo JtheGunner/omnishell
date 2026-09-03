@@ -86,6 +86,20 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	vendorPaths := map[string][]string{}
 	installedNow := map[string]map[string]bool{}
 
+	// Carry a planner-detected degradation into the apply pass when the module
+	// still has a snippet to emit but cannot be satisfied — today that means
+	// "needs packages but no package manager was detected". Without this,
+	// ComputePlan's DegradedReason was computed and then dropped, so apply wrote
+	// a snippet that doctor would immediately flag as degraded, and the exit
+	// code did not reflect the problem. The len(Shells)==0 case ("no snippet for
+	// any managed shell") is left to the existing skip path.
+	for _, id := range plan.Order {
+		mp := plan.Modules[id]
+		if mp.DegradedReason != "" && len(mp.Shells) > 0 {
+			degraded[id] = mp.DegradedReason
+		}
+	}
+
 	if !opts.NoPackages {
 		e.installPackages(plan, degraded, vendorPaths, installedNow)
 	}
