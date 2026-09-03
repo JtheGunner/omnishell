@@ -5,6 +5,7 @@ package module
 import (
 	"fmt"
 	"regexp"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 )
@@ -68,6 +69,25 @@ type OptionSchema struct {
 	Default any      `toml:"default"`
 	Help    string   `toml:"help"`
 	Values  []string `toml:"values"`
+	// Pattern, when non-empty, is a regexp every accepted value of a
+	// type = "string" option must match. It exists so an option whose value
+	// lands in shell command position can be constrained to an identifier.
+	Pattern string `toml:"pattern"`
+}
+
+var patternCache sync.Map // pattern string -> *regexp.Regexp
+
+// compilePattern compiles p once and caches the result.
+func compilePattern(p string) (*regexp.Regexp, error) {
+	if v, ok := patternCache.Load(p); ok {
+		return v.(*regexp.Regexp), nil
+	}
+	re, err := regexp.Compile(p)
+	if err != nil {
+		return nil, err
+	}
+	patternCache.Store(p, re)
+	return re, nil
 }
 
 // Manifest is a parsed manifest.toml.
@@ -154,6 +174,14 @@ func ValidateManifest(m Manifest) error {
 		}
 		if (opt.Type == "enum" || opt.Type == "list<enum>") && len(opt.Values) == 0 {
 			return e("options."+key+".values", "enum types require a non-empty values list")
+		}
+		if opt.Pattern != "" {
+			if opt.Type != "string" {
+				return e("options."+key+".pattern", "pattern is only valid for type = \"string\"")
+			}
+			if _, perr := compilePattern(opt.Pattern); perr != nil {
+				return e("options."+key+".pattern", "invalid regexp: "+perr.Error())
+			}
 		}
 		if err := checkDefault(opt); err != nil {
 			return e("options."+key+".default", err.Error())

@@ -20,4 +20,5 @@ apk    = ["zoxide"]
 [options.cmd]
 type    = "string"
 default = "z"
+pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
 help    = "Name of the jump command zoxide defines"

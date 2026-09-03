@@ -26,6 +26,9 @@ func (s OptionSchema) ParseValue(raw string) (any, error) {
 	case "int":
 		return strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
 	case "string":
+		if err := checkPattern(s, raw); err != nil {
+			return nil, err
+		}
 		return raw, nil
 	case "enum":
 		v := strings.TrimSpace(raw)
@@ -50,6 +53,21 @@ func (s OptionSchema) ParseValue(raw string) (any, error) {
 	default:
 		return nil, fmt.Errorf("unknown option type %q", s.Type)
 	}
+}
+
+// checkPattern enforces a string option's pattern constraint, if any.
+func checkPattern(spec OptionSchema, v string) error {
+	if spec.Pattern == "" {
+		return nil
+	}
+	re, err := compilePattern(spec.Pattern)
+	if err != nil {
+		return fmt.Errorf("invalid pattern %q: %v", spec.Pattern, err)
+	}
+	if !re.MatchString(v) {
+		return fmt.Errorf("%q does not match required pattern %s", v, spec.Pattern)
+	}
+	return nil
 }
 
 // ValidateOptions returns a new fully-populated, canonically-typed option map.
@@ -115,6 +133,9 @@ func coerce(spec OptionSchema, raw any) (any, error) {
 		s, ok := raw.(string)
 		if !ok {
 			return nil, fmt.Errorf("expected a string, got %T", raw)
+		}
+		if err := checkPattern(spec, s); err != nil {
+			return nil, err
 		}
 		return s, nil
 	case "enum":

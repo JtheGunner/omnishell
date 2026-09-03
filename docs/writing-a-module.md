@@ -89,11 +89,20 @@ help    = "Directories direnv trusts without an explicit `direnv allow`"
 #   type    = "list<enum>"
 #   values  = ["ls", "cat", "find"]
 #   default = ["ls", "cat", "find"]
+
+# A type = "string" option may also carry `pattern`, a regexp every accepted
+# value must match. Use it to constrain a value that lands in shell command
+# position to a safe shape (from zoxide):
+#   [options.cmd]
+#   type    = "string"
+#   default = "z"
+#   pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
 ```
 
 `omnishell set <id>.<key> <value>` validates against this schema and rejects
-unknown keys or invalid values with exit code 2 (nothing is changed). A missing
-option falls back to the manifest `default`.
+unknown keys, invalid values, or values that fail an option's `pattern` with
+exit code 2 (nothing is changed). A missing option falls back to the manifest
+`default`.
 
 ## Templates
 
@@ -121,6 +130,17 @@ Template functions:
 
 The engine — not the module — writes the rendered snippet into the module's
 section of `init.<shell>`, so templates stay pure data + text.
+
+### Quoting is not optional
+
+The generated init file is shell **code**, sourced at every shell startup. Every
+`{{ .Options.<string-or-list> }}` value that lands in command position — an
+argument to a command, the right-hand side of an `export`, anything the shell
+parses — MUST be piped through `shellquote`. Numbers and bools are safe
+unquoted. A missed `shellquote` on a free-form string option is arbitrary code
+execution: `omnishell set <id>.<key> 'x; rm -rf ~'` would otherwise run at every
+login. The `modules` test suite fails the build if a builtin template emits a
+string option without `shellquote`.
 
 ## `requires` vs `after`
 

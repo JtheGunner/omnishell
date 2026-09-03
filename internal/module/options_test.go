@@ -82,6 +82,48 @@ func TestParseValue(t *testing.T) {
 	}
 }
 
+func TestValidateOptionsEnforcesStringPattern(t *testing.T) {
+	sch := map[string]module.OptionSchema{
+		"cmd": {Type: "string", Default: "z", Pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"},
+	}
+	if _, err := module.ValidateOptions(sch, map[string]any{"cmd": "zi"}); err != nil {
+		t.Fatalf("valid identifier rejected: %v", err)
+	}
+	if _, err := module.ValidateOptions(sch, map[string]any{"cmd": "z; rm -rf ~"}); err == nil {
+		t.Fatal("want error for value that does not match pattern")
+	}
+}
+
+func TestParseValueEnforcesStringPattern(t *testing.T) {
+	s := module.OptionSchema{Type: "string", Pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"}
+	if _, err := s.ParseValue("z"); err != nil {
+		t.Fatalf("valid: %v", err)
+	}
+	if _, err := s.ParseValue("z;echo X"); err == nil {
+		t.Fatal("want error for value with shell metacharacters")
+	}
+}
+
+func TestValidateManifestRejectsPatternOnNonString(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	opt := m.Options["ctrl_r"]
+	opt.Pattern = "^x$"
+	m.Options["ctrl_r"] = opt
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error for pattern on a bool option")
+	}
+}
+
+func TestValidateManifestRejectsBadPatternRegexp(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	opt := m.Options["default_opts"]
+	opt.Pattern = "([unclosed"
+	m.Options["default_opts"] = opt
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error for an uncompilable pattern")
+	}
+}
+
 func TestOptionsHashDeterministicAndOrderIndependent(t *testing.T) {
 	a, _ := module.ValidateOptions(schema(), map[string]any{"ctrl_r": true, "size": int64(1)})
 	b, _ := module.ValidateOptions(schema(), map[string]any{"size": int64(1), "ctrl_r": true})
