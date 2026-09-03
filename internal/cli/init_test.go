@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/cli"
+	"github.com/JtheGunner/omnishell/internal/pkgmgr"
 )
 
 func TestInitCreatesConfigAndRCBlock(t *testing.T) {
@@ -25,6 +26,8 @@ func TestInitCreatesConfigAndRCBlock(t *testing.T) {
 		return "", os.ErrNotExist
 	})
 	defer cli.SetLookPathForTest(nil)
+	cli.SetRunnerForTest(&pkgmgr.MockRunner{})
+	defer cli.SetRunnerForTest(nil)
 
 	var out, errb bytes.Buffer
 	code := cli.Execute([]string{"init"}, &out, &errb)

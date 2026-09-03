@@ -68,7 +68,7 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 	}
 	info, derr := platform.DetectWith(env)
 	if derr != nil {
-		return engine.Engine{}, "", "", derr
+		return engine.Engine{}, "", "", fmt.Errorf("detect platform: %w", derr)
 	}
 
 	cfgPath = filepath.Join(info.ConfigDir, "config.toml")
@@ -76,7 +76,7 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 
 	reg, rerr := module.LoadRegistry(modules.FS(), filepath.Join(info.ConfigDir, "modules"))
 	if rerr != nil {
-		return engine.Engine{}, "", "", rerr
+		return engine.Engine{}, "", "", fmt.Errorf("load module registry: %w", rerr)
 	}
 
 	var runner pkgmgr.Runner
