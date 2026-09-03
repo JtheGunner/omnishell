@@ -1,0 +1,16 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "fzf"
+name        = "FZF Fuzzy Finder"
+description = "Ctrl+R history search"
+version     = "1.0.0"
+schema      = 1
+
+[options.ctrl_r]
+type    = "bool"
+default = true
+help    = "Bind Ctrl+R to the fzf history widget"

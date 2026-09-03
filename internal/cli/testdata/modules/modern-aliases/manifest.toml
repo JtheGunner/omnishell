@@ -1,0 +1,17 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "modern-aliases"
+name        = "Modern Aliases"
+description = "Alias classic tools to modern replacements"
+version     = "1.0.0"
+schema      = 1
+
+[options.replace]
+type    = "list<enum>"
+values  = ["ls", "cat", "find"]
+default = []
+help    = "Which classic commands to alias"

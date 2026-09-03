@@ -71,7 +71,13 @@ func TestListShowsEnabledFixtureModule(t *testing.T) {
 	if err := json.Unmarshal(jout.Bytes(), &rows); err != nil {
 		t.Fatalf("json: %v\n%s", err, jout.String())
 	}
-	if len(rows) != 1 || rows[0]["module"] != "completion" || rows[0]["status"] != "enabled" {
+	var completionRow map[string]string
+	for _, r := range rows {
+		if r["module"] == "completion" {
+			completionRow = r
+		}
+	}
+	if completionRow == nil || completionRow["status"] != "enabled" {
 		t.Fatalf("unexpected json rows: %+v", rows)
 	}
 }
