@@ -1,0 +1,71 @@
+package modules_test
+
+import (
+	"flag"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/JtheGunner/omnishell/internal/module"
+	"github.com/JtheGunner/omnishell/internal/render"
+	"github.com/JtheGunner/omnishell/modules"
+)
+
+var update = flag.Bool("update", false, "update golden files")
+
+func renderModule(t *testing.T, id, shell string, opts map[string]any) string {
+	t.Helper()
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get(id)
+	if !ok {
+		t.Fatalf("module %q not embedded", id)
+	}
+	body, has, err := m.Template(shell)
+	if err != nil || !has {
+		t.Fatalf("%s/%s template: has=%v err=%v", id, shell, has, err)
+	}
+	norm, err := module.ValidateOptions(m.Manifest.Options, opts)
+	if err != nil {
+		t.Fatalf("options: %v", err)
+	}
+	out, err := render.Render(body, render.Context{
+		Options: norm, Platform: "macos", Shell: shell,
+		VendorDir: "/home/j/.config/omnishell/vendor",
+		ConfigDir: "/home/j/.config/omnishell",
+		Bin:       map[string]string{}, Active: map[string]bool{},
+	})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	return out
+}
+
+func assertGolden(t *testing.T, id, shell, got string) {
+	t.Helper()
+	p := filepath.Join("testdata", id, shell+".golden")
+	if *update {
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(got), 0o644)
+	}
+	want, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != string(want) {
+		t.Fatalf("%s/%s golden mismatch:\n--- got ---\n%s\n--- want ---\n%s", id, shell, got, string(want))
+	}
+}
+
+func TestCompletion(t *testing.T) {
+	assertGolden(t, "completion", "zsh", renderModule(t, "completion", "zsh", nil))
+	assertGolden(t, "completion", "bash", renderModule(t, "completion", "bash", nil))
+}
+
+func TestHistory(t *testing.T) {
+	opts := map[string]any{"size": int64(50000)}
+	assertGolden(t, "history", "zsh", renderModule(t, "history", "zsh", opts))
+	assertGolden(t, "history", "bash", renderModule(t, "history", "bash", opts))
+}

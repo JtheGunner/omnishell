@@ -1,0 +1,15 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "history"
+name        = "History tuning"
+description = "Larger, de-duplicated, shared shell history and prefix search"
+version     = "1.0.0"
+schema      = 1
+
+[options.size]
+type    = "int"
+default = 50000
+help    = "Number of history entries to keep in memory and on disk"
