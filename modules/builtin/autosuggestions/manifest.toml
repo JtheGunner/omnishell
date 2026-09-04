@@ -6,6 +6,7 @@ after       = ["completion", "history"]
 id          = "autosuggestions"
 name        = "Autosuggestions"
 description = "Fish-style grey inline command suggestions from history (zsh)"
+homepage    = "https://github.com/zsh-users/zsh-autosuggestions"
 version     = "1.0.0"
 schema      = 1
 

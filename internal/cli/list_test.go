@@ -61,6 +61,9 @@ func TestListShowsEnabledFixtureModule(t *testing.T) {
 	if !strings.Contains(line, "n/a") {
 		t.Fatalf("completion (no packages) should show n/a: %q", line)
 	}
+	if !strings.Contains(line, "compinit") {
+		t.Fatalf("completion row missing description: %q", line)
+	}
 
 	// --json path.
 	var jout, jerr bytes.Buffer
@@ -79,6 +82,9 @@ func TestListShowsEnabledFixtureModule(t *testing.T) {
 	}
 	if completionRow == nil || completionRow["status"] != "enabled" {
 		t.Fatalf("unexpected json rows: %+v", rows)
+	}
+	if completionRow["description"] != "compinit" {
+		t.Fatalf("unexpected description in json row: %+v", completionRow)
 	}
 }
 

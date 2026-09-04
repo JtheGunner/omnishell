@@ -64,7 +64,7 @@ your system until you run `omnishell apply`.
 | Command | Purpose | Flags |
 |---------|---------|-------|
 | `omnishell init` | Create the omnishell config and hook it into your shells. Idempotent. | — |
-| `omnishell list` | List known modules and their status (enabled/disabled, packages, platforms, shells, source). | `--json` (emit a JSON array instead of the table) |
+| `omnishell list` | List known modules and their status (enabled/disabled, packages, platforms, shells, source, description). | `--json` (emit a JSON array instead of the table; also includes each module's `homepage`) |
 | `omnishell enable <module>` | Enable a module in the config. Does not apply. | — |
 | `omnishell disable <module>` | Disable a module in the config. Does not apply. | — |
 | `omnishell set <module>.<key> <value>` | Set a module option in the config, validated against that module's option schema. | — |
@@ -108,15 +108,15 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 
 ## Built-in modules
 
-| id | Packages | Shells | Options |
-|----|----------|--------|---------|
-| `completion` | — (config only) | zsh, bash | — |
-| `history` | — (config only) | zsh, bash | `size` (int, default `50000`) |
-| `autosuggestions` | `zsh-autosuggestions`; `git` fallback | zsh | `highlight_style` (string, default `fg=8`) |
-| `syntax-highlighting` | `zsh-syntax-highlighting`; `git` fallback | zsh | — |
-| `fzf` | `fzf`; `git` fallback | zsh, bash | `ctrl_r` (bool, default `true`), `ctrl_t` (bool, default `false`), `default_opts` (string, default `--height 40% --reverse --border`) |
-| `zoxide` | `zoxide`; `git` fallback | zsh, bash | `cmd` (string, default `z`) |
-| `modern-aliases` | `eza`, `bat`, `fd` | zsh, bash | `replace` (`list<enum>` of `ls`, `cat`, `find`; default `["ls", "cat", "find"]`) |
+| id | Description | Packages | Shells | Options |
+|----|-------------|----------|--------|---------|
+| `completion` | Enable shell completion with case-insensitive matching | — (config only) | zsh, bash | — |
+| `history` | Larger, de-duplicated, shared shell history and prefix search | — (config only) | zsh, bash | `size` (int, default `50000`) |
+| `autosuggestions` | Fish-style grey inline command suggestions from history (zsh) — [zsh-users/zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) | `zsh-autosuggestions`; `git` fallback | zsh | `highlight_style` (string, default `fg=8`) |
+| `syntax-highlighting` | Colour commands green/red as you type depending on validity (zsh) — [zsh-users/zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) | `zsh-syntax-highlighting`; `git` fallback | zsh | — |
+| `fzf` | Ctrl+R history search as a fuzzy, scrollable list (+ optional Ctrl+T) — [junegunn/fzf](https://github.com/junegunn/fzf) | `fzf`; `git` fallback | zsh, bash | `ctrl_r` (bool, default `true`), `ctrl_t` (bool, default `false`), `default_opts` (string, default `--height 40% --reverse --border`) |
+| `zoxide` | Smarter cd that learns your most-used directories — [ajeetdsouza/zoxide](https://github.com/ajeetdsouza/zoxide) | `zoxide`; `git` fallback | zsh, bash | `cmd` (string, default `z`) |
+| `modern-aliases` | Replace ls/cat/find with [eza](https://github.com/eza-community/eza), [bat](https://github.com/sharkdp/bat) and [fd](https://github.com/sharkdp/fd) when selected | `eza`, `bat`, `fd` | zsh, bash | `replace` (`list<enum>` of `ls`, `cat`, `find`; default `["ls", "cat", "find"]`) |
 
 `autosuggestions` and `syntax-highlighting` are zsh-only and always render last
 (with `syntax-highlighting` after `autosuggestions`).

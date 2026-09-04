@@ -6,6 +6,7 @@ after       = ["completion"]
 id          = "zoxide"
 name        = "zoxide"
 description = "Smarter cd that learns your most-used directories"
+homepage    = "https://github.com/ajeetdsouza/zoxide"
 version     = "1.0.0"
 schema      = 1
 

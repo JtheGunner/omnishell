@@ -45,6 +45,10 @@ after     = ["completion"]       # soft ordering: only sorts relative to modules
 id          = "direnv"           # must match the folder name
 name        = "direnv"           # human-readable label for `omnishell list`
 description = "Per-directory environment variables via .envrc files"
+homepage    = "https://github.com/direnv/direnv"  # optional: link to the upstream
+                                 #   project, shown in the README and `omnishell
+                                 #   list --json`; omit for config-only modules or
+                                 #   ones bundling several tools with no single home
 version     = "1.0.0"            # the module's own version; recorded in the lockfile
 schema      = 1                  # manifest schema version (compatibility gate)
 
@@ -188,6 +192,7 @@ after     = ["completion"]
 id          = "direnv"
 name        = "direnv"
 description = "Per-directory environment variables via .envrc files"
+homepage    = "https://github.com/direnv/direnv"
 version     = "1.0.0"
 schema      = 1
 

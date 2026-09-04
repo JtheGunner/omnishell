@@ -20,8 +20,12 @@ type ModuleMeta struct {
 	ID          string `toml:"id"`
 	Name        string `toml:"name"`
 	Description string `toml:"description"`
-	Version     string `toml:"version"`
-	Schema      int    `toml:"schema"`
+	// Homepage is an optional link to the upstream project this module
+	// installs (e.g. its GitHub repo). Empty for config-only modules or
+	// modules that bundle several tools with no single upstream home.
+	Homepage string `toml:"homepage"`
+	Version  string `toml:"version"`
+	Schema   int    `toml:"schema"`
 }
 
 // Fallback is one [[packages.fallback]] entry. Run is an argv array (each

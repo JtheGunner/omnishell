@@ -15,12 +15,14 @@ import (
 )
 
 type listRow struct {
-	Module    string `json:"module"`
-	Status    string `json:"status"`
-	Packages  string `json:"packages"`
-	Platforms string `json:"platforms"`
-	Shells    string `json:"shells"`
-	Src       string `json:"src"`
+	Module      string `json:"module"`
+	Status      string `json:"status"`
+	Description string `json:"description"`
+	Homepage    string `json:"homepage,omitempty"`
+	Packages    string `json:"packages"`
+	Platforms   string `json:"platforms"`
+	Shells      string `json:"shells"`
+	Src         string `json:"src"`
 }
 
 func newListCmd() *cobra.Command {
@@ -68,12 +70,14 @@ func newListCmd() *cobra.Command {
 				}
 
 				rows = append(rows, listRow{
-					Module:    id,
-					Status:    status,
-					Packages:  packageStatus(e, mf),
-					Platforms: strings.Join(mf.Platforms, ","),
-					Shells:    strings.Join(mf.Shells, ","),
-					Src:       src,
+					Module:      id,
+					Status:      status,
+					Description: mf.Module.Description,
+					Homepage:    mf.Module.Homepage,
+					Packages:    packageStatus(e, mf),
+					Platforms:   strings.Join(mf.Platforms, ","),
+					Shells:      strings.Join(mf.Shells, ","),
+					Src:         src,
 				})
 			}
 			sort.Slice(rows, func(i, j int) bool { return rows[i].Module < rows[j].Module })
@@ -85,10 +89,10 @@ func newListCmd() *cobra.Command {
 			}
 
 			tw := tabwriter.NewWriter(out, 0, 2, 2, ' ', 0)
-			_, _ = fmt.Fprintln(tw, "MODULE\tSTATUS\tPACKAGES\tPLATFORMS\tSHELLS\tSRC")
+			_, _ = fmt.Fprintln(tw, "MODULE\tSTATUS\tPACKAGES\tPLATFORMS\tSHELLS\tSRC\tDESCRIPTION")
 			for _, r := range rows {
-				_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
-					r.Module, r.Status, r.Packages, r.Platforms, r.Shells, r.Src)
+				_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+					r.Module, r.Status, r.Packages, r.Platforms, r.Shells, r.Src, r.Description)
 			}
 			return tw.Flush()
 		},

@@ -7,6 +7,7 @@ after     = ["completion"]
 id          = "fzf"
 name        = "FZF Fuzzy Finder"
 description = "Ctrl+R history search as a searchable list"
+homepage    = "https://github.com/junegunn/fzf"
 version     = "1.0.0"
 schema      = 1
 

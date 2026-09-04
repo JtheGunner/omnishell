@@ -5,7 +5,7 @@ after       = ["completion"]
 [module]
 id          = "modern-aliases"
 name        = "Modern CLI aliases"
-description = "Replace ls/cat/find with eza/bat/fd when selected"
+description = "Replace ls/cat/find with eza (https://github.com/eza-community/eza), bat (https://github.com/sharkdp/bat) and fd (https://github.com/sharkdp/fd) when selected"
 version     = "1.0.0"
 schema      = 1
 

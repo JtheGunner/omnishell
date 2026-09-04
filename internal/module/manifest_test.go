@@ -25,6 +25,9 @@ func TestParseManifestFzf(t *testing.T) {
 	if m.Module.ID != "fzf" || m.Module.Version != "1.0.0" || m.Module.Schema != 1 {
 		t.Fatalf("meta = %+v", m.Module)
 	}
+	if m.Module.Homepage != "https://github.com/junegunn/fzf" {
+		t.Fatalf("homepage = %q", m.Module.Homepage)
+	}
 	if len(m.Platforms) != 2 || len(m.Shells) != 2 {
 		t.Fatalf("platforms/shells = %v / %v", m.Platforms, m.Shells)
 	}
