@@ -13,11 +13,15 @@ import (
 )
 
 // installedResponses pretends every package the built-in modules can ask for is
-// already present: `brew list --versions <pkg>` returns a non-empty version
-// line, so pkgmgr's outputNonEmpty check reports IsInstalled == true. This keeps
+// already present, for whichever package manager pkgmgr.DetectManager actually
+// picks on the host running the test: brew on darwin, apt on linux (the CI
+// "test" job runs on ubuntu-latest, so both must be covered — a brew-only mock
+// makes this pass on a developer's Mac and fail in CI). `brew list --versions
+// <pkg>` and `dpkg-query -W -f=${Status} <pkg>` both report "installed", so
+// pkgmgr's IsInstalled checks report true on either platform. This keeps
 // `apply` on the clean, non-degraded path — no install command is ever issued
 // and the git fallback never triggers — which is exactly what the happy-path
-// journey wants to assert.
+// journey wants to assert, on any OS the suite runs on.
 func installedResponses() map[string]pkgmgr.MockResponse {
 	pkgs := []string{
 		"zsh-autosuggestions",
@@ -31,13 +35,15 @@ func installedResponses() map[string]pkgmgr.MockResponse {
 	out := map[string]pkgmgr.MockResponse{}
 	for _, p := range pkgs {
 		out["brew list --versions "+p] = pkgmgr.MockResponse{Out: []byte(p + " 1.0.0\n")}
+		out["dpkg-query -W -f=${Status} "+p] = pkgmgr.MockResponse{Out: []byte("install ok installed\n")}
 	}
 	return out
 }
 
 // setupHome builds a hermetic $HOME with a pre-existing ~/.zshrc, installs the
-// exec.LookPath and pkgmgr.Runner seams (brew + git + zsh resolve, nothing
-// else), and returns a run() that drives cli.Execute capturing combined output.
+// exec.LookPath seam (zsh + brew + git resolve; used only for shell/platform
+// detection, not package-manager detection) and the pkgmgr.Runner seam, and
+// returns a run() that drives cli.Execute capturing combined output.
 func setupHome(t *testing.T) (home string, run func(args ...string) (int, string)) {
 	t.Helper()
 	home = t.TempDir()
@@ -56,8 +62,11 @@ func setupHome(t *testing.T) (home string, run func(args ...string) (int, string
 	})
 	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
 
+	// LookOK covers both brew (what pkgmgr.DetectManager picks on darwin) and
+	// apt-get (what it picks first on linux), so package-manager detection
+	// succeeds regardless of which OS this test binary runs on.
 	cli.SetRunnerForTest(&pkgmgr.MockRunner{
-		LookOK:    map[string]bool{"brew": true, "git": true},
+		LookOK:    map[string]bool{"brew": true, "apt-get": true, "git": true},
 		Responses: installedResponses(),
 	})
 	t.Cleanup(func() { cli.SetRunnerForTest(nil) })
