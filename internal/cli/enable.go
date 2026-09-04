@@ -3,8 +3,11 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/engine"
+	"github.com/JtheGunner/omnishell/internal/module"
 	"github.com/spf13/cobra"
 )
 
@@ -39,11 +42,18 @@ func setModuleEnabled(cmd *cobra.Command, id string, enabled bool) error {
 	if err != nil {
 		return err
 	}
-	if _, err := loadConfigOrHint(cmd, cfgPath); err != nil {
+	cfg, err := loadConfigOrHint(cmd, cfgPath)
+	if err != nil {
 		return err
 	}
-	if _, ok := e.Registry.Get(id); !ok {
+	mod, ok := e.Registry.Get(id)
+	if !ok {
 		return config.Error{Path: cfgPath, Msg: fmt.Sprintf("unknown module %q", id)}
+	}
+	if enabled {
+		if err := checkShellCompatible(cfgPath, cfg, e, mod); err != nil {
+			return err
+		}
 	}
 	if err := config.SetEnabled(cfgPath, id, enabled); err != nil {
 		return err
@@ -55,6 +65,40 @@ func setModuleEnabled(cmd *cobra.Command, id string, enabled bool) error {
 	}
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s %s — run 'omnishell apply' to apply\n", verb, id)
 	return nil
+}
+
+// checkShellCompatible refuses to enable a module that none of the shells
+// omnishell currently manages on this host could ever run — e.g. a zsh-only
+// module (autosuggestions, syntax-highlighting) on a bash-only system.
+// Enabling it anyway would leave it permanently degraded ("no snippet for
+// any managed shell") with no way to notice besides `doctor`/`list`.
+func checkShellCompatible(cfgPath string, cfg config.Config, e engine.Engine, mod module.Module) error {
+	managed := engine.ManagedShells(cfg, e.Platform)
+	for _, sh := range managed {
+		if contains(mod.Manifest.Shells, sh) {
+			return nil
+		}
+	}
+	return config.Error{Path: cfgPath, Msg: fmt.Sprintf(
+		"module %q only supports %s, but none of your managed shells (%s) do — install one of those shells first",
+		mod.Manifest.Module.ID, strings.Join(mod.Manifest.Shells, ", "), joinOrNone(managed),
+	)}
+}
+
+func contains(ss []string, v string) bool {
+	for _, s := range ss {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+
+func joinOrNone(ss []string) string {
+	if len(ss) == 0 {
+		return "none"
+	}
+	return strings.Join(ss, ", ")
 }
 
 // loadConfigOrHint loads config.toml. When the file is missing it writes the

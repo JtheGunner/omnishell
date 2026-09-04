@@ -49,6 +49,7 @@ func TestEnableWithoutInitExitsTwo(t *testing.T) {
 
 func TestEnableThenConfigReflectsIt(t *testing.T) {
 	_, cfgPath := setupModuleCLITest(t)
+	cli.SetLookPathForTest(bashPresentLookPath)
 
 	var out, errb bytes.Buffer
 	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
@@ -81,5 +82,61 @@ func TestEnableThenConfigReflectsIt(t *testing.T) {
 	c, err = config.Load(cfgPath)
 	if err != nil || c.Modules["completion"].Enabled {
 		t.Fatalf("completion still enabled: %+v err=%v", c.Modules, err)
+	}
+}
+
+// TestEnableRejectsModuleIncompatibleWithManagedShells covers the bug found
+// by a live end-to-end test on a bash-only Ubuntu host: `enable` accepted a
+// zsh-only module even though zsh wasn't a managed shell, leaving it
+// permanently degraded ("no snippet for any managed shell") with no signal
+// besides `doctor`. `enable` must refuse up front instead.
+func TestEnableRejectsModuleIncompatibleWithManagedShells(t *testing.T) {
+	_, cfgPath := setupModuleCLITest(t)
+	cli.SetLookPathForTest(bashPresentLookPath) // only bash is present, not zsh
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
+		t.Fatalf("init exit %d: %s", code, errb.String())
+	}
+
+	out.Reset()
+	errb.Reset()
+	code := cli.Execute([]string{"enable", "zshonly"}, &out, &errb)
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 (stderr: %s)", code, errb.String())
+	}
+	if !strings.Contains(errb.String(), "zshonly") || !strings.Contains(errb.String(), "zsh") {
+		t.Fatalf("stderr should name the module and the unmet shell, got: %s", errb.String())
+	}
+	if out.Len() != 0 {
+		t.Fatalf("nothing should be printed to stdout on error, got: %s", out.String())
+	}
+
+	c, err := config.Load(cfgPath)
+	if err != nil || c.Modules["zshonly"].Enabled {
+		t.Fatalf("zshonly should not have been enabled: %+v err=%v", c.Modules, err)
+	}
+}
+
+// TestEnableAllowsModuleWhenItsShellIsManaged is the mirror: once the shell a
+// module requires is actually present, enabling it succeeds.
+func TestEnableAllowsModuleWhenItsShellIsManaged(t *testing.T) {
+	_, cfgPath := setupModuleCLITest(t)
+	cli.SetLookPathForTest(zshPresentLookPath)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
+		t.Fatalf("init exit %d: %s", code, errb.String())
+	}
+
+	out.Reset()
+	errb.Reset()
+	if code := cli.Execute([]string{"enable", "zshonly"}, &out, &errb); code != 0 {
+		t.Fatalf("enable exit %d: %s", code, errb.String())
+	}
+
+	c, err := config.Load(cfgPath)
+	if err != nil || !c.Modules["zshonly"].Enabled {
+		t.Fatalf("zshonly not enabled: %+v err=%v", c.Modules, err)
 	}
 }

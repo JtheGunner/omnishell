@@ -59,7 +59,11 @@ type Plan struct {
 	UnknownModules []string
 }
 
-func managedShells(cfg config.Config, info platform.Info) []string {
+// ManagedShells returns the shells omnishell will manage for cfg on this
+// host, in the fixed [zsh, bash] order: cfg.Omnishell.Shells if set,
+// otherwise every shell auto-detected as present, always narrowed to shells
+// actually present on the host (matching what `omnishell init` does).
+func ManagedShells(cfg config.Config, info platform.Info) []string {
 	present := map[string]bool{}
 	for _, s := range info.Shells {
 		if s.Present {
@@ -102,7 +106,7 @@ func contains(ss []string, v string) bool {
 
 // ComputePlan builds the plan without touching the system.
 func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages bool) (Plan, error) {
-	shells := managedShells(cfg, e.Platform)
+	shells := ManagedShells(cfg, e.Platform)
 	mgrName := ""
 	if e.ManagerOK {
 		mgrName = e.Manager.Name()
@@ -202,7 +206,10 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 			mp.DegradedReason = "no snippet for any managed shell"
 		}
 
-		if !noPackages {
+		// A module with no compatible managed shell can never render its
+		// snippet, so installing its packages would only leave software on
+		// the system with nothing sourcing it — skip package planning too.
+		if !noPackages && mp.DegradedReason == "" {
 			planPackages(&mp, e, mod, shells)
 		}
 

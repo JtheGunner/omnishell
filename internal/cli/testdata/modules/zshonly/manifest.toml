@@ -1,0 +1,11 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh"]
+requires  = []
+after     = []
+
+[module]
+id          = "zshonly"
+name        = "Zsh-only fixture"
+description = "A module that only supports zsh, for enable-time compatibility tests"
+version     = "1.0.0"
+schema      = 1

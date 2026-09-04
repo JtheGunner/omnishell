@@ -16,6 +16,7 @@ func applyForDoctor(t *testing.T) (home, configDir string) {
 	t.Helper()
 	home, _ = setupModuleCLITest(t)
 	configDir = filepath.Join(home, ".config", "omnishell")
+	cli.SetLookPathForTest(zshPresentLookPath)
 
 	var out, errb bytes.Buffer
 	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
@@ -24,7 +25,6 @@ func applyForDoctor(t *testing.T) (home, configDir string) {
 	if code := cli.Execute([]string{"enable", "completion"}, &out, &errb); code != 0 {
 		t.Fatalf("enable exit %d: %s", code, errb.String())
 	}
-	cli.SetLookPathForTest(zshPresentLookPath)
 	if code := cli.Execute([]string{"apply", "--yes"}, &out, &errb); code != 0 {
 		t.Fatalf("apply exit %d: %s\n%s", code, errb.String(), out.String())
 	}
@@ -68,6 +68,7 @@ func TestDoctorCommandDetectsDriftExitsThree(t *testing.T) {
 
 func TestDoctorCommandNeverAppliedExitsThree(t *testing.T) {
 	setupModuleCLITest(t)
+	cli.SetLookPathForTest(zshPresentLookPath)
 
 	var out, errb bytes.Buffer
 	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {

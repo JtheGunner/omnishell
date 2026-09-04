@@ -62,6 +62,7 @@ func TestApplyCommandEndToEnd(t *testing.T) {
 func TestApplyDryRunExitsZeroAndWritesNothing(t *testing.T) {
 	home, _ := setupModuleCLITest(t)
 	configDir := filepath.Join(home, ".config", "omnishell")
+	cli.SetLookPathForTest(zshPresentLookPath)
 
 	var out, errb bytes.Buffer
 	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
@@ -70,8 +71,6 @@ func TestApplyDryRunExitsZeroAndWritesNothing(t *testing.T) {
 	if code := cli.Execute([]string{"enable", "completion"}, &out, &errb); code != 0 {
 		t.Fatalf("enable exit %d: %s", code, errb.String())
 	}
-
-	cli.SetLookPathForTest(zshPresentLookPath)
 
 	out.Reset()
 	errb.Reset()
@@ -101,6 +100,7 @@ func TestApplyWithoutInitExitsTwo(t *testing.T) {
 
 func TestDiffIsApplyDryRun(t *testing.T) {
 	setupModuleCLITest(t)
+	cli.SetLookPathForTest(zshPresentLookPath)
 
 	var out, errb bytes.Buffer
 	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
@@ -109,7 +109,6 @@ func TestDiffIsApplyDryRun(t *testing.T) {
 	if code := cli.Execute([]string{"enable", "completion"}, &out, &errb); code != 0 {
 		t.Fatalf("enable exit %d: %s", code, errb.String())
 	}
-	cli.SetLookPathForTest(zshPresentLookPath)
 
 	out.Reset()
 	errb.Reset()

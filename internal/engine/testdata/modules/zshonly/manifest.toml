@@ -1,0 +1,14 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh"]
+requires  = []
+after     = []
+
+[module]
+id          = "zshonly"
+name        = "Zsh-only fixture"
+description = "A zsh-only module with packages, for shell-mismatch regression tests"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+apt = ["zsh-syntax-highlighting"]

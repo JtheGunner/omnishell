@@ -66,6 +66,33 @@ func TestComputePlanFreshInstall(t *testing.T) {
 	}
 }
 
+// TestComputePlanSkipsPackagesForShellMismatchedModule covers a bug found by
+// a live end-to-end run: a zsh-only module enabled on a bash-only host
+// (managed shells = ["bash"]) was still planned to install its packages even
+// though it can never render — leaving software on the system (and, for a
+// package like zsh-syntax-highlighting, even a whole extra shell pulled in
+// as a dependency) with nothing sourcing it. A module with no compatible
+// managed shell must plan no packages at all.
+func TestComputePlanSkipsPackagesForShellMismatchedModule(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := testEngine(t, mgr)
+	cfg := config.Config{
+		Omnishell: config.OmnishellSection{Version: 1, Shells: []string{"bash"}},
+		Modules:   map[string]config.ModuleConfig{"zshonly": {Enabled: true}},
+	}
+	p, err := engine.ComputePlan(e, cfg, lockfile.Lock{Modules: map[string]lockfile.ModuleState{}}, false)
+	if err != nil {
+		t.Fatalf("ComputePlan: %v", err)
+	}
+	mp := p.Modules["zshonly"]
+	if mp.DegradedReason != "no snippet for any managed shell" {
+		t.Fatalf("DegradedReason = %q, want the shell-mismatch reason", mp.DegradedReason)
+	}
+	if len(mp.MissingPackages) != 0 {
+		t.Fatalf("MissingPackages = %+v, want none — packages must not be planned for a module that can't render", mp.MissingPackages)
+	}
+}
+
 func TestComputePlanUnchangedWhenLockMatches(t *testing.T) {
 	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{"fzf": true}}
 	e := testEngine(t, mgr)
