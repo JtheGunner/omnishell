@@ -12,6 +12,7 @@ import (
 	"github.com/JtheGunner/omnishell/internal/config"
 	"github.com/JtheGunner/omnishell/internal/initfile"
 	"github.com/JtheGunner/omnishell/internal/lockfile"
+	"github.com/JtheGunner/omnishell/internal/rcfile"
 )
 
 // Sentinel errors the CLI maps to specific exit codes.
@@ -149,6 +150,37 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	}
 
 	newLock := e.rebuildLock(cfg, plan, lock, degraded, vendorPaths, installedNow)
+
+	// A shell that dropped out of ManagedShells since the last apply (its
+	// binary was removed from the host) leaves an orphaned init file and rc
+	// marker block behind — nothing else ever looks at a shell outside
+	// ManagedShells to notice or clean it up. Do that here, once, before
+	// writing the still-managed shells below.
+	for _, shell := range staleShells(lock, plan.ManagedShells) {
+		if rcPath := e.rcPath(shell); rcPath != "" {
+			if data, rerr := os.ReadFile(rcPath); rerr == nil && rcfile.BlockPresent(string(data)) {
+				if _, err := bk.Save(rcPath); err != nil {
+					return res, err
+				}
+				updated, _ := rcfile.RemoveBlock(string(data)) // 2nd value is `changed`, not an error; always true after BlockPresent
+				if err := atomicfile.WriteFile(rcPath, []byte(updated), 0o644); err != nil {
+					return res, fmt.Errorf("write rc file %s: %w", rcPath, err)
+				}
+				res.Changed = true
+			}
+		}
+		initPath := e.initPath(shell)
+		if _, serr := os.Stat(initPath); serr == nil {
+			if _, err := bk.Save(initPath); err != nil {
+				return res, err
+			}
+			if err := os.Remove(initPath); err != nil {
+				return res, fmt.Errorf("remove init file %s: %w", initPath, err)
+			}
+			res.Changed = true
+		}
+		res.Modules = append(res.Modules, ModuleResult{ID: "shell:" + shell, Status: "removed", Note: "shell no longer present"})
+	}
 
 	for _, shell := range plan.ManagedShells {
 		initPath := e.initPath(shell)

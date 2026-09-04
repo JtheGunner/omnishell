@@ -114,6 +114,9 @@ func plannedDegraded(plan Plan) map[string]string {
 // --force repair of an out-of-band edit that left the marker sections intact),
 // so it must not bail out early.
 func (e Engine) initOrRCDrift(plan Plan, lock lockfile.Lock) bool {
+	if len(staleShells(lock, plan.ManagedShells)) > 0 {
+		return true
+	}
 	degraded := plannedDegraded(plan)
 	rendered := e.renderAll(plan, degraded)
 	for _, shell := range plan.ManagedShells {
@@ -135,6 +138,35 @@ func (e Engine) initOrRCDrift(plan Plan, lock lockfile.Lock) bool {
 		}
 	}
 	return false
+}
+
+// staleShells returns shells the lock still has an init file or rc-file
+// record for but that plan.ManagedShells no longer includes — typically a
+// shell whose binary was removed from the host since the last apply. Their
+// init file and rc marker block are now orphaned: nothing manages them, but
+// nothing cleans them up either, since every other apply/doctor pass only
+// ever looks at ManagedShells. Sorted for deterministic output.
+func staleShells(lock lockfile.Lock, managed []string) []string {
+	managedSet := map[string]bool{}
+	for _, s := range managed {
+		managedSet[s] = true
+	}
+	seen := map[string]bool{}
+	var out []string
+	for s := range lock.InitFiles {
+		if !managedSet[s] && !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	for s := range lock.RCFiles {
+		if !managedSet[s] && !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // installPackages walks plan.Order and satisfies MissingPackages, marking a
@@ -436,11 +468,22 @@ func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
 		InitFiles:        map[string]lockfile.FileState{},
 		RCFiles:          map[string]lockfile.RCState{},
 	}
+	// Only carry forward entries for shells still managed — a shell that
+	// dropped out (e.g. its binary was removed from the host) gets its files
+	// cleaned up by the stale-shell pass in Apply and must not reappear here.
+	managedSet := map[string]bool{}
+	for _, s := range plan.ManagedShells {
+		managedSet[s] = true
+	}
 	for k, v := range prev.InitFiles {
-		nl.InitFiles[k] = v
+		if managedSet[k] {
+			nl.InitFiles[k] = v
+		}
 	}
 	for k, v := range prev.RCFiles {
-		nl.RCFiles[k] = v
+		if managedSet[k] {
+			nl.RCFiles[k] = v
+		}
 	}
 
 	removed := map[string]bool{}

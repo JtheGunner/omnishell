@@ -97,6 +97,14 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 		}
 	}
 
+	// 3b. Shells the lock still has files for but that are no longer
+	// managed (e.g. the shell binary was removed from the host) — their init
+	// file and rc marker block are now orphaned; apply cleans them up.
+	for _, shell := range staleShells(lock, plan.ManagedShells) {
+		add(SeverityDrift, "stale-shell:"+shell,
+			fmt.Sprintf("shell %q is no longer managed but still has omnishell files; run omnishell apply to clean up", shell))
+	}
+
 	// 4. Per managed shell with a real rc path: marker block absent.
 	for _, shell := range plan.ManagedShells {
 		rcPath := e.rcPath(shell)

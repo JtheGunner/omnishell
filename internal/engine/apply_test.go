@@ -370,3 +370,131 @@ func TestApplyHandEditGuardRunsBeforeInstall(t *testing.T) {
 		t.Fatalf("guard fired but packages were still installed: %+v", mgr.InstallCalls)
 	}
 }
+
+// engineWithShells is applyEngine with explicit control over which shells are
+// Present — needed to simulate a shell disappearing between two Apply runs
+// (e.g. its binary was removed from the host, the way zsh gets pulled in as a
+// package dependency and later purged).
+func engineWithShells(t *testing.T, home string, mgr *pkgmgr.MockManager, out *bytes.Buffer, zshPresent, bashPresent bool) engine.Engine {
+	t.Helper()
+	reg, err := module.LoadRegistry(nil, "testdata/modules")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return engine.Engine{
+		Platform: platform.Info{
+			OS:        platform.Linux,
+			HomeDir:   home,
+			ConfigDir: filepath.Join(home, ".config", "omnishell"),
+			Shells: []platform.ShellInfo{
+				{Name: "zsh", RCPath: filepath.Join(home, ".zshrc"), Present: zshPresent},
+				{Name: "bash", RCPath: filepath.Join(home, ".bashrc"), Present: bashPresent},
+			},
+		},
+		Registry:  reg,
+		Manager:   mgr,
+		ManagerOK: true,
+		Runner:    &pkgmgr.MockRunner{},
+		Now:       func() time.Time { return time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC) },
+		Stdout:    out,
+		Stderr:    out,
+		Prompt:    func(string) bool { return true },
+	}
+}
+
+// TestApplyCleansUpShellThatDisappeared covers a bug found by a live
+// end-to-end test: a shell that WAS managed (its init file written, its rc
+// file hooked) but later disappears from the host (e.g. zsh got pulled in as
+// an apt dependency of a module's package and was later removed) left its
+// init file and rc marker block behind forever — apply/doctor only ever
+// looked at the currently managed shells, so nothing noticed or cleaned up
+// the orphan. A later apply must remove both, and leave the still-managed
+// shell untouched.
+func TestApplyCleansUpShellThatDisappeared(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\n[modules.completion]\nenabled=true\n")
+	cfg, _ := config.Load(cfgPath)
+
+	// First apply: both shells present.
+	e1 := engineWithShells(t, home, mgr, &out, true, true)
+	if _, err := e1.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
+		t.Fatalf("first Apply: %v\n%s", err, out.String())
+	}
+	initZsh := filepath.Join(home, ".config", "omnishell", "init.zsh")
+	initBash := filepath.Join(home, ".config", "omnishell", "init.bash")
+	if _, err := os.Stat(initZsh); err != nil {
+		t.Fatalf("init.zsh not written: %v", err)
+	}
+
+	// zsh disappears (its binary was removed from the host) — Doctor must
+	// flag it even before another apply runs.
+	e2 := engineWithShells(t, home, mgr, &out, false, true)
+	rep, err := e2.Doctor(cfg, cfgPath, lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundStale := false
+	for _, f := range rep.Findings {
+		if f.Code == "stale-shell:zsh" {
+			foundStale = true
+		}
+	}
+	if !foundStale {
+		t.Fatalf("Doctor did not report stale-shell:zsh: %+v", rep.Findings)
+	}
+
+	// Second apply: zsh no longer present. It must clean up init.zsh and the
+	// .zshrc marker block, and leave bash's files untouched.
+	out.Reset()
+	res, err := e2.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true})
+	if err != nil {
+		t.Fatalf("second Apply: %v\n%s", err, out.String())
+	}
+	if !res.Changed {
+		t.Fatal("cleanup apply reported Changed = false")
+	}
+	if _, err := os.Stat(initZsh); !os.IsNotExist(err) {
+		t.Fatalf("init.zsh should have been removed, stat err = %v", err)
+	}
+	zshrc, err := os.ReadFile(filepath.Join(home, ".zshrc"))
+	if err != nil {
+		t.Fatalf("read .zshrc: %v", err)
+	}
+	if strings.Contains(string(zshrc), "omnishell") {
+		t.Fatalf(".zshrc still has the omnishell block:\n%s", zshrc)
+	}
+	if _, err := os.Stat(initBash); err != nil {
+		t.Fatalf("init.bash should be untouched: %v", err)
+	}
+	bashrc, err := os.ReadFile(filepath.Join(home, ".bashrc"))
+	if err != nil {
+		t.Fatalf("read .bashrc: %v", err)
+	}
+	if !strings.Contains(string(bashrc), "omnishell") {
+		t.Fatalf(".bashrc lost its omnishell block:\n%s", bashrc)
+	}
+
+	newLock, _, err := lockfile.Load(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := newLock.InitFiles["zsh"]; ok {
+		t.Fatalf("lock still records init file for zsh: %+v", newLock.InitFiles)
+	}
+	if _, ok := newLock.RCFiles["zsh"]; ok {
+		t.Fatalf("lock still records rc file for zsh: %+v", newLock.RCFiles)
+	}
+
+	// Doctor is clean again after the cleanup.
+	rep2, err := e2.Doctor(cfg, cfgPath, lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep2.HasDrift() {
+		t.Fatalf("doctor still reports drift after cleanup: %+v", rep2.Findings)
+	}
+}
