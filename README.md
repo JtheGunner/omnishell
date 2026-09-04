@@ -165,3 +165,7 @@ reference, the template context, and a worked example.
 - `omnishell rollback` (backups are written; v1 restoration is manual)
 - self-update (`brew` / `install.sh` cover it)
 - Windows / PowerShell
+
+## License
+
+MIT — see [LICENSE](LICENSE). © 2026 Jeffry Würmli.
