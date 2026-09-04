@@ -23,6 +23,10 @@ brews:
   - repository:
       owner: JtheGunner
       name: homebrew-tap
+    token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: JtheGunner
+      email: JtheGunner@users.noreply.github.com
     homepage: https://github.com/JtheGunner/omnishell
     description: Modular, declarative terminal configuration for macOS and Linux
     install: bin.install "omnishell"
