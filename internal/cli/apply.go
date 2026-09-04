@@ -52,7 +52,7 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		if errors.Is(err, config.ErrNotFound) {
-			fmt.Fprintln(errOut, "run 'omnishell init' first")
+			_, _ = fmt.Fprintln(errOut, "run 'omnishell init' first")
 		}
 		return err
 	}
@@ -70,12 +70,12 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	res, err := e.Apply(cfg, cfgPath, lockPath, opts)
 
 	if res.DryRun {
-		fmt.Fprintln(out, res.PlanText)
+		_, _ = fmt.Fprintln(out, res.PlanText)
 		return err
 	}
 
 	if errors.Is(err, engine.ErrAborted) {
-		fmt.Fprintln(errOut, "aborted")
+		_, _ = fmt.Fprintln(errOut, "aborted")
 		return err
 	}
 
@@ -92,12 +92,12 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 func printApplySummary(out io.Writer, res engine.Result) {
 	for _, m := range res.Modules {
 		if m.Note != "" {
-			fmt.Fprintf(out, "  %s  %s  %s\n", m.Status, m.ID, m.Note)
+			_, _ = fmt.Fprintf(out, "  %s  %s  %s\n", m.Status, m.ID, m.Note)
 			continue
 		}
-		fmt.Fprintf(out, "  %s  %s\n", m.Status, m.ID)
+		_, _ = fmt.Fprintf(out, "  %s  %s\n", m.Status, m.ID)
 	}
 	if res.BackupDir != "" {
-		fmt.Fprintf(out, "backup: %s\n", res.BackupDir)
+		_, _ = fmt.Fprintf(out, "backup: %s\n", res.BackupDir)
 	}
 }

@@ -32,7 +32,7 @@ func (s Session) Save(path string) (string, error) {
 		}
 		return "", fmt.Errorf("open %s for backup: %w", path, err)
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }() // read-only source; nothing to act on
 
 	if err := os.MkdirAll(s.Dir, 0o755); err != nil {
 		return "", fmt.Errorf("create backup dir %s: %w", s.Dir, err)
@@ -42,9 +42,12 @@ func (s Session) Save(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create backup file %s: %w", dst, err)
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }() // best-effort; the checked Close below covers the success path
 	if _, err := io.Copy(out, in); err != nil {
 		return "", fmt.Errorf("copy to backup %s: %w", dst, err)
+	}
+	if err := out.Close(); err != nil {
+		return "", fmt.Errorf("close backup file %s: %w", dst, err)
 	}
 	return dst, nil
 }

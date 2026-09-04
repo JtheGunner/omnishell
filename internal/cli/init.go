@@ -52,13 +52,13 @@ func newInitCmd() *cobra.Command {
 func ensureConfig(out io.Writer, cfgPath string) error {
 	switch _, err := os.Stat(cfgPath); {
 	case err == nil:
-		fmt.Fprintf(out, "config already exists: %s\n", cfgPath)
+		_, _ = fmt.Fprintf(out, "config already exists: %s\n", cfgPath)
 		return nil
 	case os.IsNotExist(err):
 		if werr := atomicfile.WriteFile(cfgPath, config.RenderDefault(), 0o644); werr != nil {
 			return fmt.Errorf("write %s: %w", cfgPath, werr)
 		}
-		fmt.Fprintf(out, "created %s\n", cfgPath)
+		_, _ = fmt.Fprintf(out, "created %s\n", cfgPath)
 		return nil
 	default:
 		return err
@@ -87,7 +87,7 @@ func hookShell(out io.Writer, sess backup.Session, configDir, home, shell, rcPat
 
 	updated, changed := rcfile.EnsureBlock(content, shell, sourceTarget)
 	if !changed {
-		fmt.Fprintf(out, "%s already sources omnishell\n", rcPath)
+		_, _ = fmt.Fprintf(out, "%s already sources omnishell\n", rcPath)
 		return nil
 	}
 	if _, err := sess.Save(rcPath); err != nil {
@@ -96,6 +96,6 @@ func hookShell(out io.Writer, sess backup.Session, configDir, home, shell, rcPat
 	if err := atomicfile.WriteFile(rcPath, []byte(updated), perm); err != nil {
 		return fmt.Errorf("write %s: %w", rcPath, err)
 	}
-	fmt.Fprintf(out, "hooked %s -> %s\n", rcPath, sourceTarget)
+	_, _ = fmt.Fprintf(out, "hooked %s -> %s\n", rcPath, sourceTarget)
 	return nil
 }

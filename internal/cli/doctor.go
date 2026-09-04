@@ -34,13 +34,13 @@ func newDoctorCmd() *cobra.Command {
 			}
 
 			for _, f := range rep.Findings {
-				fmt.Fprintf(out, "[%s] %s  %s\n", f.Severity, f.Code, f.Message)
+				_, _ = fmt.Fprintf(out, "[%s] %s  %s\n", f.Severity, f.Code, f.Message)
 			}
 
 			if rep.HasDrift() {
 				return errDrift
 			}
-			fmt.Fprintln(out, "no drift detected")
+			_, _ = fmt.Fprintln(out, "no drift detected")
 			return nil
 		},
 	}

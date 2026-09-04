@@ -63,7 +63,7 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	}
 
 	for _, id := range plan.UnknownModules {
-		fmt.Fprintf(e.Stderr, "warning: unknown module %q in config (ignored)\n", id)
+		_, _ = fmt.Fprintf(e.Stderr, "warning: unknown module %q in config (ignored)\n", id)
 	}
 
 	res := Result{PlanText: RenderPlan(plan)}
@@ -86,7 +86,7 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	}
 
 	if !opts.Yes && e.Prompt != nil {
-		fmt.Fprintln(e.Stdout, res.PlanText)
+		_, _ = fmt.Fprintln(e.Stdout, res.PlanText)
 		if !e.Prompt("Proceed?") {
 			return res, ErrAborted
 		}

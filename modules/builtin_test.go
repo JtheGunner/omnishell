@@ -2,7 +2,6 @@ package modules_test
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -49,8 +48,12 @@ func assertGolden(t *testing.T, id, shell, got string) {
 	t.Helper()
 	p := filepath.Join("testdata", id, shell+".golden")
 	if *update {
-		os.MkdirAll(filepath.Dir(p), 0o755)
-		os.WriteFile(p, []byte(got), 0o644)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	want, err := os.ReadFile(p)
 	if err != nil {
@@ -65,8 +68,12 @@ func assertGoldenNamed(t *testing.T, id, name, got string) {
 	t.Helper()
 	p := filepath.Join("testdata", id, name+".golden")
 	if *update {
-		os.MkdirAll(filepath.Dir(p), 0o755)
-		os.WriteFile(p, []byte(got), 0o644)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	want, err := os.ReadFile(p)
 	if err != nil {
@@ -169,7 +176,7 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 		}
 	}
 	if !sawStringOpt {
-		t.Fatal(fmt.Sprint("no builtin module declares a string option; guard is vacuous"))
+		t.Fatal("no builtin module declares a string option; guard is vacuous")
 	}
 }
 

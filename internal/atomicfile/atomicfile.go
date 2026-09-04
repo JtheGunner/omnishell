@@ -20,14 +20,14 @@ func WriteFile(path string, data []byte, perm os.FileMode) error {
 		return fmt.Errorf("create temp file in %s: %w", dir, err)
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // no-op if the rename succeeded
+	defer func() { _ = os.Remove(tmpName) }() // no-op if the rename succeeded
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close() // best-effort: the write error above is what we report
 		return fmt.Errorf("write temp file: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
+		_ = tmp.Close() // best-effort: the sync error above is what we report
 		return fmt.Errorf("sync temp file: %w", err)
 	}
 	if err := tmp.Close(); err != nil {

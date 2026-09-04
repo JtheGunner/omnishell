@@ -47,7 +47,7 @@ var promptFn = defaultPrompt
 
 // defaultPrompt reads a single y/N line from stdin, defaulting to no.
 func defaultPrompt(question string) bool {
-	fmt.Fprintf(os.Stderr, "%s [y/N]: ", question)
+	_, _ = fmt.Fprintf(os.Stderr, "%s [y/N]: ", question)
 	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "y", "yes":

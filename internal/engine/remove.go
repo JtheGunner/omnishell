@@ -105,7 +105,7 @@ func (e Engine) purgeModule(moduleID string, entry lockfile.ModuleState) error {
 		if vp == "" {
 			continue
 		}
-		fmt.Fprintf(e.Stdout, "removing vendored path %s\n", vp)
+		_, _ = fmt.Fprintf(e.Stdout, "removing vendored path %s\n", vp)
 		if err := os.RemoveAll(vp); err != nil {
 			return fmt.Errorf("remove vendored path %s: %w", vp, err)
 		}
@@ -133,14 +133,14 @@ func (e Engine) uninstallPackages(moduleID string, entry lockfile.ModuleState) e
 		names := byManager[mgr]
 		argv := pkgmgr.UninstallArgv(mgr, names)
 		if len(argv) == 0 {
-			fmt.Fprintf(e.Stdout, "cannot uninstall %s: unknown package manager %q\n",
+			_, _ = fmt.Fprintf(e.Stdout, "cannot uninstall %s: unknown package manager %q\n",
 				strings.Join(names, ", "), mgr)
 			continue
 		}
-		fmt.Fprintf(e.Stdout, "uninstalling %s via %s (%s)\n",
+		_, _ = fmt.Fprintf(e.Stdout, "uninstalling %s via %s (%s)\n",
 			strings.Join(names, ", "), mgr, strings.Join(argv, " "))
 		if argv[0] == "sudo" {
-			fmt.Fprintln(e.Stdout, "(sudo may prompt for your password)")
+			_, _ = fmt.Fprintln(e.Stdout, "(sudo may prompt for your password)")
 		}
 		if _, err := e.Runner.Run(argv[0], argv[1:]...); err != nil {
 			return fmt.Errorf("uninstall %s: %s: %w", moduleID, strings.Join(argv, " "), err)
@@ -156,7 +156,7 @@ func (e Engine) runRemoveHook(moduleID string) error {
 	if !ok || !mod.HasHook("remove") {
 		return nil
 	}
-	fmt.Fprintf(e.Stdout, "running remove hook for %s\n", moduleID)
+	_, _ = fmt.Fprintf(e.Stdout, "running remove hook for %s\n", moduleID)
 	env := e.hookEnv(ModulePlan{ID: moduleID}, "")
 	if err := e.runHookScript(mod, "remove", env); err != nil {
 		return fmt.Errorf("remove hook for %s: %w", moduleID, err)

@@ -53,7 +53,7 @@ func setModuleEnabled(cmd *cobra.Command, id string, enabled bool) error {
 	if !enabled {
 		verb = "disabled"
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s %s — run 'omnishell apply' to apply\n", verb, id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s %s — run 'omnishell apply' to apply\n", verb, id)
 	return nil
 }
 
@@ -66,7 +66,7 @@ func loadConfigOrHint(cmd *cobra.Command, cfgPath string) (config.Config, error)
 		return cfg, nil
 	}
 	if errors.Is(err, config.ErrNotFound) {
-		fmt.Fprintln(cmd.ErrOrStderr(), "run 'omnishell init' first")
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "run 'omnishell init' first")
 	}
 	return config.Config{}, err
 }

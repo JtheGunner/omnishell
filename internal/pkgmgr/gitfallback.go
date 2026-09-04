@@ -79,7 +79,7 @@ func InstallGitFallback(fb module.Fallback, ctx FallbackContext, r Runner) (stri
 			return dest, nil
 		}
 		if _, err := r.Run(argv[0], argv[1:]...); err != nil {
-			os.RemoveAll(dest)
+			_ = os.RemoveAll(dest) // best-effort cleanup; the run error above is what we report
 			return "", fmt.Errorf("fallback run %q: %w", strings.Join(argv, " "), err)
 		}
 	}

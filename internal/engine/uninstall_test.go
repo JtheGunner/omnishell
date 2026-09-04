@@ -21,7 +21,9 @@ func TestUninstallRemovesRCBlockAndInitFiles(t *testing.T) {
 	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
 	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
 	rc := filepath.Join(home, ".bashrc")
-	os.WriteFile(rc, []byte("export X=1\n"), 0o644)
+	if err := os.WriteFile(rc, []byte("export X=1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n")
 	cfg, _ := config.Load(cfgPath)
 	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
@@ -75,7 +77,9 @@ func TestUninstallAbortedByPrompt(t *testing.T) {
 	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
 	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
 	rc := filepath.Join(home, ".bashrc")
-	os.WriteFile(rc, []byte("export X=1\n"), 0o644)
+	if err := os.WriteFile(rc, []byte("export X=1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n")
 	cfg, _ := config.Load(cfgPath)
 	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {

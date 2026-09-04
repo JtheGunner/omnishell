@@ -85,9 +85,9 @@ func newListCmd() *cobra.Command {
 			}
 
 			tw := tabwriter.NewWriter(out, 0, 2, 2, ' ', 0)
-			fmt.Fprintln(tw, "MODULE\tSTATUS\tPACKAGES\tPLATFORMS\tSHELLS\tSRC")
+			_, _ = fmt.Fprintln(tw, "MODULE\tSTATUS\tPACKAGES\tPLATFORMS\tSHELLS\tSRC")
 			for _, r := range rows {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
 					r.Module, r.Status, r.Packages, r.Platforms, r.Shells, r.Src)
 			}
 			return tw.Flush()

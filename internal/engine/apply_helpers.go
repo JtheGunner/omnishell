@@ -162,9 +162,9 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 				degraded[id] = "no package manager to install " + strings.Join(real, ", ")
 				continue
 			}
-			fmt.Fprintf(e.Stdout, "installing %s via %s\n", strings.Join(real, ", "), e.Manager.Name())
+			_, _ = fmt.Fprintf(e.Stdout, "installing %s via %s\n", strings.Join(real, ", "), e.Manager.Name())
 			if e.Manager.NeedsSudo() {
-				fmt.Fprintln(e.Stdout, "(sudo may prompt for your password)")
+				_, _ = fmt.Fprintln(e.Stdout, "(sudo may prompt for your password)")
 			}
 			if err := e.Manager.Install(real); err != nil {
 				degraded[id] = "package install failed: " + err.Error()
@@ -226,9 +226,9 @@ func (e Engine) runHookScript(mod module.Module, name string, env map[string]str
 		return fmt.Errorf("materialise %s hook: %w", name, err)
 	}
 	tmp := f.Name()
-	defer os.Remove(tmp)
+	defer func() { _ = os.Remove(tmp) }() // best-effort cleanup of the materialised hook script
 	if _, err := f.Write(body); err != nil {
-		f.Close()
+		_ = f.Close()
 		return fmt.Errorf("write %s hook: %w", name, err)
 	}
 	if err := f.Close(); err != nil {

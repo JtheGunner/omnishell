@@ -73,7 +73,7 @@ func (e Engine) Uninstall(lockPath string, opts UninstallOptions) (Result, error
 			return Result{}, fmt.Errorf("create uninstall backup dir: %w", err)
 		}
 		sessionDir = tmp
-		fmt.Fprintf(e.Stdout, "backups saved to %s\n", tmp)
+		_, _ = fmt.Fprintf(e.Stdout, "backups saved to %s\n", tmp)
 	}
 
 	bk, err := backup.NewSession(sessionDir, e.now())

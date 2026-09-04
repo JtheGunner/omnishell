@@ -11,8 +11,8 @@ jobs:
         with: { go-version: '1.23' }
       - run: go vet ./...
       - run: go test ./... -race -count=1
-      - uses: golangci/golangci-lint-action@v6
-        with: { version: v1.61 }
+      - uses: golangci/golangci-lint-action@v9
+        with: { version: v2.13 }
   build:
     strategy:
       matrix:

@@ -57,7 +57,7 @@ func newSetCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "set %s.%s = %s\n", id, key, args[1])
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "set %s.%s = %s\n", id, key, args[1])
 			return nil
 		},
 	}

@@ -306,12 +306,12 @@ func RenderPlan(p Plan) string {
 	if !p.ManagerAvailable {
 		mgr = "none detected"
 	}
-	fmt.Fprintf(&b, "Plan (package manager: %s, shells: %s)\n\n", mgr, strings.Join(p.ManagedShells, ", "))
+	_, _ = fmt.Fprintf(&b, "Plan (package manager: %s, shells: %s)\n\n", mgr, strings.Join(p.ManagedShells, ", "))
 
 	var nInstall, nUpdate, nRemove, nUnchanged int
 	line := func(mp ModulePlan) {
 		if mp.DegradedReason != "" {
-			fmt.Fprintf(&b, "  %-8s %-20s %s\n", "degraded", mp.ID, mp.DegradedReason)
+			_, _ = fmt.Fprintf(&b, "  %-8s %-20s %s\n", "degraded", mp.ID, mp.DegradedReason)
 		}
 		switch mp.Action {
 		case ActionInstall, ActionUpdate:
@@ -326,11 +326,11 @@ func RenderPlan(p Plan) string {
 				}
 				extra += "   packages: " + strings.Join(names, ", ")
 			}
-			fmt.Fprintf(&b, "  %-8s %-20s %s\n", string(mp.Action), mp.ID, strings.TrimSpace(extra))
+			_, _ = fmt.Fprintf(&b, "  %-8s %-20s %s\n", string(mp.Action), mp.ID, strings.TrimSpace(extra))
 		case ActionRemove:
-			fmt.Fprintf(&b, "  %-8s %-20s %s\n", "remove", mp.ID, mp.Reason)
+			_, _ = fmt.Fprintf(&b, "  %-8s %-20s %s\n", "remove", mp.ID, mp.Reason)
 		case ActionSkip:
-			fmt.Fprintf(&b, "  %-8s %-20s %s\n", "skip", mp.ID, mp.Reason)
+			_, _ = fmt.Fprintf(&b, "  %-8s %-20s %s\n", "skip", mp.ID, mp.Reason)
 		}
 	}
 
@@ -372,10 +372,10 @@ func RenderPlan(p Plan) string {
 		line(p.Modules[id])
 	}
 
-	fmt.Fprintf(&b, "\n%d to install, %d to update, %d to remove, %d unchanged\n",
+	_, _ = fmt.Fprintf(&b, "\n%d to install, %d to update, %d to remove, %d unchanged\n",
 		nInstall, nUpdate, nRemove, nUnchanged)
 	if len(skips) > 0 {
-		fmt.Fprintf(&b, "%d skipped (not supported on this platform)\n", len(skips))
+		_, _ = fmt.Fprintf(&b, "%d skipped (not supported on this platform)\n", len(skips))
 	}
 	return b.String()
 }

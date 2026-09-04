@@ -47,22 +47,22 @@ func runUninstall(cmd *cobra.Command) error {
 	res, err := e.Uninstall(lockPath, engine.UninstallOptions{PurgeConfigDir: purge, Yes: yes})
 
 	if errors.Is(err, engine.ErrAborted) {
-		fmt.Fprintln(errOut, "aborted")
+		_, _ = fmt.Fprintln(errOut, "aborted")
 		return err
 	}
 
 	for _, m := range res.Modules {
 		if m.Note != "" {
-			fmt.Fprintf(out, "  %s  %s  %s\n", m.Status, m.ID, m.Note)
+			_, _ = fmt.Fprintf(out, "  %s  %s  %s\n", m.Status, m.ID, m.Note)
 			continue
 		}
-		fmt.Fprintf(out, "  %s  %s\n", m.Status, m.ID)
+		_, _ = fmt.Fprintf(out, "  %s  %s\n", m.Status, m.ID)
 	}
 	if res.BackupDir != "" {
-		fmt.Fprintf(out, "backup: %s\n", res.BackupDir)
+		_, _ = fmt.Fprintf(out, "backup: %s\n", res.BackupDir)
 	}
 	if !res.Changed && err == nil {
-		fmt.Fprintln(out, "nothing to uninstall")
+		_, _ = fmt.Fprintln(out, "nothing to uninstall")
 	}
 
 	return err

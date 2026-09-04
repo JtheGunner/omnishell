@@ -47,8 +47,12 @@ func TestDoctorDetectsHandEditAndMissingRCBlock(t *testing.T) {
 	// tamper init file, wipe .bashrc
 	initBash := filepath.Join(home, ".config", "omnishell", "init.bash")
 	b, _ := os.ReadFile(initBash)
-	os.WriteFile(initBash, append(b, []byte("\nrm -rf /\n")...), 0o644)
-	os.WriteFile(filepath.Join(home, ".bashrc"), []byte("# nothing here\n"), 0o644)
+	if err := os.WriteFile(initBash, append(b, []byte("\nrm -rf /\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".bashrc"), []byte("# nothing here\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	rep, err := e.Doctor(cfg, cfgPath, lockPath)
 	if err != nil {

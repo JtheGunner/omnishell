@@ -46,7 +46,9 @@ func applyEngine(t *testing.T, home string, mgr *pkgmgr.MockManager, out *bytes.
 
 func writeConfig(t *testing.T, path, body string) {
 	t.Helper()
-	os.MkdirAll(filepath.Dir(path), 0o755)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +313,9 @@ func TestApplyHandEditGuard(t *testing.T) {
 
 	initBash := filepath.Join(home, ".config", "omnishell", "init.bash")
 	orig, _ := os.ReadFile(initBash)
-	os.WriteFile(initBash, append(orig, []byte("\n# tampered\n")...), 0o644)
+	if err := os.WriteFile(initBash, append(orig, []byte("\n# tampered\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Force a change so Apply wants to write.
 	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n[modules.history]\nenabled=true\n")
@@ -349,7 +353,9 @@ func TestApplyHandEditGuardRunsBeforeInstall(t *testing.T) {
 
 	initBash := filepath.Join(home, ".config", "omnishell", "init.bash")
 	orig, _ := os.ReadFile(initBash)
-	os.WriteFile(initBash, append(orig, []byte("\n# tampered\n")...), 0o644)
+	if err := os.WriteFile(initBash, append(orig, []byte("\n# tampered\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Now enable fzf, which needs a package the mock manager has not installed.
 	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n[modules.fzf]\nenabled=true\n")

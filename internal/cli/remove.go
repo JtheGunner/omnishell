@@ -41,7 +41,7 @@ func runRemove(cmd *cobra.Command, id string) error {
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		if errors.Is(err, config.ErrNotFound) {
-			fmt.Fprintln(errOut, "run 'omnishell init' first")
+			_, _ = fmt.Fprintln(errOut, "run 'omnishell init' first")
 		}
 		return err
 	}
@@ -53,7 +53,7 @@ func runRemove(cmd *cobra.Command, id string) error {
 	res, err := e.Remove(cfg, cfgPath, lockPath, id, purge, engine.ApplyOptions{DryRun: dryRun, Yes: yes})
 
 	if res.DryRun {
-		fmt.Fprintln(out, res.PlanText)
+		_, _ = fmt.Fprintln(out, res.PlanText)
 		return err
 	}
 

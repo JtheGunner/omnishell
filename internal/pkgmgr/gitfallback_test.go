@@ -63,8 +63,12 @@ func TestInstallGitFallbackHandlesSpacesInVendorDir(t *testing.T) {
 func TestInstallGitFallbackSkipsWhenDestPopulated(t *testing.T) {
 	vendor := t.TempDir()
 	dest := filepath.Join(vendor, "fzf")
-	os.MkdirAll(dest, 0o755)
-	os.WriteFile(filepath.Join(dest, "bin"), []byte("x"), 0o644)
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dest, "bin"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	r := &pkgmgr.MockRunner{}
 	fb := module.Fallback{Type: "git", Repo: "r", Dest: "{{.VendorDir}}/fzf"}
