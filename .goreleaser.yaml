@@ -23,7 +23,7 @@ brews:
   - repository:
       owner: JtheGunner
       name: homebrew-tap
-    token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     commit_author:
       name: JtheGunner
       email: JtheGunner@users.noreply.github.com
