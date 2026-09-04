@@ -166,6 +166,15 @@ reference, the template context, and a worked example.
 - self-update (`brew` / `install.sh` cover it)
 - Windows / PowerShell
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build commands, test requirements,
+and the module-authoring reference.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). © 2026 Jeffry Würmli.

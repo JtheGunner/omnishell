@@ -33,7 +33,8 @@ CI (`.github/workflows/ci.yml`) runs vet, race tests, and lint on every push/PR;
 `build.yml`-equivalent job builds on ubuntu+macos and runs `omnishell version`.
 Releases are tagged (`vX.Y.Z`) and built via GoReleaser (`.goreleaser.yaml`),
 which also pushes a formula to the `JtheGunner/homebrew-tap` repo (needs
-`HOMEBREW_TAP_GITHUB_TOKEN`).
+`HOMEBREW_TAP_GITHUB_TOKEN`). `install.sh` downloads the matching release
+tarball and verifies its checksum before extracting.
 
 ## Architecture
 
@@ -78,24 +79,34 @@ files matters more than any single file:
    hint, ignored if the target isn't active). Deterministic: ties broken by
    sorted id, so output ordering never depends on map iteration.
 
-5. **`internal/render`**, **`internal/initfile`**, **`internal/rcfile`** —
+5. **`internal/config`** — loads/saves `config.toml` and implements the
+   `enable`/`disable`/`set` edits (`edit.go`), validating option values against
+   a module's schema before writing. Every command except `apply`/`remove`/
+   `uninstall` only touches this package.
+
+6. **`internal/platform`** — detects OS (macos/linux) and which shells
+   (zsh/bash) are present/managed on the current machine; feeds both
+   `ComputePlan` (module platform/shell filtering) and package-manager
+   detection.
+
+7. **`internal/render`**, **`internal/initfile`**, **`internal/rcfile`** —
    template rendering per module, assembling the marked sections into one
    `init.<shell>` file (with content hash for drift detection), and inserting/
    removing the single rc-file marker block, respectively.
 
-6. **`internal/pkgmgr`** — `Manager` interface implemented per package manager
+8. **`internal/pkgmgr`** — `Manager` interface implemented per package manager
    (brew/apt/dnf/pacman/zypper/apk), detected via `DetectManager` in OS-specific
    priority order, plus a `git`-clone-based fallback (`gitfallback.go`) used
    when a module has no package for the detected manager (or none was found).
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 
-7. **`internal/lockfile`**, **`internal/backup`**, **`internal/atomicfile`** —
+9. **`internal/lockfile`**, **`internal/backup`**, **`internal/atomicfile`** —
    idempotency/drift-detection state, pre-write timestamped backups, and
    atomic (temp file + rename) writes. Every disk write to an rc file or init
    file goes through backup then atomicfile — never write these directly.
 
-8. **`modules/builtin/<id>/`** — one folder per built-in module: `manifest.toml`
+10. **`modules/builtin/<id>/`** — one folder per built-in module: `manifest.toml`
    + `zsh.tmpl`/`bash.tmpl` + optional `hooks/`, embedded via `modules/embed.go`.
    This is the reference shape for user-authored modules too — see
    `docs/writing-a-module.md` for the manifest schema and template context.
