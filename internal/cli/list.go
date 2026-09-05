@@ -30,7 +30,15 @@ func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List known modules and their status",
-		Args:  cobra.NoArgs,
+		Long: `List known modules and their status.
+
+PACKAGES is one of:
+  ok       all of the module's packages for the detected package manager are installed
+  missing  at least one is not installed yet (run 'omnishell apply')
+  n/a      the module needs no external package — it only configures your
+           shell's own built-ins (e.g. completion, history), or no package
+           manager was detected`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
 			e, cfgPath, _, err := buildEngine(out, cmd.ErrOrStderr())
