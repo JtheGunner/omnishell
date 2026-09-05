@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -45,4 +46,60 @@ func (e Engine) ListSnapshots() ([]SnapshotInfo, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Timestamp > out[j].Timestamp })
 	return out, nil
+}
+
+// ErrNoSuchSnapshot is returned when a rollback target does not match any
+// recorded backup session.
+var ErrNoSuchSnapshot = errors.New("no such backup snapshot")
+
+// restorePlanEntry is one path a rollback will change, carrying the entry
+// from whichever session owns the version that should be restored.
+type restorePlanEntry struct {
+	backup.FileEntry
+	SessionDir string
+}
+
+// buildRestorePlan selects every backup session with Timestamp >= target
+// (target through the newest), walks them oldest-first, and keeps only the
+// first (oldest) entry seen per path: that snapshot captured the path's
+// state immediately before the earliest rolled-back run that touched it,
+// which is the correct restore target regardless of what later runs did to
+// the same path. Sessions older than target are never consulted.
+func buildRestorePlan(backupsDir string, snapshots []SnapshotInfo, target string) ([]restorePlanEntry, error) {
+	found := false
+	for _, s := range snapshots {
+		if s.Timestamp == target {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, ErrNoSuchSnapshot
+	}
+
+	var selected []SnapshotInfo
+	for _, s := range snapshots {
+		if s.Timestamp >= target {
+			selected = append(selected, s)
+		}
+	}
+	sort.Slice(selected, func(i, j int) bool { return selected[i].Timestamp < selected[j].Timestamp })
+
+	seen := map[string]bool{}
+	var plan []restorePlanEntry
+	for _, s := range selected {
+		sessionDir := filepath.Join(backupsDir, s.Timestamp)
+		m, err := backup.ReadManifest(sessionDir)
+		if err != nil {
+			continue // already validated readable by ListSnapshots; defensive only
+		}
+		for _, f := range m.Files {
+			if seen[f.OriginalPath] {
+				continue
+			}
+			seen[f.OriginalPath] = true
+			plan = append(plan, restorePlanEntry{FileEntry: f, SessionDir: sessionDir})
+		}
+	}
+	return plan, nil
 }
