@@ -150,6 +150,12 @@ func (e Engine) Rollback(target string, opts RollbackOptions) (RollbackResult, e
 	}
 
 	if !opts.Yes && e.Prompt != nil {
+		for _, f := range res.FilesRestored {
+			_, _ = fmt.Fprintf(e.Stdout, "  restore  %s\n", f)
+		}
+		for _, f := range res.FilesRemoved {
+			_, _ = fmt.Fprintf(e.Stdout, "  remove   %s\n", f)
+		}
 		if !e.Prompt(fmt.Sprintf("Roll back %d file(s) to %s?", len(plan), target)) {
 			return res, ErrAborted
 		}

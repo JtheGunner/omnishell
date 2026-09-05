@@ -147,9 +147,14 @@ reference, the template context, and a worked example.
   missing `source` line, orphaned lockfile entries, shadowed built-ins) and is
   CI-friendly via exit code 3.
 - `omnishell rollback` restores files and the lockfile from a backup snapshot
-  (see Commands). The one exception is an `uninstall --purge` backup: it's
-  saved outside the config directory (since `--purge` deletes it) and
-  restoring it is still manual — the path is printed when it runs.
+  (see Commands) — but never packages or vendored files, and never
+  `config.toml`. Three cases stay outside it: an `uninstall --purge` backup
+  (saved outside the config directory since `--purge` deletes it — restoring
+  it is manual, the path is printed when it runs); the one-time backup
+  `omnishell init` takes of your rc file before inserting the marker block
+  (not yet tracked by a manifest, so it doesn't appear in `rollback`'s
+  listing); and anything `remove --purge` uninstalled (packages, vendored
+  files) — `remove --purge` reverses those, not `rollback`.
 
 ## Exit codes
 

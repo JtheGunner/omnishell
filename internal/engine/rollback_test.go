@@ -377,6 +377,87 @@ enabled = true
 	}
 }
 
+func TestRollbackRestoresUninstallSnapshot(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	clock := advancingClock(time.Date(2026, 9, 4, 12, 0, 0, 0, time.UTC))
+	e := rollbackEngine(t, home, mgr, &out, clock)
+
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, `
+[omnishell]
+version = 1
+shells = ["bash"]
+[modules.completion]
+enabled = true
+`)
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
+		t.Fatalf("Apply: %v\n%s", err, out.String())
+	}
+
+	initBash := filepath.Join(home, ".config", "omnishell", "init.bash")
+	rcBash := filepath.Join(home, ".bashrc")
+	rcBefore, err := os.ReadFile(rcBash)
+	if err != nil {
+		t.Fatalf("read .bashrc before uninstall: %v", err)
+	}
+	if !strings.Contains(string(rcBefore), ">>> omnishell >>>") {
+		t.Fatalf(".bashrc missing marker block before uninstall:\n%s", rcBefore)
+	}
+
+	uninstallRes, err := e.Uninstall(lockPath, engine.UninstallOptions{Yes: true})
+	if err != nil {
+		t.Fatalf("Uninstall: %v\n%s", err, out.String())
+	}
+	target := filepath.Base(uninstallRes.BackupDir)
+
+	if _, err := os.Stat(initBash); !os.IsNotExist(err) {
+		t.Fatalf("init.bash should be gone after uninstall: err=%v", err)
+	}
+	rcAfterUninstall, err := os.ReadFile(rcBash)
+	if err != nil {
+		t.Fatalf("read .bashrc after uninstall: %v", err)
+	}
+	if strings.Contains(string(rcAfterUninstall), ">>> omnishell >>>") {
+		t.Fatalf(".bashrc still has marker block after uninstall:\n%s", rcAfterUninstall)
+	}
+
+	snapshots, err := e.ListSnapshots()
+	if err != nil {
+		t.Fatalf("ListSnapshots: %v", err)
+	}
+	found := false
+	for _, s := range snapshots {
+		if s.Timestamp == target && s.Kind == "uninstall" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("uninstall snapshot %s not listed with kind=uninstall: %+v", target, snapshots)
+	}
+
+	if _, err := e.Rollback(target, engine.RollbackOptions{Yes: true}); err != nil {
+		t.Fatalf("Rollback: %v\n%s", err, out.String())
+	}
+
+	rcRestored, err := os.ReadFile(rcBash)
+	if err != nil {
+		t.Fatalf("read .bashrc after rollback: %v", err)
+	}
+	if !strings.Contains(string(rcRestored), ">>> omnishell >>>") {
+		t.Fatalf(".bashrc marker block not restored by rollback:\n%s", rcRestored)
+	}
+	if _, err := os.Stat(initBash); err != nil {
+		t.Fatalf("init.bash not restored by rollback: %v", err)
+	}
+}
+
 func TestRollbackUnknownTargetReturnsErrNoSuchSnapshot(t *testing.T) {
 	home := t.TempDir()
 	e := rollbackEngine(t, home, &pkgmgr.MockManager{NameV: "apt", DetectV: true}, &bytes.Buffer{}, advancingClock(time.Now()))
