@@ -71,6 +71,7 @@ your system until you run `omnishell apply`.
 | `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt) |
 | `omnishell diff` | Show what apply would change (`apply --dry-run`). | — |
 | `omnishell doctor` | Check the installed shell environment for drift. Exit 3 if any drift is found. | — |
+| `omnishell rollback` | List backup snapshots, or restore files/lockfile to their state before a chosen one (`--to <timestamp>`), undoing that run and everything after it. Never touches packages or `config.toml`. | `--to <timestamp>`, `--dry-run`, `-y` / `--yes` |
 | `omnishell remove <id>` | Disable a module and drop its shell section, then re-apply. | `--dry-run`, `--purge` (also uninstall the module's packages, run its remove hook, and delete vendored files), `-y` / `--yes` |
 | `omnishell uninstall` | Remove omnishell's shell integration (marker block + generated `init.<shell>` files). Every touched file is backed up first. | `--purge` (also delete `~/.config/omnishell` entirely), `-y` / `--yes` |
 | `omnishell version` | Print the omnishell version. | — |
@@ -145,8 +146,10 @@ reference, the template context, and a worked example.
 - `omnishell doctor` reports drift (missing packages, hand-edited init files,
   missing `source` line, orphaned lockfile entries, shadowed built-ins) and is
   CI-friendly via exit code 3.
-- `omnishell uninstall` backs the integration out; restoration from a backup is
-  manual in v1 (the path is printed).
+- `omnishell rollback` restores files and the lockfile from a backup snapshot
+  (see Commands). The one exception is an `uninstall --purge` backup: it's
+  saved outside the config directory (since `--purge` deletes it) and
+  restoring it is still manual — the path is printed when it runs.
 
 ## Exit codes
 
@@ -162,7 +165,6 @@ reference, the template context, and a worked example.
 - fish support
 - remote module registry / installing modules from a URL
 - profiles (different module sets per machine)
-- `omnishell rollback` (backups are written; v1 restoration is manual)
 - self-update (`brew` / `install.sh` cover it)
 - Windows / PowerShell
 
