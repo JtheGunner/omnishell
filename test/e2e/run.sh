@@ -19,6 +19,10 @@ test -f "$HOME/.config/omnishell/init.bash" || { echo "init.bash missing"; exit 
 grep -q '>>> omnishell >>>' "$HOME/.bashrc" || { echo "rc block missing"; exit 1; }
 grep -q 'omnishell:fzf' "$HOME/.config/omnishell/init.bash" || { echo "fzf not applied (package install failed?)"; exit 1; }
 
+# Capture the snapshot just taken by the apply above, then roll back to it
+# and confirm doctor reports no drift against the restored (pre-apply) state.
+snapshot=$(omnishell rollback | head -n1 | awk '{print $1}')
+omnishell rollback --to "$snapshot" --yes
 omnishell doctor
 omnishell remove fzf --yes
 ! grep -q 'omnishell:fzf' "$HOME/.config/omnishell/init.bash" || { echo "fzf survived remove"; exit 1; }
