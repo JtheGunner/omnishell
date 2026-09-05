@@ -3,7 +3,6 @@ package engine_test
 import (
 	"bytes"
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -60,15 +59,5 @@ func advancingClock(start time.Time) func() time.Time {
 	return func() time.Time {
 		t = t.Add(time.Minute)
 		return t
-	}
-}
-
-func writeConfig(t *testing.T, path, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
 	}
 }
