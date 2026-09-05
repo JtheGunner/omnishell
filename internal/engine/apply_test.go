@@ -45,16 +45,6 @@ func applyEngine(t *testing.T, home string, mgr *pkgmgr.MockManager, out *bytes.
 	}
 }
 
-func writeConfig(t *testing.T, path, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestApplyFreshInstallWritesInitAndRC(t *testing.T) {
 	home := t.TempDir()
 	var out bytes.Buffer
