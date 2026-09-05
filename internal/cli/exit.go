@@ -14,7 +14,7 @@ var errDrift = errors.New("drift detected")
 // ClassifyError maps an error to a process exit code:
 //
 //	nil                                       -> 0
-//	config.Error / engine.ConfigError / ErrNotFound -> 2
+//	config.Error / engine.ConfigError / ErrNotFound / engine.ErrNoSuchSnapshot -> 2
 //	errDrift                                  -> 3
 //	engine.ErrDegraded / engine.ErrAborted    -> 1
 //	anything else                             -> 1
@@ -24,7 +24,8 @@ func ClassifyError(err error) int {
 	}
 	var engCfg engine.ConfigError
 	var cfgErr config.Error
-	if errors.As(err, &engCfg) || errors.As(err, &cfgErr) || errors.Is(err, config.ErrNotFound) {
+	if errors.As(err, &engCfg) || errors.As(err, &cfgErr) || errors.Is(err, config.ErrNotFound) ||
+		errors.Is(err, engine.ErrNoSuchSnapshot) {
 		return 2
 	}
 	if errors.Is(err, errDrift) {

@@ -32,4 +32,7 @@ func TestClassifyError(t *testing.T) {
 	if got := cli.ClassifyError(errors.New("misc")); got != 1 {
 		t.Fatalf("misc -> %d, want 1", got)
 	}
+	if got := cli.ClassifyError(engine.ErrNoSuchSnapshot); got != 2 {
+		t.Fatalf("ClassifyError(ErrNoSuchSnapshot) = %d, want 2", got)
+	}
 }
