@@ -417,7 +417,7 @@ func (e Engine) initFileHandEdited(shell, existing string, newSections []initfil
 
 // ensureRC guarantees the marker block in a shell's rc file, backing it up first
 // and only rewriting when the block actually changed.
-func (e Engine) ensureRC(shell, initPath string, bk backup.Session, lock *lockfile.Lock) error {
+func (e Engine) ensureRC(shell, initPath string, bk *backup.Session, lock *lockfile.Lock) error {
 	rcPath := e.rcPath(shell)
 	if rcPath == "" {
 		return nil
