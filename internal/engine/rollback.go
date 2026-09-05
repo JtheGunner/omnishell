@@ -5,10 +5,12 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 
+	"github.com/JtheGunner/omnishell/internal/atomicfile"
 	"github.com/JtheGunner/omnishell/internal/backup"
 )
 
@@ -102,4 +104,92 @@ func buildRestorePlan(backupsDir string, snapshots []SnapshotInfo, target string
 		}
 	}
 	return plan, nil
+}
+
+// RollbackOptions are the flags of `omnishell rollback`.
+type RollbackOptions struct {
+	DryRun, Yes bool
+}
+
+// RollbackResult is the outcome of Rollback.
+type RollbackResult struct {
+	RestoredTo    string
+	FilesRestored []string
+	FilesRemoved  []string
+	BackupDir     string // the new pre-rollback safety snapshot; empty on a dry run
+}
+
+// Rollback restores every path changed by target's run and every run after
+// it back to its state immediately before target, using the chain-of-
+// manifests restore plan from buildRestorePlan. Packages are never touched.
+// Before writing anything, it takes its own backup of the current content of
+// every path about to change, so a rollback is itself reversible via a later
+// Rollback to that new snapshot.
+func (e Engine) Rollback(target string, opts RollbackOptions) (RollbackResult, error) {
+	backupsDir := filepath.Join(e.Platform.ConfigDir, "backups")
+	snapshots, err := e.ListSnapshots()
+	if err != nil {
+		return RollbackResult{}, err
+	}
+	plan, err := buildRestorePlan(backupsDir, snapshots, target)
+	if err != nil {
+		return RollbackResult{}, err
+	}
+
+	res := RollbackResult{RestoredTo: target}
+	for _, p := range plan {
+		if p.ExistedBefore {
+			res.FilesRestored = append(res.FilesRestored, p.OriginalPath)
+		} else {
+			res.FilesRemoved = append(res.FilesRemoved, p.OriginalPath)
+		}
+	}
+
+	if opts.DryRun {
+		return res, nil
+	}
+
+	if !opts.Yes && e.Prompt != nil {
+		if !e.Prompt(fmt.Sprintf("Roll back %d file(s) to %s?", len(plan), target)) {
+			return res, ErrAborted
+		}
+	}
+
+	bk, err := backup.NewSession(e.Platform.ConfigDir, e.now())
+	if err != nil {
+		return res, fmt.Errorf("create backup session: %w", err)
+	}
+	res.BackupDir = bk.Dir
+	if err := os.MkdirAll(bk.Dir, 0o755); err != nil {
+		return res, fmt.Errorf("create backup dir %s: %w", bk.Dir, err)
+	}
+	defer func() { _ = bk.WriteManifest("rollback", e.now()) }()
+
+	for _, p := range plan {
+		if _, err := bk.Save(p.OriginalPath); err != nil {
+			return res, err
+		}
+	}
+
+	for _, p := range plan {
+		if p.ExistedBefore {
+			data, rerr := os.ReadFile(filepath.Join(p.SessionDir, p.BackupName))
+			if rerr != nil {
+				return res, fmt.Errorf("read backed-up %s: %w", p.OriginalPath, rerr)
+			}
+			perm := os.FileMode(0o644)
+			if fi, serr := os.Stat(p.OriginalPath); serr == nil {
+				perm = fi.Mode().Perm()
+			}
+			if err := atomicfile.WriteFile(p.OriginalPath, data, perm); err != nil {
+				return res, fmt.Errorf("restore %s: %w", p.OriginalPath, err)
+			}
+		} else {
+			if err := os.Remove(p.OriginalPath); err != nil && !os.IsNotExist(err) {
+				return res, fmt.Errorf("remove %s: %w", p.OriginalPath, err)
+			}
+		}
+	}
+
+	return res, nil
 }
