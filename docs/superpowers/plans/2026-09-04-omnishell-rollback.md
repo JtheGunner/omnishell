@@ -1128,10 +1128,10 @@ ctrl_t = true
 		t.Fatalf("init.bash missing after rollback: %v", err)
 	}
 	if !strings.Contains(string(body), "omnishell:completion") {
-		t.Fatalf("init.bash should still have completion (from before target):\n%s", body)
+		t.Fatalf("init.bash should still have completion (from apply0, before target):\n%s", body)
 	}
-	if !strings.Contains(string(body), "omnishell:fzf") {
-		t.Fatalf("init.bash should have fzf's pre-target state, not be wiped back to apply0:\n%s", body)
+	if strings.Contains(string(body), "omnishell:fzf") {
+		t.Fatalf("init.bash should NOT have fzf — target's own run must be undone too, landing on apply0's state:\n%s", body)
 	}
 }
 
