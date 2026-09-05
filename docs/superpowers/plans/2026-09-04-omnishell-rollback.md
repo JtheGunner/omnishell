@@ -1730,11 +1730,22 @@ existing `doctor` step that follows it), add, following the same
 style/helper the surrounding steps already use:
 
 ```sh
-# Capture the snapshot just taken by the apply above, then roll back to it
-# and confirm doctor reports no drift against the restored (pre-apply) state.
+# Capture the snapshot just taken by the apply above, then roll back to it.
+# rollback never touches config.toml, so once it removes init.bash and the
+# lockfile, config.toml still requests the enabled modules while nothing is
+# applied on disk — doctor is expected to report drift here (exit 3), which
+# proves the rollback actually took effect. Assert that expected drift, then
+# re-apply so the pre-existing `doctor` call right after this block still
+# finds a clean, converged state as it did before this step was added.
 snapshot=$("$BIN" rollback | head -n1 | awk '{print $1}')
 "$BIN" rollback --to "$snapshot" --yes
+test ! -f "$HOME/.config/omnishell/init.bash" || { echo "init.bash survived rollback"; exit 1; }
+set +e
 "$BIN" doctor
+rollback_doctor_exit=$?
+set -e
+test "$rollback_doctor_exit" -eq 3 || { echo "doctor after rollback exited $rollback_doctor_exit, want 3 (drift expected: config still enables modules but rollback removed lock+files)"; exit 1; }
+"$BIN" apply --yes
 ```
 
 Adjust variable naming (`$BIN`, or whatever this script's existing variable
