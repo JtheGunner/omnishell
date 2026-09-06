@@ -1,12 +1,26 @@
 #!/bin/sh
-# Build omnishell, run a real init+enable+apply+doctor cycle, assert the
-# init file and rc block exist and doctor is clean. Intended to run as root
-# inside a minimal distro container.
+# Build omnishell and run a real init -> enable -> apply -> doctor -> rollback ->
+# remove -> uninstall cycle against a throwaway $HOME, asserting the init file and
+# rc block are created and torn down as expected. Runs unprivileged on macOS and
+# as root inside a minimal distro container. Package installs still touch the real
+# system, so run this only in disposable environments.
 set -eu
 
-go build -o /usr/local/bin/omnishell ./cmd/omnishell
+sandbox=$(mktemp -d)
+trap 'rm -rf "$sandbox"' EXIT
 
-export HOME=/root
+# Build into a sandbox bin on PATH so we don't need write access to
+# /usr/local/bin (not writable for the unprivileged macOS runner).
+mkdir -p "$sandbox/bin"
+go build -o "$sandbox/bin/omnishell" ./cmd/omnishell
+PATH="$sandbox/bin:$PATH"
+export PATH
+
+# Isolate all omnishell state under a throwaway home. omnishell resolves the home
+# dir purely from $HOME; unset XDG_CONFIG_HOME so config can't escape the sandbox.
+export HOME="$sandbox/home"
+unset XDG_CONFIG_HOME
+mkdir -p "$HOME"
 touch "$HOME/.bashrc"
 
 omnishell init

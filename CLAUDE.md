@@ -25,9 +25,10 @@ make lint    # golangci-lint run (CI uses golangci-lint-action v9, config v2.13)
 Run a single test: `go test ./internal/engine/... -run TestApply_Foo -v`
 
 E2E: `test/e2e/run.sh` builds the binary and runs a real
-init→enable→apply→doctor→remove→uninstall cycle against `$HOME`. It's meant to
-run as root in a minimal distro container (CI does this per-OS); don't run it
-against your real `$HOME`.
+init→enable→apply→doctor→rollback→remove→uninstall cycle against a throwaway
+sandbox `HOME` (`mktemp -d`), so it runs either unprivileged (macOS runner) or as
+root (minimal distro container); CI does both per-OS. Package installs still hit
+the real system, so only run it in a disposable environment.
 
 CI (`.github/workflows/ci.yml`) runs vet, race tests, and lint on every push/PR;
 `build.yml`-equivalent job builds on ubuntu+macos and runs `omnishell version`.
