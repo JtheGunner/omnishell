@@ -149,6 +149,8 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 		return res, fmt.Errorf("create backup dir %s: %w", bk.Dir, err)
 	}
 
+	defer func() { _ = bk.WriteManifest("apply", e.now()) }()
+
 	newLock := e.rebuildLock(cfg, plan, lock, degraded, vendorPaths, installedNow)
 
 	// A shell that dropped out of ManagedShells since the last apply (its
@@ -208,6 +210,9 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	newLock.Platform = string(e.Platform.OS)
 	if plan.ManagerAvailable {
 		newLock.PackageManager = plan.PackageManager
+	}
+	if _, err := bk.Save(lockPath); err != nil {
+		return res, err
 	}
 	if err := newLock.Write(lockPath); err != nil {
 		return res, fmt.Errorf("write lockfile %s: %w", lockPath, err)

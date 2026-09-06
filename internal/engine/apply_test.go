@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/JtheGunner/omnishell/internal/backup"
 	"github.com/JtheGunner/omnishell/internal/config"
 	"github.com/JtheGunner/omnishell/internal/engine"
 	"github.com/JtheGunner/omnishell/internal/lockfile"
@@ -496,5 +497,53 @@ func TestApplyCleansUpShellThatDisappeared(t *testing.T) {
 	}
 	if rep2.HasDrift() {
 		t.Fatalf("doctor still reports drift after cleanup: %+v", rep2.Findings)
+	}
+}
+
+func TestApplyWritesManifestAndBacksUpLockfile(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := applyEngine(t, home, mgr, &out)
+
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, `
+[omnishell]
+version = 1
+shells = ["bash"]
+[modules.completion]
+enabled = true
+`)
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true})
+	if err != nil {
+		t.Fatalf("Apply: %v\n%s", err, out.String())
+	}
+	if res.BackupDir == "" {
+		t.Fatal("res.BackupDir empty")
+	}
+
+	m, err := backup.ReadManifest(res.BackupDir)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if m.Kind != "apply" {
+		t.Fatalf("manifest kind = %q, want %q", m.Kind, "apply")
+	}
+	foundLock := false
+	for _, f := range m.Files {
+		if f.OriginalPath == lockPath {
+			foundLock = true
+			if f.ExistedBefore {
+				t.Fatalf("first-ever apply's lockfile entry has ExistedBefore=true, want false")
+			}
+		}
+	}
+	if !foundLock {
+		t.Fatalf("manifest does not record %s: %+v", lockPath, m.Files)
 	}
 }

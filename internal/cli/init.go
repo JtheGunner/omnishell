@@ -70,7 +70,7 @@ func ensureConfig(out io.Writer, cfgPath string) error {
 // an up-to-date block is left untouched and not backed up. The init file itself
 // is created by `apply`; the rc block guards its source with a `-f` test, so it
 // no-ops safely until then.
-func hookShell(out io.Writer, sess backup.Session, configDir, home, shell, rcPath string) error {
+func hookShell(out io.Writer, sess *backup.Session, configDir, home, shell, rcPath string) error {
 	initPath := filepath.Join(configDir, "init."+shell)
 	sourceTarget := homeRelative(initPath, home)
 

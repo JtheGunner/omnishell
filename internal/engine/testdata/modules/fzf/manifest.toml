@@ -29,6 +29,11 @@ type    = "bool"
 default = true
 help    = "Bind Ctrl+R to the fzf history widget"
 
+[options.ctrl_t]
+type    = "bool"
+default = false
+help    = "Bind Ctrl+T to the fzf file-search widget"
+
 [options.default_opts]
 type    = "string"
 default = "--height 40% --reverse"

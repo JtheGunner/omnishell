@@ -83,6 +83,8 @@ func (e Engine) Uninstall(lockPath string, opts UninstallOptions) (Result, error
 
 	res := Result{BackupDir: bk.Dir}
 
+	defer func() { _ = bk.WriteManifest("uninstall", e.now()) }()
+
 	// Step 4: strip the marker block from every managed rc file that has one.
 	for _, shell := range platform.SupportedShells {
 		rcPath := e.rcPath(shell)
