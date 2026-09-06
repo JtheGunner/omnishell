@@ -11,8 +11,10 @@ trap 'rm -rf "$sandbox"' EXIT
 
 # Build into a sandbox bin on PATH so we don't need write access to
 # /usr/local/bin (not writable for the unprivileged macOS runner).
+# -buildvcs=false: the container checkout trips git's "dubious ownership"
+# guard (exit 128), and this smoke binary doesn't need a version stamp.
 mkdir -p "$sandbox/bin"
-go build -o "$sandbox/bin/omnishell" ./cmd/omnishell
+go build -buildvcs=false -o "$sandbox/bin/omnishell" ./cmd/omnishell
 PATH="$sandbox/bin:$PATH"
 export PATH
 
