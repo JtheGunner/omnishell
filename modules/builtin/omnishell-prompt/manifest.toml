@@ -1,0 +1,27 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "omnishell-prompt"
+name        = "omnishell prompt"
+description = "A small, fast, git-aware two-line prompt with no external dependency"
+version     = "1.0.0"
+schema      = 1
+
+[options.style]
+type    = "enum"
+values  = ["minimal", "full"]
+default = "minimal"
+help    = "minimal = cwd + git; full also shows user@host"
+
+[options.show_duration]
+type    = "bool"
+default = false
+help    = "Show the elapsed time of the last command when it ran for >= 1s (zsh only)"
+
+[options.char]
+type    = "string"
+default = "❯"
+pattern = "^\\S{1,3}$"
+help    = "The prompt character on the second line"

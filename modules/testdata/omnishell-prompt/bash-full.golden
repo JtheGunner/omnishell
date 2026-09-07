@@ -1,0 +1,20 @@
+_oms_prompt_char='❯'
+
+_oms_prompt() {
+  local ex=$?
+  local gseg="" b
+  b=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+  if [ -n "$b" ]; then
+    git diff --quiet --ignore-submodules HEAD 2>/dev/null || b="${b}*"
+    gseg=" \[\e[33m\]${b}\[\e[0m\]"
+  fi
+  PS1="\[\e[34m\]\w\[\e[0m\]${gseg}"
+  PS1="${PS1} \[\e[90m\]\u@\h\[\e[0m\]"
+  PS1="${PS1}\n"
+  [ "$ex" -ne 0 ] && PS1="${PS1}\[\e[31m\]${ex}\[\e[0m\] "
+  PS1="${PS1}${_oms_prompt_char} "
+}
+case ";${PROMPT_COMMAND};" in
+  *";_oms_prompt;"*) ;;
+  *) PROMPT_COMMAND="_oms_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+esac
