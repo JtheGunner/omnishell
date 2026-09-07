@@ -35,7 +35,11 @@ CI (`.github/workflows/ci.yml`) runs vet, race tests, and lint on every push/PR;
 Releases are tagged (`vX.Y.Z`) and built via GoReleaser (`.goreleaser.yaml`),
 which also pushes a formula to the `JtheGunner/homebrew-tap` repo (needs
 `HOMEBREW_TAP_GITHUB_TOKEN`). `install.sh` downloads the matching release
-tarball and verifies its checksum before extracting.
+tarball and verifies its checksum before extracting. The GoReleaser
+`before` hook runs `make dist-assets` to generate bash/zsh completions and
+man pages (hidden `omnishell docs man <dir>`, via `cobra/doc`); they ride in
+the archives and the Homebrew formula, and `install.sh` best-effort-installs
+them into `$XDG_DATA_HOME`.
 
 ## Architecture
 

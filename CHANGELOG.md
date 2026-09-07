@@ -51,6 +51,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `git` + `cargo` fallback elsewhere.
 - Built-in `welcome` module: run `fastfetch` on interactive shell start, with
   an `only_ssh` option. Opt-in — it adds visible startup latency.
+- Release archives and the Homebrew formula now ship bash/zsh completions and
+  man pages for the `omnishell` command itself. Man pages are generated from
+  the command tree via a hidden `omnishell docs man <dir>`; `install.sh`
+  places both into `$XDG_DATA_HOME` on a best-effort basis.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc

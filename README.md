@@ -80,6 +80,20 @@ your system until you run `omnishell apply`.
 | `omnishell version` | Print the omnishell version. | — |
 | `omnishell completion` | Cobra-generated shell autocompletion script generator (distinct from the `completion` module). | — |
 
+## Shell completion & man page for the `omnishell` command
+
+Not to be confused with the `completion` **module** (which configures *your
+shell's* completion system) — this is tab-completion for typing `omnishell`
+itself, plus `man omnishell`.
+
+- **Homebrew** installs the bash/zsh completions and the man pages automatically.
+- **`install.sh`** drops them into `$XDG_DATA_HOME` (`~/.local/share`) on a
+  best-effort basis — bash into `bash-completion/completions/`, zsh into
+  `zsh/site-functions/` (make sure that dir is on your `$fpath`), man into
+  `man/man1/`.
+- **`go install`**: generate on demand, e.g.
+  `omnishell completion zsh > ~/.local/share/zsh/site-functions/_omnishell`.
+
 ## How it works
 
 The config directory is `$XDG_CONFIG_HOME/omnishell`, or `~/.config/omnishell`

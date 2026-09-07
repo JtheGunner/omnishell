@@ -1,7 +1,9 @@
 version: 2
 project_name: omnishell
 before:
-  hooks: [go mod tidy]
+  hooks:
+    - go mod tidy
+    - make dist-assets
 builds:
   - id: omnishell
     main: ./cmd/omnishell
@@ -17,6 +19,13 @@ builds:
 archives:
   - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - src: dist/assets/completions/*
+        dst: completions
+      - src: dist/assets/man/*.1
+        dst: man
+      - README.md
+      - LICENSE
 checksum:
   name_template: checksums.txt
 brews:
@@ -29,7 +38,11 @@ brews:
       email: JtheGunner@users.noreply.github.com
     homepage: https://github.com/JtheGunner/omnishell
     description: Modular, declarative terminal configuration for macOS and Linux
-    install: bin.install "omnishell"
+    install: |
+      bin.install "omnishell"
+      bash_completion.install "completions/omnishell.bash" => "omnishell"
+      zsh_completion.install "completions/_omnishell"
+      man1.install Dir["man/*.1"]
     test: system "#{bin}/omnishell version"
 release:
   github:
