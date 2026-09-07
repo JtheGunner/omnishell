@@ -127,8 +127,19 @@ func SetBenchForTest(fn func(shellPath, initPath string, runs int) (time.Duratio
 	benchRun = fn
 }
 
-// promptFn answers interactive y/N questions; tests reassign it.
+// promptFn answers interactive y/N questions; tests reassign it via
+// SetPromptForTest.
 var promptFn = defaultPrompt
+
+// SetPromptForTest swaps the y/N prompt. Passing nil restores the real
+// stdin-reading implementation.
+func SetPromptForTest(fn func(question string) bool) {
+	if fn == nil {
+		promptFn = defaultPrompt
+		return
+	}
+	promptFn = fn
+}
 
 // defaultPrompt reads a single y/N line from stdin, defaulting to no.
 func defaultPrompt(question string) bool {
