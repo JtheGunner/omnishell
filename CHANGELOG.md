@@ -12,6 +12,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `omnishell validate`: check `config.toml` against the module option schemas
   and dependency rules (`requires` / `conflicts` / cycles) without computing a
   plan or probing the host. Exit 2 on any problem; `--json` for machine output.
+- `omnishell apply --reload`: re-exec `$SHELL` after a successful apply so the
+  changes take effect immediately. No-op (with a hint) in a non-interactive
+  shell or when `$SHELL` is unset.
+
+### Fixed
+- `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc
+  file it backs up, so that pre-omnishell state shows up in
+  `omnishell rollback` and can be restored like any other snapshot.
 
 ## [0.2.0] - 2026-09-04
 

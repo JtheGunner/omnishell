@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/JtheGunner/omnishell/internal/config"
@@ -41,6 +42,41 @@ var runnerOverride pkgmgr.Runner
 // SetRunnerForTest sets (or, with nil, clears) the package-manager runner
 // override used by buildEngine.
 func SetRunnerForTest(r pkgmgr.Runner) { runnerOverride = r }
+
+// defaultReloadInteractive reports whether stdin is a terminal, so
+// `apply --reload` only re-execs the shell in an interactive session.
+func defaultReloadInteractive() bool {
+	fi, err := os.Stdin.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
+// defaultReloadExec replaces the current process with a fresh login shell. On
+// success it never returns.
+func defaultReloadExec(shell string) error {
+	return syscall.Exec(shell, []string{shell}, os.Environ())
+}
+
+// reloadInteractive / reloadExec are the `apply --reload` seams; tests swap
+// them via SetReloadForTest.
+var (
+	reloadInteractive = defaultReloadInteractive
+	reloadExec        = defaultReloadExec
+)
+
+// SetReloadForTest swaps the `apply --reload` seams. A nil argument restores
+// that seam's real implementation.
+func SetReloadForTest(interactive func() bool, execFn func(string) error) {
+	if interactive == nil {
+		reloadInteractive = defaultReloadInteractive
+	} else {
+		reloadInteractive = interactive
+	}
+	if execFn == nil {
+		reloadExec = defaultReloadExec
+	} else {
+		reloadExec = execFn
+	}
+}
 
 // promptFn answers interactive y/N questions; tests reassign it.
 var promptFn = defaultPrompt

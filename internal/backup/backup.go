@@ -85,6 +85,13 @@ func (s *Session) Save(path string) (string, error) {
 	return dst, nil
 }
 
+// HasEntries reports whether the session has recorded at least one file via
+// Save. Callers use it to skip writing a manifest for a run that changed
+// nothing.
+func (s *Session) HasEntries() bool {
+	return len(s.entries) > 0
+}
+
 // WriteManifest writes <Dir>/manifest.json recording every file this session
 // has captured via Save so far. Safe to call even after a partial run — it
 // reflects whatever entries were recorded before the caller returned, so a

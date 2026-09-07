@@ -70,6 +70,7 @@ your system until you run `omnishell apply`.
 | `omnishell set <module>.<key> <value>` | Set a module option in the config, validated against that module's option schema. | — |
 | `omnishell validate` | Check `config.toml` against the module option schemas and dependency rules (`requires` / `conflicts` / cycles). Computes no plan and probes nothing on the host; exit 2 on any problem. Useful in CI for a version-controlled `config.toml`. | `--json` (emit a JSON object instead of the text report) |
 | `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt) |
+| `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt), `--reload` (re-exec `$SHELL` after a successful apply; no-op in a non-interactive shell) |
 | `omnishell diff` | Show what apply would change (`apply --dry-run`). | — |
 | `omnishell doctor` | Check the installed shell environment for drift. Exit 3 if any drift is found. | — |
 | `omnishell rollback` | List backup snapshots, or restore files/lockfile to their state before a chosen one (`--to <timestamp>`), undoing that run and everything after it. Never touches packages or `config.toml`. | `--to <timestamp>`, `--dry-run`, `-y` / `--yes` |
@@ -149,13 +150,14 @@ reference, the template context, and a worked example.
   CI-friendly via exit code 3.
 - `omnishell rollback` restores files and the lockfile from a backup snapshot
   (see Commands) — but never packages or vendored files, and never
-  `config.toml`. Three cases stay outside it: an `uninstall --purge` backup
-  (saved outside the config directory since `--purge` deletes it — restoring
-  it is manual, the path is printed when it runs); the one-time backup
-  `omnishell init` takes of your rc file before inserting the marker block
-  (not yet tracked by a manifest, so it doesn't appear in `rollback`'s
-  listing); and anything `remove --purge` uninstalled (packages, vendored
-  files) — `remove --purge` reverses those, not `rollback`.
+  `config.toml`. The one-time backup `omnishell init` takes of your rc file
+  before inserting the marker block is a snapshot like any other: rolling back
+  to it removes omnishell's rc integration (like a targeted `uninstall`),
+  leaving `config.toml` in place. Two cases stay outside `rollback`: an
+  `uninstall --purge` backup (saved outside the config directory since
+  `--purge` deletes it — restoring it is manual, the path is printed when it
+  runs); and anything `remove --purge` uninstalled (packages, vendored files)
+  — `remove --purge` reverses those, not `rollback`.
 
 ## Exit codes
 
