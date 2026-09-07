@@ -16,6 +16,11 @@ var update = flag.Bool("update", false, "update golden files")
 
 func renderModule(t *testing.T, id, shell string, opts map[string]any) string {
 	t.Helper()
+	return renderModuleOn(t, id, shell, "macos", opts)
+}
+
+func renderModuleOn(t *testing.T, id, shell, platform string, opts map[string]any) string {
+	t.Helper()
 	reg, err := module.LoadRegistry(modules.FS(), "")
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +38,7 @@ func renderModule(t *testing.T, id, shell string, opts map[string]any) string {
 		t.Fatalf("options: %v", err)
 	}
 	out, err := render.Render(body, render.Context{
-		Options: norm, Platform: "macos", Shell: shell,
+		Options: norm, Platform: platform, Shell: shell,
 		VendorDir: "/home/j/.config/omnishell/vendor",
 		ConfigDir: "/home/j/.config/omnishell",
 		Bin:       map[string]string{}, Active: map[string]bool{},
@@ -178,6 +183,28 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	if !sawStringOpt {
 		t.Fatal("no builtin module declares a string option; guard is vacuous")
 	}
+}
+
+func TestColorizedMan(t *testing.T) {
+	assertGolden(t, "colorized-man", "zsh", renderModule(t, "colorized-man", "zsh", nil))
+	assertGolden(t, "colorized-man", "bash", renderModule(t, "colorized-man", "bash", nil))
+}
+
+func TestLsColors(t *testing.T) {
+	assertGoldenNamed(t, "ls-colors", "zsh-macos", renderModuleOn(t, "ls-colors", "zsh", "macos", nil))
+	assertGoldenNamed(t, "ls-colors", "zsh-linux", renderModuleOn(t, "ls-colors", "zsh", "linux", nil))
+	assertGoldenNamed(t, "ls-colors", "bash-macos", renderModuleOn(t, "ls-colors", "bash", "macos", nil))
+	assertGoldenNamed(t, "ls-colors", "bash-linux", renderModuleOn(t, "ls-colors", "bash", "linux", nil))
+}
+
+func TestPagerDefaults(t *testing.T) {
+	assertGolden(t, "pager-defaults", "zsh", renderModule(t, "pager-defaults", "zsh", nil))
+	assertGolden(t, "pager-defaults", "bash", renderModule(t, "pager-defaults", "bash", nil))
+}
+
+func TestWindowTitle(t *testing.T) {
+	assertGolden(t, "window-title", "zsh", renderModule(t, "window-title", "zsh", nil))
+	assertGolden(t, "window-title", "bash", renderModule(t, "window-title", "bash", nil))
 }
 
 func TestModernAliases(t *testing.T) {
