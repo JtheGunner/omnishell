@@ -142,6 +142,22 @@ func TestSaveAccumulatesAcrossMultipleCalls(t *testing.T) {
 	}
 }
 
+func TestHasEntries(t *testing.T) {
+	s, err := backup.NewSession(t.TempDir(), fixedTime())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.HasEntries() {
+		t.Fatal("a fresh session should have no entries")
+	}
+	if _, err := s.Save(filepath.Join(t.TempDir(), "does-not-exist")); err != nil {
+		t.Fatal(err)
+	}
+	if !s.HasEntries() {
+		t.Fatal("after a Save call the session should report entries")
+	}
+}
+
 func TestReadManifestMissingReturnsError(t *testing.T) {
 	if _, err := backup.ReadManifest(t.TempDir()); err == nil {
 		t.Fatal("ReadManifest on a dir with no manifest.json: want error, got nil")

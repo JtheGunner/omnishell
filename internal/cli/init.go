@@ -43,6 +43,15 @@ func newInitCmd() *cobra.Command {
 					return err
 				}
 			}
+
+			// Record what was backed up so `omnishell rollback` can restore the
+			// pre-omnishell rc state. A run that hooked nothing new saved no
+			// files and gets no snapshot.
+			if sess.HasEntries() {
+				if err := sess.WriteManifest("init", e.Now()); err != nil {
+					return err
+				}
+			}
 			return nil
 		},
 	}

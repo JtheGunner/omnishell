@@ -148,13 +148,14 @@ reference, the template context, and a worked example.
   CI-friendly via exit code 3.
 - `omnishell rollback` restores files and the lockfile from a backup snapshot
   (see Commands) — but never packages or vendored files, and never
-  `config.toml`. Three cases stay outside it: an `uninstall --purge` backup
-  (saved outside the config directory since `--purge` deletes it — restoring
-  it is manual, the path is printed when it runs); the one-time backup
-  `omnishell init` takes of your rc file before inserting the marker block
-  (not yet tracked by a manifest, so it doesn't appear in `rollback`'s
-  listing); and anything `remove --purge` uninstalled (packages, vendored
-  files) — `remove --purge` reverses those, not `rollback`.
+  `config.toml`. The one-time backup `omnishell init` takes of your rc file
+  before inserting the marker block is a snapshot like any other: rolling back
+  to it removes omnishell's rc integration (like a targeted `uninstall`),
+  leaving `config.toml` in place. Two cases stay outside `rollback`: an
+  `uninstall --purge` backup (saved outside the config directory since
+  `--purge` deletes it — restoring it is manual, the path is printed when it
+  runs); and anything `remove --purge` uninstalled (packages, vendored files)
+  — `remove --purge` reverses those, not `rollback`.
 
 ## Exit codes
 
