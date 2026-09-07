@@ -6,8 +6,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with: { go-version: '1.23' }
       - run: go vet ./...
       - run: go test ./... -race -count=1 -covermode=atomic -coverprofile=coverage.out
@@ -24,7 +24,7 @@ jobs:
   vuln:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: golang/govulncheck-action@v1
         with:
           go-version-input: '1.25'
@@ -35,8 +35,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with: { go-version: '1.23' }
       - run: go build ./...
       - run: go run ./cmd/omnishell version
