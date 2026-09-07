@@ -37,6 +37,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Built-in `pay-respects` module: a corrected-command suggestion alias (Rust
   `thefuck` alternative), `alias` option (default `f`). `brew` package, `git`
   + `cargo` fallback elsewhere.
+- Built-in `atuin` module: SQLite-backed shell history with fuzzy search,
+  `bind_ctrl_r` / `bind_up_arrow` options, and `conflicts = ["fzf"]` (both bind
+  Ctrl+R). `brew` / `pacman` package, `git` + `cargo` fallback elsewhere.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc

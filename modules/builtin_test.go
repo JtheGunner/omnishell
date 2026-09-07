@@ -185,6 +185,35 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 }
 
+func TestAtuin(t *testing.T) {
+	on := map[string]any{"bind_ctrl_r": true, "bind_up_arrow": true}
+	off := map[string]any{"bind_ctrl_r": false, "bind_up_arrow": false}
+	assertGoldenNamed(t, "atuin", "zsh", renderModule(t, "atuin", "zsh", on))
+	assertGoldenNamed(t, "atuin", "bash", renderModule(t, "atuin", "bash", on))
+	assertGoldenNamed(t, "atuin", "zsh-nobinds", renderModule(t, "atuin", "zsh", off))
+	assertGoldenNamed(t, "atuin", "bash-nobinds", renderModule(t, "atuin", "bash", off))
+}
+
+func TestAtuinConflictsWithFzf(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("atuin")
+	if !ok {
+		t.Fatal("atuin not embedded")
+	}
+	found := false
+	for _, c := range m.Manifest.Conflicts {
+		if c == "fzf" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("atuin manifest conflicts = %v, want it to contain \"fzf\"", m.Manifest.Conflicts)
+	}
+}
+
 func TestPayRespects(t *testing.T) {
 	def := map[string]any{"alias": "f"}
 	custom := map[string]any{"alias": "oops"}

@@ -1,0 +1,33 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion", "history"]
+conflicts   = ["fzf"]
+
+[module]
+id          = "atuin"
+name        = "atuin"
+description = "SQLite-backed shell history with fuzzy search, context and stats"
+homepage    = "https://github.com/atuinsh/atuin"
+version     = "1.0.0"
+schema      = 1
+
+# atuin is not in the base apt / dnf / zypper / apk repos → git + cargo fallback.
+[packages]
+brew   = ["atuin"]
+pacman = ["atuin"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/atuinsh/atuin.git"
+dest = "{{.VendorDir}}/atuin"
+run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/atuin/crates/atuin", "--root", "{{.VendorDir}}"]
+
+[options.bind_ctrl_r]
+type    = "bool"
+default = true
+help    = "Bind Ctrl+R to the atuin history search (disable to keep another Ctrl+R binding)"
+
+[options.bind_up_arrow]
+type    = "bool"
+default = true
+help    = "Bind the Up arrow to atuin's search when the cursor is on the first line"
