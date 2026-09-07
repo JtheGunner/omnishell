@@ -28,6 +28,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (bat-backed man pages with a `less` fallback), `ls-colors` (a curated
   `LS_COLORS` / `LSCOLORS` palette), `pager-defaults` (sensible `less` env),
   and `window-title` (terminal title follows `$PWD`).
+- Built-in `direnv` module: `.envrc`-based per-directory environment via
+  `direnv hook`, with `log_format` and `whitelist` options and a `git`
+  fallback.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc

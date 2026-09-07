@@ -1,0 +1,7 @@
+command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
+{{- if .Options.log_format }}
+export DIRENV_LOG_FORMAT={{ .Options.log_format | shellquote }}
+{{- end }}
+{{- if .Options.whitelist }}
+export DIRENV_WHITELIST_PREFIX={{ range $i, $p := .Options.whitelist }}{{ if $i }}:{{ end }}{{ $p | shellquote }}{{ end }}
+{{- end }}
