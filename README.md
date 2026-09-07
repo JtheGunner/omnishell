@@ -129,9 +129,11 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 | `ls-colors` | A consistent, readable colour palette for `ls` / `eza` and filename completion (`LS_COLORS` on Linux, `LSCOLORS` on macOS) | — (config only) | zsh, bash | — |
 | `pager-defaults` | Sensible `less` defaults: colour passthrough, quit-if-one-screen, smart-case search, a saved search history | — (config only) | zsh, bash | — |
 | `window-title` | Keep the terminal window/tab title set to the current working directory | — (config only) | zsh, bash | — |
+| `fzf-tab` | Replace the zsh completion menu with a scrollable, previewable fzf picker (`cd <Tab>`, `git checkout <Tab>`, …) — [Aloxaf/fzf-tab](https://github.com/Aloxaf/fzf-tab). Requires `fzf`. | `git` clone (no distro package) | zsh | `cd_preview` (bool, default `true`) |
 
 `autosuggestions` and `syntax-highlighting` are zsh-only and always render last
-(with `syntax-highlighting` after `autosuggestions`).
+(with `syntax-highlighting` after `autosuggestions`); `fzf-tab`, when enabled,
+loads after `completion`/`fzf` and before both of those.
 
 ## Writing your own module
 

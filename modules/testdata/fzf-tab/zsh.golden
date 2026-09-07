@@ -1,0 +1,9 @@
+for _oms_f in \
+  /opt/homebrew/share/fzf-tab/fzf-tab.plugin.zsh \
+  /usr/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh \
+  /home/j/.config/omnishell/vendor/fzf-tab/fzf-tab.plugin.zsh
+do
+  [[ -r "$_oms_f" ]] && { source "$_oms_f"; break; }
+done
+unset _oms_f
+zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls -1 --color=always -- ${realpath}'

@@ -40,6 +40,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Built-in `atuin` module: SQLite-backed shell history with fuzzy search,
   `bind_ctrl_r` / `bind_up_arrow` options, and `conflicts = ["fzf"]` (both bind
   Ctrl+R). `brew` / `pacman` package, `git` + `cargo` fallback elsewhere.
+- Built-in `fzf-tab` module (zsh): replace the completion menu with an fzf
+  picker, `cd_preview` option. `git`-clone plugin, `requires = ["fzf"]`; loads
+  after `completion`/`fzf` and before `autosuggestions`/`syntax-highlighting`.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc
