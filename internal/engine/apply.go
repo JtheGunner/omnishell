@@ -26,8 +26,14 @@ var (
 )
 
 // ApplyOptions are the flags of `omnishell apply`.
+//
+// Refresh forces the render + backup + atomic rewrite of the init files, rc
+// marker block and lockfile even when the plan reports no changes and the
+// on-disk state looks consistent with the lock. `omnishell doctor --fix` uses
+// it to regenerate a deleted-but-not-stale init file, which the idempotent
+// no-op check would otherwise skip.
 type ApplyOptions struct {
-	DryRun, Yes, NoPackages, Force bool
+	DryRun, Yes, NoPackages, Force, Refresh bool
 }
 
 // ModuleResult is the per-module outcome of an apply.
@@ -78,7 +84,7 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	// match the lock. A stably-degraded module is not "work to do" — it must not
 	// force a rewrite — but the exit code still has to reflect it, so report the
 	// degradation without touching disk.
-	if !plan.HasChanges && !e.initOrRCDrift(plan, lock) {
+	if !opts.Refresh && !plan.HasChanges && !e.initOrRCDrift(plan, lock) {
 		if pd := plannedDegraded(plan); len(pd) > 0 {
 			res.Modules = summarise(plan, pd)
 			return res, ErrDegraded

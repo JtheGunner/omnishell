@@ -15,6 +15,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `omnishell apply --reload`: re-exec `$SHELL` after a successful apply so the
   changes take effect immediately. No-op (with a hint) in a non-interactive
   shell or when `$SHELL` is unset.
+- `omnishell doctor --fix`: repair the drift a re-apply resolves (missing /
+  stale init file, missing rc source line, orphaned lockfile entries), with a
+  confirmation prompt (`-y` skips it). A hand-edited init file and missing
+  packages are never touched automatically. Backed by a new
+  `ApplyOptions.Refresh` that rebuilds init/rc files even on a no-op plan.
 - `omnishell bench`: measure how much sourcing the generated `init.<shell>`
   adds to shell startup per managed shell, and warn above the startup budget
   (`[omnishell] startup_budget_ms` in `config.toml`, default 200). Always

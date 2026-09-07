@@ -148,6 +148,42 @@ func TestApplyIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestApplyRefreshRegeneratesDeletedInitFile(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := applyEngine(t, home, mgr, &out)
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.completion]\nenabled=true\n")
+	cfg, _ := config.Load(cfgPath)
+
+	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
+		t.Fatal(err)
+	}
+	initFile := filepath.Join(home, ".config", "omnishell", "init.bash")
+	if err := os.Remove(initFile); err != nil {
+		t.Fatal(err)
+	}
+
+	// A plain re-apply is a no-op: config and lock are unchanged and the
+	// missing-but-not-stale init file slips past the idempotency check.
+	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(initFile); !os.IsNotExist(err) {
+		t.Fatalf("plain apply unexpectedly regenerated init.bash (err=%v)", err)
+	}
+
+	// Refresh forces the rewrite.
+	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true, Refresh: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(initFile); err != nil {
+		t.Fatalf("Refresh did not regenerate init.bash: %v", err)
+	}
+}
+
 // TestApplyStablyDegradedIsIdempotent covers the C2 regression: a module that
 // is permanently degraded by the plan (fzf needs a package, no package manager
 // exists) must not make apply rewrite init.<shell> or cut a new backup on every

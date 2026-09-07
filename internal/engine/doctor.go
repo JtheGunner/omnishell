@@ -40,6 +40,42 @@ func (r DoctorReport) HasDrift() bool {
 	return false
 }
 
+// autoFixableDrift is the set of drift codes `omnishell doctor --fix` can
+// repair by re-running Apply. Everything else — a hand-edited init file
+// (`initfile-edited`, a human decision that needs `apply --force`) and missing
+// packages / degradation (`packages-missing`, `module-degraded`, which need a
+// package install) — is left to a manual `omnishell apply`.
+var autoFixableDrift = map[string]bool{
+	"never-applied":     true,
+	"initfile-missing":  true,
+	"initfile-stale":    true,
+	"rc-block-missing":  true,
+	"stale-shell":       true,
+	"orphan-lock-entry": true,
+	"pending-apply":     true,
+}
+
+// DriftFixability splits the report's drift findings into those a re-apply
+// repairs (fixable) and those it does not (blocked). Non-drift findings
+// (notices) are ignored. Order within each slice follows the report.
+func (r DoctorReport) DriftFixability() (fixable, blocked []Finding) {
+	for _, f := range r.Findings {
+		if f.Severity != SeverityDrift {
+			continue
+		}
+		code := f.Code
+		if i := strings.IndexByte(code, ':'); i >= 0 {
+			code = code[:i]
+		}
+		if autoFixableDrift[code] {
+			fixable = append(fixable, f)
+		} else {
+			blocked = append(blocked, f)
+		}
+	}
+	return fixable, blocked
+}
+
 // Doctor inspects the on-disk state against cfg and the lock and reports drift.
 // It is strictly read-only: no file is written and neither cfg nor the lock is
 // mutated. A ConfigError from planning is returned to the caller (the CLI maps it
