@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   When two conflicting modules are both enabled, `apply` / `doctor` / `diff`
   stop with exit 2 and name the pair. One-directional (either side may declare
   it); cannot overlap `requires`.
+- `omnishell validate`: check `config.toml` against the module option schemas
+  and dependency rules (`requires` / `conflicts` / cycles) without computing a
+  plan or probing the host. Exit 2 on any problem; `--json` for machine output.
 
 ## [0.2.0] - 2026-09-04
 

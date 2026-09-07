@@ -1,0 +1,11 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = ["completion"]
+after     = []
+
+[module]
+id          = "needy"
+name        = "Needy fixture"
+description = "requires completion, for missing-require validation tests"
+version     = "1.0.0"
+schema      = 1
