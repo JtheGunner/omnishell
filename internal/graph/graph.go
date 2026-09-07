@@ -19,6 +19,17 @@ func (e MissingRequireError) Error() string {
 	return fmt.Sprintf("module %q requires %q, which is not enabled", e.Module, e.Requires)
 }
 
+// ConflictError is returned when two active modules are declared incompatible
+// via a `conflicts` entry on either side.
+type ConflictError struct {
+	Module    string
+	Conflicts string
+}
+
+func (e ConflictError) Error() string {
+	return fmt.Sprintf("module %q conflicts with %q, which is also enabled", e.Module, e.Conflicts)
+}
+
 // CycleError is returned when the dependency edges contain a cycle.
 type CycleError struct {
 	Cycle []string
@@ -41,6 +52,25 @@ func joinArrow(ids []string) string {
 
 // Order returns the active module ids in load order.
 func Order(active map[string]module.Manifest) ([]string, error) {
+	// A `conflicts` entry on either side of a pair of active modules is a hard
+	// config error. Checked before the sort so a conflict is reported instead of
+	// a confusing cycle/order result. Sorted iteration keeps the surfaced pair
+	// deterministic when several modules conflict.
+	ids := make([]string, 0, len(active))
+	for id := range active {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		conflicts := append([]string(nil), active[id].Conflicts...)
+		sort.Strings(conflicts)
+		for _, c := range conflicts {
+			if _, ok := active[c]; ok {
+				return nil, ConflictError{Module: id, Conflicts: c}
+			}
+		}
+	}
+
 	deps := make(map[string]map[string]bool, len(active)) // node -> set of prerequisites
 	for id := range active {
 		deps[id] = map[string]bool{}

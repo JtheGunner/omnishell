@@ -77,6 +77,39 @@ func TestValidateManifestRejectsWrongSchema(t *testing.T) {
 	}
 }
 
+func TestValidateManifestAcceptsConflicts(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Conflicts = []string{"atuin"}
+	if err := module.ValidateManifest(m); err != nil {
+		t.Fatalf("ValidateManifest: %v", err)
+	}
+}
+
+func TestValidateManifestRejectsSelfConflict(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Conflicts = []string{"fzf"}
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error for a module conflicting with itself")
+	}
+}
+
+func TestValidateManifestRejectsBadConflictID(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Conflicts = []string{"Not_An_ID"}
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error for a malformed conflicts id")
+	}
+}
+
+func TestValidateManifestRejectsRequiresConflictsOverlap(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Requires = []string{"completion"}
+	m.Conflicts = []string{"completion"}
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error when an id is in both requires and conflicts")
+	}
+}
+
 func TestParseManifestRejectsUnknownKey(t *testing.T) {
 	_, err := module.ParseManifest([]byte("[module]\nid=\"x\"\nversion=\"1\"\nschema=1\nbogus=true\n"))
 	if err == nil {
