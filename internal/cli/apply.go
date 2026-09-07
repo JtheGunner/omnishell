@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/JtheGunner/omnishell/internal/config"
 	"github.com/JtheGunner/omnishell/internal/engine"
@@ -23,6 +24,7 @@ func newApplyCmd() *cobra.Command {
 	cmd.Flags().BoolP("yes", "y", false, "apply without the confirmation prompt")
 	cmd.Flags().Bool("no-packages", false, "skip package installation")
 	cmd.Flags().Bool("force", false, "overwrite init files that were edited by hand")
+	cmd.Flags().Bool("reload", false, "re-exec $SHELL after a successful apply")
 	return cmd
 }
 
@@ -58,6 +60,7 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	}
 
 	opts := engine.ApplyOptions{}
+	reload := false
 	if forceDryRun {
 		opts.DryRun = true
 	} else {
@@ -65,6 +68,7 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 		opts.Yes, _ = cmd.Flags().GetBool("yes")
 		opts.NoPackages, _ = cmd.Flags().GetBool("no-packages")
 		opts.Force, _ = cmd.Flags().GetBool("force")
+		reload, _ = cmd.Flags().GetBool("reload")
 	}
 
 	res, err := e.Apply(cfg, cfgPath, lockPath, opts)
@@ -85,7 +89,32 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	}
 
 	printApplySummary(out, res)
+
+	// --reload re-execs the login shell, but only after a fully successful,
+	// non-dry-run apply and only in an interactive session.
+	if reload && err == nil && !res.DryRun {
+		handleReload(out, errOut)
+	}
 	return err
+}
+
+// handleReload replaces the process with a fresh $SHELL. In a non-interactive
+// session, or with $SHELL unset, it prints a hint and returns instead — so it
+// is safe in scripts and CI.
+func handleReload(out, errOut io.Writer) {
+	if !reloadInteractive() {
+		_, _ = fmt.Fprintln(out, "not an interactive shell; skipping --reload (run: exec $SHELL)")
+		return
+	}
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		_, _ = fmt.Fprintln(out, "$SHELL is not set; skipping --reload (run: exec $SHELL)")
+		return
+	}
+	_, _ = fmt.Fprintf(out, "reloading %s\n", shell)
+	if err := reloadExec(shell); err != nil {
+		_, _ = fmt.Fprintf(errOut, "reload failed: %v\n", err)
+	}
 }
 
 // printApplySummary writes one line per module plus the backup dir, if any.

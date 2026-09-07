@@ -68,7 +68,7 @@ your system until you run `omnishell apply`.
 | `omnishell enable <module>` | Enable a module in the config. Does not apply. | — |
 | `omnishell disable <module>` | Disable a module in the config. Does not apply. | — |
 | `omnishell set <module>.<key> <value>` | Set a module option in the config, validated against that module's option schema. | — |
-| `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt) |
+| `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt), `--reload` (re-exec `$SHELL` after a successful apply; no-op in a non-interactive shell) |
 | `omnishell diff` | Show what apply would change (`apply --dry-run`). | — |
 | `omnishell doctor` | Check the installed shell environment for drift. Exit 3 if any drift is found. | — |
 | `omnishell rollback` | List backup snapshots, or restore files/lockfile to their state before a chosen one (`--to <timestamp>`), undoing that run and everything after it. Never touches packages or `config.toml`. | `--to <timestamp>`, `--dry-run`, `-y` / `--yes` |
