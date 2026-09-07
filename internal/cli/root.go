@@ -24,6 +24,7 @@ func NewRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newEnableCmd())
 	root.AddCommand(newDisableCmd())
 	root.AddCommand(newSetCmd())
+	root.AddCommand(newValidateCmd())
 	root.AddCommand(newApplyCmd())
 	root.AddCommand(newDiffCmd())
 	root.AddCommand(newDoctorCmd())

@@ -68,6 +68,8 @@ your system until you run `omnishell apply`.
 | `omnishell enable <module>` | Enable a module in the config. Does not apply. | — |
 | `omnishell disable <module>` | Disable a module in the config. Does not apply. | — |
 | `omnishell set <module>.<key> <value>` | Set a module option in the config, validated against that module's option schema. | — |
+| `omnishell validate` | Check `config.toml` against the module option schemas and dependency rules (`requires` / `conflicts` / cycles). Computes no plan and probes nothing on the host; exit 2 on any problem. Useful in CI for a version-controlled `config.toml`. | `--json` (emit a JSON object instead of the text report) |
+| `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt) |
 | `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt), `--reload` (re-exec `$SHELL` after a successful apply; no-op in a non-interactive shell) |
 | `omnishell diff` | Show what apply would change (`apply --dry-run`). | — |
 | `omnishell doctor` | Check the installed shell environment for drift. Exit 3 if any drift is found. | — |
