@@ -1,0 +1,25 @@
+zmodload zsh/datetime 2>/dev/null
+autoload -Uz add-zsh-hook
+typeset -g _oms_prompt_char='❯'
+
+_oms_prompt_git() {
+  local b
+  b=$(git symbolic-ref --quiet --short HEAD 2>/dev/null) \
+    || b=$(git rev-parse --short HEAD 2>/dev/null) || return
+  git diff --quiet --ignore-submodules HEAD 2>/dev/null || b="${b}*"
+  print -n " %F{yellow}${b}%f"
+}
+_oms_prompt_preexec() { _oms_prompt_t0=$EPOCHREALTIME }
+add-zsh-hook preexec _oms_prompt_preexec
+_oms_prompt_precmd() {
+  local ex=$?
+  PROMPT="%F{blue}%~%f$(_oms_prompt_git)"
+  if [[ -n $_oms_prompt_t0 ]]; then
+    local d=$(( EPOCHREALTIME - _oms_prompt_t0 )); unset _oms_prompt_t0
+    (( d >= 1 )) && PROMPT+=" %F{242}${d%.*}s%f"
+  fi
+  PROMPT+=$'\n'
+  (( ex )) && PROMPT+="%F{red}${ex}%f "
+  PROMPT+="${_oms_prompt_char} "
+}
+add-zsh-hook precmd _oms_prompt_precmd

@@ -130,6 +130,7 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 | `pager-defaults` | Sensible `less` defaults: colour passthrough, quit-if-one-screen, smart-case search, a saved search history | — (config only) | zsh, bash | — |
 | `window-title` | Keep the terminal window/tab title set to the current working directory | — (config only) | zsh, bash | — |
 | `fzf-tab` | Replace the zsh completion menu with a scrollable, previewable fzf picker (`cd <Tab>`, `git checkout <Tab>`, …) — [Aloxaf/fzf-tab](https://github.com/Aloxaf/fzf-tab). Requires `fzf`. | `git` clone (no distro package) | zsh | `cd_preview` (bool, default `true`) |
+| `omnishell-prompt` | A small, fast, git-aware two-line prompt with no external dependency. **Opt-in: it sets `PROMPT` / `PS1`** — leave it off if you already run a prompt framework (starship, powerlevel10k, …). | — (config only) | zsh, bash | `style` (`enum` `minimal` \| `full`, default `minimal`), `show_duration` (bool, default `false`; zsh only), `char` (string, default `❯`) |
 
 `autosuggestions` and `syntax-highlighting` are zsh-only and always render last
 (with `syntax-highlighting` after `autosuggestions`); `fzf-tab`, when enabled,

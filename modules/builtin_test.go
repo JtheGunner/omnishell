@@ -186,6 +186,17 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 }
 
+func TestOmnishellPrompt(t *testing.T) {
+	minimal := map[string]any{"style": "minimal", "show_duration": false, "char": "❯"}
+	full := map[string]any{"style": "full", "show_duration": false, "char": "❯"}
+	dur := map[string]any{"style": "minimal", "show_duration": true, "char": "❯"}
+	assertGoldenNamed(t, "omnishell-prompt", "zsh-minimal", renderModule(t, "omnishell-prompt", "zsh", minimal))
+	assertGoldenNamed(t, "omnishell-prompt", "zsh-full", renderModule(t, "omnishell-prompt", "zsh", full))
+	assertGoldenNamed(t, "omnishell-prompt", "zsh-duration", renderModule(t, "omnishell-prompt", "zsh", dur))
+	assertGoldenNamed(t, "omnishell-prompt", "bash-minimal", renderModule(t, "omnishell-prompt", "bash", minimal))
+	assertGoldenNamed(t, "omnishell-prompt", "bash-full", renderModule(t, "omnishell-prompt", "bash", full))
+}
+
 func TestFzfTab(t *testing.T) {
 	on := map[string]any{"cd_preview": true}
 	off := map[string]any{"cd_preview": false}

@@ -43,6 +43,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Built-in `fzf-tab` module (zsh): replace the completion menu with an fzf
   picker, `cd_preview` option. `git`-clone plugin, `requires = ["fzf"]`; loads
   after `completion`/`fzf` and before `autosuggestions`/`syntax-highlighting`.
+- Built-in `omnishell-prompt` module: a dependency-free two-line git-aware
+  prompt, `style` / `show_duration` / `char` options. Opt-in — it sets
+  `PROMPT` / `PS1`.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc
