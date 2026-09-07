@@ -1,0 +1,3 @@
+autoload -Uz add-zsh-hook
+_omnishell_set_title() { print -Pn '\e]0;%~\a'; }
+add-zsh-hook precmd _omnishell_set_title

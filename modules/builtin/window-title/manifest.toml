@@ -1,0 +1,9 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+
+[module]
+id          = "window-title"
+name        = "Terminal window title"
+description = "Keep the terminal window/tab title set to the current working directory"
+version     = "1.0.0"
+schema      = 1

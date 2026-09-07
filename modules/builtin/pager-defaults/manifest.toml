@@ -1,0 +1,9 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+
+[module]
+id          = "pager-defaults"
+name        = "Pager defaults"
+description = "Sensible less defaults: colour passthrough, quit-if-one-screen, smart-case search, a saved search history"
+version     = "1.0.0"
+schema      = 1

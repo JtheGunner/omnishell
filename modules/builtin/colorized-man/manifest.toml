@@ -1,0 +1,10 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["modern-aliases"]
+
+[module]
+id          = "colorized-man"
+name        = "Colorized man pages"
+description = "Syntax-highlighted man pages via bat, with a zero-dependency less colour fallback"
+version     = "1.0.0"
+schema      = 1

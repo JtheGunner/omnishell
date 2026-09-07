@@ -1,0 +1,9 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+
+[module]
+id          = "ls-colors"
+name        = "ls colours"
+description = "A consistent, readable colour palette for ls / eza and filename completion"
+version     = "1.0.0"
+schema      = 1
