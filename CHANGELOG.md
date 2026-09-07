@@ -10,6 +10,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   stop with exit 2 and name the pair. One-directional (either side may declare
   it); cannot overlap `requires`.
 
+### Fixed
+- `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc
+  file it backs up, so that pre-omnishell state shows up in
+  `omnishell rollback` and can be restored like any other snapshot.
+
 ## [0.2.0] - 2026-09-04
 
 ### Added
