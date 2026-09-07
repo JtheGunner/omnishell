@@ -25,8 +25,8 @@ supported on that shell** (a hint, not an error).
 ## Annotated `manifest.toml`
 
 TOML scoping matters: the root-level keys (`platforms`, `shells`, `requires`,
-`after`) must appear **before** the first `[table]`, otherwise the parser reads
-them as belonging to that table.
+`after`, `conflicts`) must appear **before** the first `[table]`, otherwise the
+parser reads them as belonging to that table.
 
 ```toml
 # ─── root-level keys FIRST (before any [table]) ───
@@ -38,6 +38,10 @@ requires  = []                   # hard dependencies: another module that MUST
                                  #   be active first; missing/disabled → exit 2
 after     = ["completion"]       # soft ordering: only sorts relative to modules
                                  #   that are also active; never an error
+conflicts = []                   # incompatible modules: if any listed id is also
+                                 #   active, apply/doctor/diff stop with exit 2.
+                                 #   One-directional — either side declaring it is
+                                 #   enough. Cannot overlap `requires`.
 
 # ─── module metadata ───
 
@@ -146,7 +150,7 @@ execution: `omnishell set <id>.<key> 'x; rm -rf ~'` would otherwise run at every
 login. The `modules` test suite fails the build if a builtin template emits a
 string option without `shellquote`.
 
-## `requires` vs `after`
+## `requires` vs `after` vs `conflicts`
 
 - `requires` is a **hard** dependency. If module A `requires` B and B is not
   active (disabled or missing), `apply` / `doctor` stop with exit 2 and name
@@ -154,6 +158,15 @@ string option without `shellquote`.
 - `after` is **soft** ordering. It only affects the sort order of the init
   file, and only when both modules are active. An `after` entry pointing at an
   inactive module is silently ignored.
+- `conflicts` is a **hard** incompatibility. If module A lists B in `conflicts`
+  and both are active, `apply` / `doctor` / `diff` stop with exit 2
+  (`module "A" conflicts with "B", which is also enabled`). It is
+  **one-directional**: only one of the two modules needs to declare it. An entry
+  pointing at an inactive module is ignored. `enable` does *not* pre-check it —
+  the same as `requires` — so a conflict surfaces at the next plan, not at
+  `omnishell enable`. An id cannot appear in both `requires` and `conflicts` of
+  the same manifest. Using `conflicts` requires an omnishell build new enough to
+  know the key (older builds reject the manifest as having an unknown key).
 
 Sections are topologically sorted, ties broken by `id`, so the same config
 always produces a byte-identical init file.

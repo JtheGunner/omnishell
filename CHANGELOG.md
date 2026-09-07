@@ -4,6 +4,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Manifest `conflicts` key: a module can declare ids it is incompatible with.
+  When two conflicting modules are both enabled, `apply` / `doctor` / `diff`
+  stop with exit 2 and name the pair. One-directional (either side may declare
+  it); cannot overlap `requires`.
+
 ## [0.2.0] - 2026-09-04
 
 ### Added

@@ -1,11 +1,13 @@
 package engine_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/JtheGunner/omnishell/internal/config"
 	"github.com/JtheGunner/omnishell/internal/engine"
+	"github.com/JtheGunner/omnishell/internal/graph"
 	"github.com/JtheGunner/omnishell/internal/lockfile"
 	"github.com/JtheGunner/omnishell/internal/module"
 	"github.com/JtheGunner/omnishell/internal/pkgmgr"
@@ -205,5 +207,26 @@ func TestComputePlanOptionValidationError(t *testing.T) {
 	var ce engine.ConfigError
 	if err == nil || !asConfigError(err, &ce) {
 		t.Fatalf("err = %v, want engine.ConfigError", err)
+	}
+}
+
+func TestComputePlanConflictingModules(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := testEngine(t, mgr)
+	cfg := config.Config{
+		Omnishell: config.OmnishellSection{Version: 1, Shells: []string{"bash"}},
+		Modules: map[string]config.ModuleConfig{
+			"fzf":        {Enabled: true, Options: map[string]any{"ctrl_r": true}},
+			"conflictor": {Enabled: true},
+		},
+	}
+	_, err := engine.ComputePlan(e, cfg, lockfile.Lock{Modules: map[string]lockfile.ModuleState{}}, false)
+	var ce engine.ConfigError
+	if err == nil || !asConfigError(err, &ce) {
+		t.Fatalf("err = %v, want engine.ConfigError", err)
+	}
+	var cfe graph.ConflictError
+	if !errors.As(err, &cfe) || cfe.Module != "conflictor" || cfe.Conflicts != "fzf" {
+		t.Fatalf("err = %v, want wrapped graph.ConflictError{conflictor, fzf}", err)
 	}
 }

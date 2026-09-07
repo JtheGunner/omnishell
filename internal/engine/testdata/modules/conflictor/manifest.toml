@@ -1,0 +1,12 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+conflicts = ["fzf"]
+
+[module]
+id          = "conflictor"
+name        = "Conflictor fixture"
+description = "declares a conflict with fzf, for conflict-detection tests"
+version     = "1.0.0"
+schema      = 1

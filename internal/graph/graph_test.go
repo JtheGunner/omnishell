@@ -67,3 +67,43 @@ func TestOrderCycle(t *testing.T) {
 		t.Fatalf("err = %v, want CycleError", err)
 	}
 }
+
+func mfConf(id string, conflicts []string) module.Manifest {
+	m := mf(id, nil, nil)
+	m.Conflicts = conflicts
+	return m
+}
+
+func TestOrderConflictBothActive(t *testing.T) {
+	active := map[string]module.Manifest{
+		"atuin": mfConf("atuin", []string{"fzf"}),
+		"fzf":   mf("fzf", nil, nil),
+	}
+	_, err := graph.Order(active)
+	var ce graph.ConflictError
+	if !errors.As(err, &ce) || ce.Module != "atuin" || ce.Conflicts != "fzf" {
+		t.Fatalf("err = %v, want ConflictError{atuin, fzf}", err)
+	}
+}
+
+func TestOrderConflictTargetInactive(t *testing.T) {
+	active := map[string]module.Manifest{
+		"atuin": mfConf("atuin", []string{"fzf"}), // fzf not active
+	}
+	got, err := graph.Order(active)
+	if err != nil || !reflect.DeepEqual(got, []string{"atuin"}) {
+		t.Fatalf("got %v err %v, want [atuin] nil", got, err)
+	}
+}
+
+func TestOrderConflictBidirectionalDeterministic(t *testing.T) {
+	active := map[string]module.Manifest{
+		"a": mfConf("a", []string{"b"}),
+		"b": mfConf("b", []string{"a"}),
+	}
+	_, err := graph.Order(active)
+	var ce graph.ConflictError
+	if !errors.As(err, &ce) || ce.Module != "a" || ce.Conflicts != "b" {
+		t.Fatalf("err = %v, want deterministic ConflictError{a, b}", err)
+	}
+}

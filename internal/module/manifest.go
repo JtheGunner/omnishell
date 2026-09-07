@@ -103,6 +103,7 @@ type Manifest struct {
 	Shells    []string                `toml:"shells"`
 	Requires  []string                `toml:"requires"`
 	After     []string                `toml:"after"`
+	Conflicts []string                `toml:"conflicts"`
 	Packages  Packages                `toml:"packages"`
 	Options   map[string]OptionSchema `toml:"options"`
 }
@@ -173,6 +174,18 @@ func ValidateManifest(m Manifest) error {
 	}
 	if bad, ok := subsetOf(m.Shells, map[string]bool{"zsh": true, "bash": true}); !ok {
 		return e("shells", "unknown shell "+bad)
+	}
+	requireSet := toSet(m.Requires)
+	for _, c := range m.Conflicts {
+		if !idRe.MatchString(c) {
+			return e("conflicts", "must match ^[a-z][a-z0-9-]*$: "+c)
+		}
+		if c == id {
+			return e("conflicts", "a module cannot conflict with itself")
+		}
+		if requireSet[c] {
+			return e("conflicts", "id "+c+" is in both requires and conflicts")
+		}
 	}
 	for key, opt := range m.Options {
 		if !validOptionTypes[opt.Type] {
