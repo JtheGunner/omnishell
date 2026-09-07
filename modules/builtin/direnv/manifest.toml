@@ -1,0 +1,35 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "direnv"
+name        = "direnv"
+description = "Per-directory environment variables loaded from .envrc files"
+homepage    = "https://github.com/direnv/direnv"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+brew   = ["direnv"]
+apt    = ["direnv"]
+dnf    = ["direnv"]
+pacman = ["direnv"]
+zypper = ["direnv"]
+apk    = ["direnv"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/direnv/direnv.git"
+dest = "{{.VendorDir}}/direnv"
+run  = ["make", "-C", "{{.VendorDir}}/direnv", "install"]
+
+[options.log_format]
+type    = "string"
+default = ""
+help    = "DIRENV_LOG_FORMAT value; empty silences direnv's own logging"
+
+[options.whitelist]
+type    = "list<string>"
+default = []
+help    = "Directory prefixes direnv trusts without an explicit `direnv allow`"

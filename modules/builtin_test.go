@@ -185,6 +185,15 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 }
 
+func TestDirenv(t *testing.T) {
+	def := map[string]any{"log_format": "", "whitelist": []any{}}
+	opts := map[string]any{"log_format": "kv", "whitelist": []any{"/home/j/work", "/opt"}}
+	assertGoldenNamed(t, "direnv", "zsh", renderModule(t, "direnv", "zsh", def))
+	assertGoldenNamed(t, "direnv", "bash", renderModule(t, "direnv", "bash", def))
+	assertGoldenNamed(t, "direnv", "zsh-opts", renderModule(t, "direnv", "zsh", opts))
+	assertGoldenNamed(t, "direnv", "bash-opts", renderModule(t, "direnv", "bash", opts))
+}
+
 func TestColorizedMan(t *testing.T) {
 	assertGolden(t, "colorized-man", "zsh", renderModule(t, "colorized-man", "zsh", nil))
 	assertGolden(t, "colorized-man", "bash", renderModule(t, "colorized-man", "bash", nil))
