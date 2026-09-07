@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/JtheGunner/omnishell/internal/graph"
 	"github.com/JtheGunner/omnishell/internal/module"
 	"github.com/JtheGunner/omnishell/internal/render"
 	"github.com/JtheGunner/omnishell/modules"
@@ -182,6 +183,42 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 	if !sawStringOpt {
 		t.Fatal("no builtin module declares a string option; guard is vacuous")
+	}
+}
+
+func TestFzfTab(t *testing.T) {
+	on := map[string]any{"cd_preview": true}
+	off := map[string]any{"cd_preview": false}
+	assertGoldenNamed(t, "fzf-tab", "zsh", renderModule(t, "fzf-tab", "zsh", on))
+	assertGoldenNamed(t, "fzf-tab", "zsh-nopreview", renderModule(t, "fzf-tab", "zsh", off))
+}
+
+func TestFzfTabLoadOrder(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := map[string]module.Manifest{}
+	for _, id := range []string{"completion", "fzf", "fzf-tab", "autosuggestions", "syntax-highlighting"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %q not embedded", id)
+		}
+		active[id] = m.Manifest
+	}
+	order, err := graph.Order(active)
+	if err != nil {
+		t.Fatalf("graph.Order: %v", err)
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	if pos["fzf-tab"] < pos["completion"] || pos["fzf-tab"] < pos["fzf"] {
+		t.Fatalf("fzf-tab must load after completion and fzf: %v", order)
+	}
+	if pos["fzf-tab"] > pos["autosuggestions"] || pos["fzf-tab"] > pos["syntax-highlighting"] {
+		t.Fatalf("fzf-tab must load before autosuggestions and syntax-highlighting: %v", order)
 	}
 }
 

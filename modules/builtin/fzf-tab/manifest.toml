@@ -1,0 +1,23 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh"]
+requires    = ["fzf"]
+after       = ["completion", "fzf"]
+
+[module]
+id          = "fzf-tab"
+name        = "fzf-tab"
+description = "Replace the zsh completion menu with a scrollable, previewable fzf picker (zsh)"
+homepage    = "https://github.com/Aloxaf/fzf-tab"
+version     = "1.0.0"
+schema      = 1
+
+# No distro package — fzf-tab is a git-clone zsh plugin.
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/Aloxaf/fzf-tab.git"
+dest = "{{.VendorDir}}/fzf-tab"
+
+[options.cd_preview]
+type    = "bool"
+default = true
+help    = "Show a directory listing preview for `cd` completion"

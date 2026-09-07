@@ -1,6 +1,6 @@
 platforms   = ["macos", "linux"]
 shells      = ["zsh"]
-after       = ["completion", "history", "fzf", "zoxide", "modern-aliases", "autosuggestions"]
+after       = ["completion", "history", "fzf", "fzf-tab", "zoxide", "modern-aliases", "autosuggestions"]
 
 [module]
 id          = "syntax-highlighting"
