@@ -54,4 +54,24 @@ tar -xz -f "$tmp/$tarball" -C "$tmp"
 mkdir -p "$bin_dir"
 install -m 0755 "$tmp/omnishell" "$bin_dir/omnishell"
 echo "installed omnishell $tag to $bin_dir/omnishell"
+
+# Best-effort: install the bundled shell completions and man page into XDG
+# locations. Never fail the install over these.
+data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
+if [ -f "$tmp/completions/omnishell.bash" ]; then
+  mkdir -p "$data_dir/bash-completion/completions" \
+    && cp "$tmp/completions/omnishell.bash" "$data_dir/bash-completion/completions/omnishell" \
+    && echo "installed bash completion to $data_dir/bash-completion/completions/omnishell" || true
+fi
+if [ -f "$tmp/completions/_omnishell" ]; then
+  mkdir -p "$data_dir/zsh/site-functions" \
+    && cp "$tmp/completions/_omnishell" "$data_dir/zsh/site-functions/_omnishell" \
+    && echo "installed zsh completion to $data_dir/zsh/site-functions/_omnishell (ensure that dir is in \$fpath)" || true
+fi
+if [ -d "$tmp/man" ]; then
+  mkdir -p "$data_dir/man/man1" \
+    && cp "$tmp"/man/*.1 "$data_dir/man/man1/" 2>/dev/null \
+    && echo "installed man pages to $data_dir/man/man1/" || true
+fi
+
 echo "make sure $bin_dir is on your PATH, then run: omnishell init"
