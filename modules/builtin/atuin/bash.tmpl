@@ -1,0 +1,1 @@
+command -v atuin >/dev/null 2>&1 && eval "$(atuin init bash{{ if not .Options.bind_ctrl_r }} --disable-ctrl-r{{ end }}{{ if not .Options.bind_up_arrow }} --disable-up-arrow{{ end }})"
