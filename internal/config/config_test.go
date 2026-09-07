@@ -2,11 +2,49 @@ package config_test
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/config"
 )
+
+func writeConfigFile(t *testing.T, body string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestLoadStartupBudget(t *testing.T) {
+	c, err := config.Load(writeConfigFile(t, "[omnishell]\nversion = 1\nstartup_budget_ms = 300\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Omnishell.StartupBudgetMs != 300 {
+		t.Fatalf("StartupBudgetMs = %d, want 300", c.Omnishell.StartupBudgetMs)
+	}
+}
+
+func TestLoadStartupBudgetDefaultsToZeroWhenAbsent(t *testing.T) {
+	c, err := config.Load(writeConfigFile(t, "[omnishell]\nversion = 1\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Omnishell.StartupBudgetMs != 0 {
+		t.Fatalf("StartupBudgetMs = %d, want 0 (means: use the built-in default)", c.Omnishell.StartupBudgetMs)
+	}
+}
+
+func TestLoadRejectsNegativeStartupBudget(t *testing.T) {
+	_, err := config.Load(writeConfigFile(t, "[omnishell]\nversion = 1\nstartup_budget_ms = -5\n"))
+	var cErr config.Error
+	if !errors.As(err, &cErr) {
+		t.Fatalf("err = %v, want config.Error for a negative budget", err)
+	}
+}
 
 func TestLoadFullConfig(t *testing.T) {
 	c, err := config.Load(filepath.Join("testdata", "full.toml"))

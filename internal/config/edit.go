@@ -19,6 +19,7 @@ func RenderDefault() []byte {
 [omnishell]
 version = 1
 # shells = ["zsh", "bash"]   # omit to auto-detect the login shell
+# startup_budget_ms = 200    # 'omnishell bench' warns above this per-shell cost
 `)
 }
 
