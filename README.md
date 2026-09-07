@@ -132,6 +132,7 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 | `fzf-tab` | Replace the zsh completion menu with a scrollable, previewable fzf picker (`cd <Tab>`, `git checkout <Tab>`, …) — [Aloxaf/fzf-tab](https://github.com/Aloxaf/fzf-tab). Requires `fzf`. | `git` clone (no distro package) | zsh | `cd_preview` (bool, default `true`) |
 | `omnishell-prompt` | A small, fast, git-aware two-line prompt with no external dependency. **Opt-in: it sets `PROMPT` / `PS1`** — leave it off if you already run a prompt framework (starship, powerlevel10k, …). | — (config only) | zsh, bash | `style` (`enum` `minimal` \| `full`, default `minimal`), `show_duration` (bool, default `false`; zsh only), `char` (string, default `❯`) |
 | `broot` | A navigable directory-tree TUI; the `br` function cd's into the directory you pick — [Canop/broot](https://github.com/Canop/broot) | `broot` (`brew`, `apt`, `dnf`, `pacman`); else `git` + `cargo` fallback (needs Rust) | zsh, bash | `cmd` (string, default `br`) |
+| `welcome` | Run [fastfetch](https://github.com/fastfetch-cli/fastfetch) on every interactive shell start for a system summary. **Opt-in — this runs a program on each new shell and adds visible startup latency.** | `fastfetch`; `git` + `cmake` fallback | zsh, bash | `only_ssh` (bool, default `false`) |
 
 `autosuggestions` and `syntax-highlighting` are zsh-only and always render last
 (with `syntax-highlighting` after `autosuggestions`); `fzf-tab`, when enabled,

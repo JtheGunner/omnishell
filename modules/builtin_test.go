@@ -186,6 +186,15 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 }
 
+func TestWelcome(t *testing.T) {
+	def := map[string]any{"only_ssh": false}
+	ssh := map[string]any{"only_ssh": true}
+	assertGoldenNamed(t, "welcome", "zsh", renderModule(t, "welcome", "zsh", def))
+	assertGoldenNamed(t, "welcome", "bash", renderModule(t, "welcome", "bash", def))
+	assertGoldenNamed(t, "welcome", "zsh-ssh", renderModule(t, "welcome", "zsh", ssh))
+	assertGoldenNamed(t, "welcome", "bash-ssh", renderModule(t, "welcome", "bash", ssh))
+}
+
 func TestBroot(t *testing.T) {
 	def := map[string]any{"cmd": "br"}
 	custom := map[string]any{"cmd": "tree"}

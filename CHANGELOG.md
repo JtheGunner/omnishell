@@ -49,6 +49,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Built-in `broot` module: the `br` navigable-tree TUI with cd-on-exit, `cmd`
   option to rename the function. `brew` / `apt` / `dnf` / `pacman` package,
   `git` + `cargo` fallback elsewhere.
+- Built-in `welcome` module: run `fastfetch` on interactive shell start, with
+  an `only_ssh` option. Opt-in — it adds visible startup latency.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc

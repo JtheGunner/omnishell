@@ -1,0 +1,30 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "welcome"
+name        = "welcome"
+description = "Show a fastfetch system summary when an interactive shell starts (opt-in; adds startup latency)"
+homepage    = "https://github.com/fastfetch-cli/fastfetch"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+brew   = ["fastfetch"]
+apt    = ["fastfetch"]
+dnf    = ["fastfetch"]
+pacman = ["fastfetch"]
+zypper = ["fastfetch"]
+apk    = ["fastfetch"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/fastfetch-cli/fastfetch.git"
+dest = "{{.VendorDir}}/fastfetch"
+run  = ["sh", "-c", "cmake -B {{.VendorDir}}/fastfetch/build -S {{.VendorDir}}/fastfetch && cmake --build {{.VendorDir}}/fastfetch/build -j"]
+
+[options.only_ssh]
+type    = "bool"
+default = false
+help    = "Only show the banner over an SSH connection (skip it on a local terminal)"
