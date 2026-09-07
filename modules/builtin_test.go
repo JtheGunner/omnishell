@@ -185,6 +185,15 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 }
 
+func TestPayRespects(t *testing.T) {
+	def := map[string]any{"alias": "f"}
+	custom := map[string]any{"alias": "oops"}
+	assertGoldenNamed(t, "pay-respects", "zsh", renderModule(t, "pay-respects", "zsh", def))
+	assertGoldenNamed(t, "pay-respects", "bash", renderModule(t, "pay-respects", "bash", def))
+	assertGoldenNamed(t, "pay-respects", "zsh-alias", renderModule(t, "pay-respects", "zsh", custom))
+	assertGoldenNamed(t, "pay-respects", "bash-alias", renderModule(t, "pay-respects", "bash", custom))
+}
+
 func TestMise(t *testing.T) {
 	act := map[string]any{"mode": "activate"}
 	shims := map[string]any{"mode": "shims"}
