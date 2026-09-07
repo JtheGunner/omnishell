@@ -31,6 +31,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Built-in `direnv` module: `.envrc`-based per-directory environment via
   `direnv hook`, with `log_format` and `whitelist` options and a `git`
   fallback.
+- Built-in `mise` module: per-project runtime versions via `mise activate`,
+  with a `mode` (activate | shims) option. System package on `brew` / `pacman`,
+  a `git` + `cargo` fallback elsewhere.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc
