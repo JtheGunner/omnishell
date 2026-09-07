@@ -120,6 +120,10 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 | `fzf` | Ctrl+R history search as a fuzzy, scrollable list (+ optional Ctrl+T) — [junegunn/fzf](https://github.com/junegunn/fzf) | `fzf`; `git` fallback | zsh, bash | `ctrl_r` (bool, default `true`), `ctrl_t` (bool, default `false`), `default_opts` (string, default `--height 40% --reverse --border`) |
 | `zoxide` | Smarter cd that learns your most-used directories — [ajeetdsouza/zoxide](https://github.com/ajeetdsouza/zoxide) | `zoxide`; `git` fallback | zsh, bash | `cmd` (string, default `z`) |
 | `modern-aliases` | Replace ls/cat/find with [eza](https://github.com/eza-community/eza), [bat](https://github.com/sharkdp/bat) and [fd](https://github.com/sharkdp/fd) when selected | `eza`, `bat`, `fd` | zsh, bash | `replace` (`list<enum>` of `ls`, `cat`, `find`; default `["ls", "cat", "find"]`) |
+| `colorized-man` | Syntax-highlighted man pages via [bat](https://github.com/sharkdp/bat) when present, with a zero-dependency `less` colour fallback | — (config only) | zsh, bash | — |
+| `ls-colors` | A consistent, readable colour palette for `ls` / `eza` and filename completion (`LS_COLORS` on Linux, `LSCOLORS` on macOS) | — (config only) | zsh, bash | — |
+| `pager-defaults` | Sensible `less` defaults: colour passthrough, quit-if-one-screen, smart-case search, a saved search history | — (config only) | zsh, bash | — |
+| `window-title` | Keep the terminal window/tab title set to the current working directory | — (config only) | zsh, bash | — |
 
 `autosuggestions` and `syntax-highlighting` are zsh-only and always render last
 (with `syntax-highlighting` after `autosuggestions`).

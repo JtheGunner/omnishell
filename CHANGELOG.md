@@ -15,6 +15,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `omnishell apply --reload`: re-exec `$SHELL` after a successful apply so the
   changes take effect immediately. No-op (with a hint) in a non-interactive
   shell or when `$SHELL` is unset.
+- Four config-only built-in modules for visual polish: `colorized-man`
+  (bat-backed man pages with a `less` fallback), `ls-colors` (a curated
+  `LS_COLORS` / `LSCOLORS` palette), `pager-defaults` (sensible `less` env),
+  and `window-title` (terminal title follows `$PWD`).
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc

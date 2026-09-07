@@ -1,0 +1,5 @@
+_omnishell_set_title() { printf '\e]0;%s\a' "${PWD/#$HOME/\~}"; }
+case ";${PROMPT_COMMAND};" in
+  *";_omnishell_set_title;"*) ;;
+  *) PROMPT_COMMAND="_omnishell_set_title${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+esac
