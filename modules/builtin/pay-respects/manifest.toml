@@ -1,0 +1,27 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "pay-respects"
+name        = "pay-respects"
+description = "Suggest a corrected command after a failed one (a Rust alternative to thefuck)"
+homepage    = "https://github.com/iffse/pay-respects"
+version     = "1.0.0"
+schema      = 1
+
+# No reliable distro package yet; brew has a formula, everything else falls back.
+[packages]
+brew = ["pay-respects"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/iffse/pay-respects.git"
+dest = "{{.VendorDir}}/pay-respects"
+run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/pay-respects", "--root", "{{.VendorDir}}"]
+
+[options.alias]
+type    = "string"
+default = "f"
+pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
+help    = "Name of the correction alias pay-respects defines"
