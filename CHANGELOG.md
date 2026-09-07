@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Built-in `starship` module: the [Starship](https://starship.rs) cross-shell
+  prompt via `eval "$(starship init <shell>)"`. Seeds a curated single-line
+  theme to `~/.config/omnishell/starship.toml` on first shell start (never
+  overwritten afterwards) and points `STARSHIP_CONFIG` at it. Orders after
+  `completion` / `fzf-tab`; `conflicts` with `omnishell-prompt`. `starship`
+  package on `brew` / `apt` / `pacman` / `apk`, a `git` + `cargo` fallback
+  elsewhere. `remove --purge` deletes the seeded config.
 - Manifest `conflicts` key: a module can declare ids it is incompatible with.
   When two conflicting modules are both enabled, `apply` / `doctor` / `diff`
   stop with exit 2 and name the pair. One-directional (either side may declare

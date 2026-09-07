@@ -1,0 +1,26 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion", "fzf-tab"]
+conflicts   = ["omnishell-prompt"]
+
+[module]
+id          = "starship"
+name        = "starship"
+description = "The minimal, blazing-fast cross-shell prompt; seeds a curated config the first time it runs"
+homepage    = "https://starship.rs"
+version     = "1.0.0"
+schema      = 1
+
+# starship is in brew / pacman / apk and recent apt; dnf / zypper and older
+# releases fall through to the git + cargo fallback (starship is Rust).
+[packages]
+brew   = ["starship"]
+apt    = ["starship"]
+pacman = ["starship"]
+apk    = ["starship"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/starship/starship.git"
+dest = "{{.VendorDir}}/starship"
+run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/starship", "--root", "{{.VendorDir}}"]

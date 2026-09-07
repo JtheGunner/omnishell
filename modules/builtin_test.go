@@ -280,6 +280,58 @@ func TestAtuinConflictsWithFzf(t *testing.T) {
 	}
 }
 
+func TestStarship(t *testing.T) {
+	assertGoldenNamed(t, "starship", "zsh", renderModule(t, "starship", "zsh", nil))
+	assertGoldenNamed(t, "starship", "bash", renderModule(t, "starship", "bash", nil))
+}
+
+func TestStarshipLoadOrder(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := map[string]module.Manifest{}
+	for _, id := range []string{"completion", "fzf-tab", "fzf", "starship"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %q not embedded", id)
+		}
+		active[id] = m.Manifest
+	}
+	order, err := graph.Order(active)
+	if err != nil {
+		t.Fatalf("graph.Order: %v", err)
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	// The prompt must initialise after the completion / tab machinery.
+	if pos["starship"] < pos["completion"] || pos["starship"] < pos["fzf-tab"] {
+		t.Fatalf("starship must load after completion and fzf-tab: %v", order)
+	}
+}
+
+func TestStarshipConflictsWithOmnishellPrompt(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("starship")
+	if !ok {
+		t.Fatal("starship not embedded")
+	}
+	found := false
+	for _, c := range m.Manifest.Conflicts {
+		if c == "omnishell-prompt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("starship manifest conflicts = %v, want it to contain \"omnishell-prompt\"", m.Manifest.Conflicts)
+	}
+}
+
 func TestPayRespects(t *testing.T) {
 	def := map[string]any{"alias": "f"}
 	custom := map[string]any{"alias": "oops"}

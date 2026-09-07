@@ -1,0 +1,58 @@
+_omnishell_starship_cfg={{ pathjoin .ConfigDir "starship.toml" | shellquote }}
+if [ ! -e "$_omnishell_starship_cfg" ]; then
+  cat > "$_omnishell_starship_cfg" <<'__OMNISHELL_STARSHIP_TOML__'
+# Get editor completions based on the config schema
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Classic single-line prompt: user@host:dir (git) $
+# All styles use ANSI colour NAMES, so they resolve to the terminal's palette
+# (Root Loops) automatically - nothing colour-hardcoded here.
+add_newline = false
+format = "$username$hostname$directory$git_branch$git_status$character"
+
+[username]
+show_always = true
+style_user = "bold cyan"
+style_root = "bold red"
+format = "[$user]($style)"
+
+[hostname]
+ssh_only = false
+style = "bold cyan"
+trim_at = "."
+format = "[@$hostname]($style):"
+
+[directory]
+style = "bold purple"
+truncation_length = 0
+truncate_to_repo = false
+format = "[$path]($style)[$read_only]($read_only_style) "
+
+[git_branch]
+style = "bold purple"
+format = "[$symbol](bold cyan)[$branch]($style)"
+
+[git_status]
+style = "bold cyan"
+
+[character]
+success_symbol = "[\\$](bold cyan)"
+error_symbol = "[\\$](bold red)"
+
+# Noise we don't want in the prompt.
+[package]
+disabled = true
+
+[docker_context]
+disabled = true
+
+[ruby]
+disabled = true
+
+[gcloud]
+disabled = true
+__OMNISHELL_STARSHIP_TOML__
+fi
+export STARSHIP_CONFIG="$_omnishell_starship_cfg"
+unset _omnishell_starship_cfg
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
