@@ -1,0 +1,29 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "mise"
+name        = "mise"
+description = "Per-project runtime versions (node, python, go, …) from mise.toml / .tool-versions"
+homepage    = "https://github.com/jdx/mise"
+version     = "1.0.0"
+schema      = 1
+
+# mise is not in the base apt / dnf / zypper / apk repos (it ships its own),
+# so only brew and pacman get a system package; everything else falls back.
+[packages]
+brew   = ["mise"]
+pacman = ["mise"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/jdx/mise.git"
+dest = "{{.VendorDir}}/mise"
+run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/mise", "--root", "{{.VendorDir}}"]
+
+[options.mode]
+type    = "enum"
+values  = ["activate", "shims"]
+default = "activate"
+help    = "activate = per-prompt hook (default); shims = PATH shims, which also work in non-interactive shells"

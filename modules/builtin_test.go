@@ -185,6 +185,15 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 }
 
+func TestMise(t *testing.T) {
+	act := map[string]any{"mode": "activate"}
+	shims := map[string]any{"mode": "shims"}
+	assertGoldenNamed(t, "mise", "zsh", renderModule(t, "mise", "zsh", act))
+	assertGoldenNamed(t, "mise", "bash", renderModule(t, "mise", "bash", act))
+	assertGoldenNamed(t, "mise", "zsh-shims", renderModule(t, "mise", "zsh", shims))
+	assertGoldenNamed(t, "mise", "bash-shims", renderModule(t, "mise", "bash", shims))
+}
+
 func TestDirenv(t *testing.T) {
 	def := map[string]any{"log_format": "", "whitelist": []any{}}
 	opts := map[string]any{"log_format": "kv", "whitelist": []any{"/home/j/work", "/opt"}}
