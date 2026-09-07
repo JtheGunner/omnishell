@@ -30,8 +30,10 @@ sandbox `HOME` (`mktemp -d`), so it runs either unprivileged (macOS runner) or a
 root (minimal distro container); CI does both per-OS. Package installs still hit
 the real system, so only run it in a disposable environment.
 
-CI (`.github/workflows/ci.yml`) runs vet, race tests, and lint on every push/PR;
-`build.yml`-equivalent job builds on ubuntu+macos and runs `omnishell version`.
+CI (`.github/workflows/ci.yml`) runs vet, race tests (with a coverage summary
+in the job output), lint, and `govulncheck` on every push/PR; a build job
+compiles on ubuntu+macos and runs `omnishell version`. `.github/dependabot.yml`
+opens grouped weekly `gomod` / `github-actions` update PRs.
 Releases are tagged (`vX.Y.Z`) and built via GoReleaser (`.goreleaser.yaml`),
 which also pushes a formula to the `JtheGunner/homebrew-tap` repo (needs
 `HOMEBREW_TAP_GITHUB_TOKEN`). `install.sh` downloads the matching release
