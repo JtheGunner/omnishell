@@ -46,6 +46,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Built-in `omnishell-prompt` module: a dependency-free two-line git-aware
   prompt, `style` / `show_duration` / `char` options. Opt-in — it sets
   `PROMPT` / `PS1`.
+- Built-in `broot` module: the `br` navigable-tree TUI with cd-on-exit, `cmd`
+  option to rename the function. `brew` / `apt` / `dnf` / `pacman` package,
+  `git` + `cargo` fallback elsewhere.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc

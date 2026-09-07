@@ -1,0 +1,4 @@
+command -v broot >/dev/null 2>&1 && eval "$(broot --print-shell-function bash)"
+{{- if ne .Options.cmd "br" }}
+command -v broot >/dev/null 2>&1 && alias {{ .Options.cmd | shellquote }}=br
+{{- end }}

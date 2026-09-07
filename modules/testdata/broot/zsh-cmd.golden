@@ -1,0 +1,2 @@
+command -v broot >/dev/null 2>&1 && eval "$(broot --print-shell-function zsh)"
+command -v broot >/dev/null 2>&1 && alias 'tree'=br
