@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -76,6 +77,54 @@ func SetReloadForTest(interactive func() bool, execFn func(string) error) {
 	} else {
 		reloadExec = execFn
 	}
+}
+
+// defaultBenchRun times `shell -c :` (baseline) and `shell -c '. <initPath>'`
+// (sourced), each `runs` times, and returns the median of each. The added cost
+// is (sourced - baseline). Tests override it via SetBenchForTest.
+func defaultBenchRun(shellPath, initPath string, runs int) (baseline, sourced time.Duration, err error) {
+	median := func(script string) (time.Duration, error) {
+		samples := make([]time.Duration, 0, runs)
+		for i := 0; i < runs+1; i++ { // one warm-up run, discarded
+			start := time.Now()
+			cmd := exec.Command(shellPath, "-c", script)
+			cmd.Stdout, cmd.Stderr = nil, nil
+			if rerr := cmd.Run(); rerr != nil {
+				return 0, fmt.Errorf("%s -c %q: %w", shellPath, script, rerr)
+			}
+			if i > 0 {
+				samples = append(samples, time.Since(start))
+			}
+		}
+		sort.Slice(samples, func(i, j int) bool { return samples[i] < samples[j] })
+		return samples[len(samples)/2], nil
+	}
+	if baseline, err = median(":"); err != nil {
+		return 0, 0, err
+	}
+	if sourced, err = median(". " + shellSingleQuote(initPath)); err != nil {
+		return 0, 0, err
+	}
+	return baseline, sourced, nil
+}
+
+// shellSingleQuote wraps s in single quotes for safe use in a shell command.
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// benchRun is the `omnishell bench` timing seam; tests swap it via
+// SetBenchForTest.
+var benchRun = defaultBenchRun
+
+// SetBenchForTest swaps the bench timing seam. Passing nil restores the real
+// implementation.
+func SetBenchForTest(fn func(shellPath, initPath string, runs int) (time.Duration, time.Duration, error)) {
+	if fn == nil {
+		benchRun = defaultBenchRun
+		return
+	}
+	benchRun = fn
 }
 
 // promptFn answers interactive y/N questions; tests reassign it.

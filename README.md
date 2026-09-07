@@ -73,6 +73,7 @@ your system until you run `omnishell apply`.
 | `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt), `--reload` (re-exec `$SHELL` after a successful apply; no-op in a non-interactive shell) |
 | `omnishell diff` | Show what apply would change (`apply --dry-run`). | — |
 | `omnishell doctor` | Check the installed shell environment for drift. Exit 3 if any drift is found. | — |
+| `omnishell bench` | Measure how much sourcing the generated `init.<shell>` adds to shell startup, per managed shell, and warn when it exceeds the startup budget. A rough guide (moves with machine load), always exits 0. | `--json` (emit a JSON object), `--runs <n>` (timed runs per measurement, default 5) |
 | `omnishell rollback` | List backup snapshots, or restore files/lockfile to their state before a chosen one (`--to <timestamp>`), undoing that run and everything after it. Never touches packages or `config.toml`. | `--to <timestamp>`, `--dry-run`, `-y` / `--yes` |
 | `omnishell remove <id>` | Disable a module and drop its shell section, then re-apply. | `--dry-run`, `--purge` (also uninstall the module's packages, run its remove hook, and delete vendored files), `-y` / `--yes` |
 | `omnishell uninstall` | Remove omnishell's shell integration (marker block + generated `init.<shell>` files). Every touched file is backed up first. | `--purge` (also delete `~/.config/omnishell` entirely), `-y` / `--yes` |
@@ -86,7 +87,7 @@ when `XDG_CONFIG_HOME` is unset:
 
 | Path | What it is |
 |------|------------|
-| `config.toml` | The file you edit (by hand, or via `enable` / `disable` / `set`). |
+| `config.toml` | The file you edit (by hand, or via `enable` / `disable` / `set`). The `[omnishell]` table also takes `startup_budget_ms` (default `200`) — the per-shell added-cost threshold `omnishell bench` warns above. |
 | `init.zsh` / `init.bash` | Tool-generated. **Do not edit** — `apply` regenerates them and `doctor` flags manual edits. |
 | `state.lock.json` | Machine-managed lockfile (idempotency, drift detection, clean removal). Not for editing. |
 | `backups/<timestamp>/` | Every rc-file and init-file write is copied here first. |

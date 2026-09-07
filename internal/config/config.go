@@ -41,6 +41,9 @@ type ModuleConfig struct {
 type OmnishellSection struct {
 	Version int
 	Shells  []string
+	// StartupBudgetMs is the `omnishell bench` warning threshold in
+	// milliseconds. 0 means "use the built-in default".
+	StartupBudgetMs int
 }
 
 // Config is the whole parsed file.
@@ -60,8 +63,9 @@ func Default() Config {
 // raw mirrors the on-disk shape for decoding with strict key checking.
 type raw struct {
 	Omnishell struct {
-		Version int      `toml:"version"`
-		Shells  []string `toml:"shells"`
+		Version         int      `toml:"version"`
+		Shells          []string `toml:"shells"`
+		StartupBudgetMs int      `toml:"startup_budget_ms"`
 	} `toml:"omnishell"`
 	Modules map[string]struct {
 		Enabled bool           `toml:"enabled"`
@@ -99,9 +103,17 @@ func Load(path string) (Config, error) {
 		}
 	}
 
+	if r.Omnishell.StartupBudgetMs < 0 {
+		return Config{}, Error{Path: path, Msg: "startup_budget_ms must not be negative"}
+	}
+
 	out := Config{
-		Omnishell: OmnishellSection{Version: version, Shells: append([]string(nil), r.Omnishell.Shells...)},
-		Modules:   make(map[string]ModuleConfig, len(r.Modules)),
+		Omnishell: OmnishellSection{
+			Version:         version,
+			Shells:          append([]string(nil), r.Omnishell.Shells...),
+			StartupBudgetMs: r.Omnishell.StartupBudgetMs,
+		},
+		Modules: make(map[string]ModuleConfig, len(r.Modules)),
 	}
 	for id, m := range r.Modules {
 		opts := map[string]any{}

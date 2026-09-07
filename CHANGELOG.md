@@ -15,6 +15,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `omnishell apply --reload`: re-exec `$SHELL` after a successful apply so the
   changes take effect immediately. No-op (with a hint) in a non-interactive
   shell or when `$SHELL` is unset.
+- `omnishell bench`: measure how much sourcing the generated `init.<shell>`
+  adds to shell startup per managed shell, and warn above the startup budget
+  (`[omnishell] startup_budget_ms` in `config.toml`, default 200). Always
+  exits 0; `--json` and `--runs <n>` supported.
 - Four config-only built-in modules for visual polish: `colorized-man`
   (bat-backed man pages with a `less` fallback), `ls-colors` (a curated
   `LS_COLORS` / `LSCOLORS` palette), `pager-defaults` (sensible `less` env),
