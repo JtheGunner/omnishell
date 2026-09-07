@@ -98,6 +98,100 @@ func TestApplyWithoutInitExitsTwo(t *testing.T) {
 	}
 }
 
+// applyReloadSetup runs init + enable so a following `apply` succeeds, and
+// returns with zsh reported as the only installed shell.
+func applyReloadSetup(t *testing.T) {
+	t.Helper()
+	setupModuleCLITest(t)
+	cli.SetLookPathForTest(zshPresentLookPath)
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"init"}, &out, &errb); code != 0 {
+		t.Fatalf("init exit %d: %s", code, errb.String())
+	}
+	if code := cli.Execute([]string{"enable", "completion"}, &out, &errb); code != 0 {
+		t.Fatalf("enable exit %d: %s", code, errb.String())
+	}
+}
+
+func TestApplyReloadExecsShellWhenInteractive(t *testing.T) {
+	applyReloadSetup(t)
+	t.Setenv("SHELL", "/bin/zsh")
+	var got string
+	cli.SetReloadForTest(func() bool { return true }, func(shell string) error { got = shell; return nil })
+	defer cli.SetReloadForTest(nil, nil)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"apply", "--yes", "--reload"}, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got != "/bin/zsh" {
+		t.Fatalf("reloadExec called with %q, want /bin/zsh", got)
+	}
+	if !strings.Contains(out.String(), "reloading /bin/zsh") {
+		t.Fatalf("output missing reload line:\n%s", out.String())
+	}
+}
+
+func TestApplyReloadNoopWhenNotInteractive(t *testing.T) {
+	applyReloadSetup(t)
+	t.Setenv("SHELL", "/bin/zsh")
+	called := false
+	cli.SetReloadForTest(func() bool { return false }, func(string) error { called = true; return nil })
+	defer cli.SetReloadForTest(nil, nil)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"apply", "--yes", "--reload"}, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if called {
+		t.Fatal("reloadExec called in a non-interactive shell")
+	}
+	if !strings.Contains(out.String(), "not an interactive shell") {
+		t.Fatalf("output missing skip hint:\n%s", out.String())
+	}
+}
+
+func TestApplyReloadSkippedOnDryRun(t *testing.T) {
+	applyReloadSetup(t)
+	t.Setenv("SHELL", "/bin/zsh")
+	called := false
+	cli.SetReloadForTest(func() bool { return true }, func(string) error { called = true; return nil })
+	defer cli.SetReloadForTest(nil, nil)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"apply", "--reload", "--dry-run"}, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if called {
+		t.Fatal("reloadExec called on a dry run")
+	}
+}
+
+func TestApplyWithoutReloadFlagDoesNotReload(t *testing.T) {
+	applyReloadSetup(t)
+	t.Setenv("SHELL", "/bin/zsh")
+	called := false
+	cli.SetReloadForTest(func() bool { return true }, func(string) error { called = true; return nil })
+	defer cli.SetReloadForTest(nil, nil)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"apply", "--yes"}, &out, &errb); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if called {
+		t.Fatal("reloadExec called without --reload")
+	}
+}
+
+func TestDiffRejectsReloadFlag(t *testing.T) {
+	setupModuleCLITest(t)
+	cli.SetLookPathForTest(zshPresentLookPath)
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"diff", "--reload"}, &out, &errb); code == 0 {
+		t.Fatalf("diff --reload should fail with a flag error, got exit 0")
+	}
+}
+
 func TestDiffIsApplyDryRun(t *testing.T) {
 	setupModuleCLITest(t)
 	cli.SetLookPathForTest(zshPresentLookPath)

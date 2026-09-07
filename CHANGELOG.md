@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   When two conflicting modules are both enabled, `apply` / `doctor` / `diff`
   stop with exit 2 and name the pair. One-directional (either side may declare
   it); cannot overlap `requires`.
+- `omnishell apply --reload`: re-exec `$SHELL` after a successful apply so the
+  changes take effect immediately. No-op (with a hint) in a non-interactive
+  shell or when `$SHELL` is unset.
 
 ### Fixed
 - `omnishell init` now writes a backup manifest (`kind = "init"`) for the rc
