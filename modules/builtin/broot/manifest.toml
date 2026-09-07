@@ -1,0 +1,30 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["completion"]
+
+[module]
+id          = "broot"
+name        = "broot"
+description = "A navigable directory-tree TUI; the `br` function cd's into the directory you pick"
+homepage    = "https://github.com/Canop/broot"
+version     = "1.0.0"
+schema      = 1
+
+# zypper / apk don't ship broot in the base repos → git + cargo fallback.
+[packages]
+brew   = ["broot"]
+apt    = ["broot"]
+dnf    = ["broot"]
+pacman = ["broot"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/Canop/broot.git"
+dest = "{{.VendorDir}}/broot"
+run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/broot", "--root", "{{.VendorDir}}"]
+
+[options.cmd]
+type    = "string"
+default = "br"
+pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
+help    = "Name of the shell function that opens broot and cd's on exit"

@@ -186,6 +186,15 @@ func TestNoUnquotedStringOptionsInCommandPosition(t *testing.T) {
 	}
 }
 
+func TestBroot(t *testing.T) {
+	def := map[string]any{"cmd": "br"}
+	custom := map[string]any{"cmd": "tree"}
+	assertGoldenNamed(t, "broot", "zsh", renderModule(t, "broot", "zsh", def))
+	assertGoldenNamed(t, "broot", "bash", renderModule(t, "broot", "bash", def))
+	assertGoldenNamed(t, "broot", "zsh-cmd", renderModule(t, "broot", "zsh", custom))
+	assertGoldenNamed(t, "broot", "bash-cmd", renderModule(t, "broot", "bash", custom))
+}
+
 func TestOmnishellPrompt(t *testing.T) {
 	minimal := map[string]any{"style": "minimal", "show_duration": false, "char": "❯"}
 	full := map[string]any{"style": "full", "show_duration": false, "char": "❯"}
