@@ -4,6 +4,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-08
+
 ### Added
 - Built-in `tmux` module: installs [tmux](https://github.com/tmux/tmux) (the
   `tmux` package on every supported manager) and emits a shell snippet that, on
@@ -131,7 +133,9 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/JtheGunner/omnishell/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/JtheGunner/omnishell/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/JtheGunner/omnishell/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/JtheGunner/omnishell/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/JtheGunner/omnishell/compare/v0.1.0...v0.1.1
