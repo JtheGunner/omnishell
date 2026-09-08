@@ -18,12 +18,12 @@ jobs:
           if command -v dnf; then dnf install -y golang git sudo; fi
           if command -v pacman; then pacman -Sy --noconfirm go git sudo; fi
           if command -v apk; then apk add --no-cache go git bash sudo; fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sh test/e2e/run.sh
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with: { go-version: '1.23' }
       - run: sh test/e2e/run.sh
