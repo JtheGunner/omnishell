@@ -371,6 +371,15 @@ func TestLsColors(t *testing.T) {
 	assertGoldenNamed(t, "ls-colors", "bash-linux", renderModuleOn(t, "ls-colors", "bash", "linux", nil))
 }
 
+func TestRootLoops(t *testing.T) {
+	assertGolden(t, "root-loops", "zsh", renderModule(t, "root-loops", "zsh", nil))
+	assertGolden(t, "root-loops", "bash", renderModule(t, "root-loops", "bash", nil))
+	assertGoldenNamed(t, "root-loops", "zsh-dark",
+		renderModule(t, "root-loops", "zsh", map[string]any{"appearance": "dark"}))
+	assertGoldenNamed(t, "root-loops", "zsh-light",
+		renderModule(t, "root-loops", "zsh", map[string]any{"appearance": "light"}))
+}
+
 func TestPagerDefaults(t *testing.T) {
 	assertGolden(t, "pager-defaults", "zsh", renderModule(t, "pager-defaults", "zsh", nil))
 	assertGolden(t, "pager-defaults", "bash", renderModule(t, "pager-defaults", "bash", nil))
