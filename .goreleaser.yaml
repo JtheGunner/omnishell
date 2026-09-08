@@ -20,9 +20,9 @@ archives:
   - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     files:
-      - src: dist/assets/completions/*
+      - src: build/assets/completions/*
         dst: completions
-      - src: dist/assets/man/*.1
+      - src: build/assets/man/*.1
         dst: man
       - README.md
       - LICENSE

@@ -3,7 +3,7 @@ LDFLAGS := -X github.com/JtheGunner/omnishell/internal/buildinfo.Version=$(shell
            -X github.com/JtheGunner/omnishell/internal/buildinfo.Commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo none) \
            -X github.com/JtheGunner/omnishell/internal/buildinfo.Date=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-ASSETS := dist/assets
+ASSETS := build/assets
 
 .PHONY: build test lint vet completions man dist-assets
 build:
