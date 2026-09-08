@@ -335,10 +335,13 @@ func TestStarshipConflictsWithOmnishellPrompt(t *testing.T) {
 func TestTmux(t *testing.T) {
 	def := map[string]any{"session": "default"}
 	custom := map[string]any{"session": "work"}
+	noAttach := map[string]any{"session": "default", "auto_attach": false}
 	assertGoldenNamed(t, "tmux", "zsh", renderModule(t, "tmux", "zsh", def))
 	assertGoldenNamed(t, "tmux", "bash", renderModule(t, "tmux", "bash", def))
 	assertGoldenNamed(t, "tmux", "zsh-session", renderModule(t, "tmux", "zsh", custom))
 	assertGoldenNamed(t, "tmux", "bash-session", renderModule(t, "tmux", "bash", custom))
+	assertGoldenNamed(t, "tmux", "zsh-no-attach", renderModule(t, "tmux", "zsh", noAttach))
+	assertGoldenNamed(t, "tmux", "bash-no-attach", renderModule(t, "tmux", "bash", noAttach))
 }
 
 func TestTmuxLoadOrder(t *testing.T) {

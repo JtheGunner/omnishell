@@ -23,3 +23,8 @@ type    = "string"
 default = "default"
 pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
 help    = "Name of the tmux session to attach to or create"
+
+[options.auto_attach]
+type    = "bool"
+default = true
+help    = "Attach to (or start) the session automatically on interactive shell start. Set false to only manage the tmux package without touching shell startup."

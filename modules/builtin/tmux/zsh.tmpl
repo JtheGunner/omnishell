@@ -1,3 +1,5 @@
+{{ if .Options.auto_attach }}
 if [[ $- == *i* ]] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
   tmux attach-session -t {{ .Options.session | shellquote }} 2>/dev/null || tmux new-session -s {{ .Options.session | shellquote }}
 fi
+{{ end }}
