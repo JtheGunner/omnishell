@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Built-in `root-loops` module: config-only, no package. On shell start it
+  pushes a [rootloops.sh](https://rootloops.sh)-generated 16-colour palette
+  (plus foreground/background) into the terminal via OSC 4/10/11 escapes, with
+  a tmux passthrough wrapper, guarded on `[ -t 1 ]`. The `appearance` option
+  (`enum` `auto` | `dark` | `light`, default `auto`) selects a light or dark
+  variant; `auto` reads `AppleInterfaceStyle` on macOS and the freedesktop
+  `org.freedesktop.appearance color-scheme` portal (via `gdbus`) on Linux,
+  falling back to dark. No once-only latch, so re-sourcing after a system
+  light/dark switch re-colours immediately.
 - Built-in `starship` module: the [Starship](https://starship.rs) cross-shell
   prompt via `eval "$(starship init <shell>)"`. Seeds a curated single-line
   theme to `~/.config/omnishell/starship.toml` on first shell start (never

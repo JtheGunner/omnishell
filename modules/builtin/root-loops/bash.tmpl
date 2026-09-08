@@ -1,0 +1,36 @@
+# Root Loops - recolour the terminal to a rootloops.sh palette on shell start.
+# Recipe: https://rootloops.sh/?sugar=8&colors=9&sogginess=4&flavor=0&fruit=9&milk=1
+if [ -t 1 ]; then
+  _rl_apply() {
+    if [ -n "${TMUX:-}" ]; then printf '\033Ptmux;\033\033]%s\007\033\\' "$1"
+    else printf '\033]%s\007' "$1"; fi
+  }
+{{- if eq .Options.appearance "dark" }}
+  _rl_mode=dark
+{{- else if eq .Options.appearance "light" }}
+  _rl_mode=light
+{{- else }}
+  _rl_mode=dark
+  case "$(uname)" in
+    Darwin) [ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" = Dark ] || _rl_mode=light ;;
+    *)
+      if command -v gdbus >/dev/null 2>&1; then
+        case "$(gdbus call --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop --method org.freedesktop.portal.Settings.Read org.freedesktop.appearance color-scheme 2>/dev/null)" in
+          *"uint32 2"*) _rl_mode=light ;;
+        esac
+      fi
+      ;;
+  esac
+{{- end }}
+  if [ "$_rl_mode" = light ]; then
+    _rl_apply '10;#262d40'
+    _rl_apply '11;#f3f5f9'
+    _rl_apply '4;0;#262f4a;1;#d0074b;2;#9bb621;3;#cb6a0b;4;#0a80cd;5;#5206d0;6;#24b29e;7;#435793;8;#6b7bad;9;#fa1056;10;#bbd930;11;#fa790f;12;#109af9;13;#6111f9;14;#29e0c5;15;#2a3a65'
+  else
+    _rl_apply '10;#cdd5eb'
+    _rl_apply '11;#192036'
+    _rl_apply '4;0;#2b3554;1;#fb80aa;2;#a1bd22;3;#f49437;4;#56b8f7;5;#bd97fc;6;#28c8b1;7;#909fcc;8;#4b5987;9;#fda7c1;10;#b5d427;11;#fcb173;12;#89cdfc;13;#ceb5fd;14;#30e1c7;15;#c0cae5'
+  fi
+  unset _rl_mode
+  unset -f _rl_apply
+fi

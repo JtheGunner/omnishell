@@ -1,0 +1,16 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+
+[module]
+id          = "root-loops"
+name        = "Root Loops palette"
+description = "Push a rootloops.sh-generated 16-colour palette into the terminal on shell start (OSC 4/10/11); picks a light or dark variant from the system appearance"
+homepage    = "https://rootloops.sh/?sugar=8&colors=9&sogginess=4&flavor=0&fruit=9&milk=1"
+version     = "1.0.0"
+schema      = 1
+
+[options.appearance]
+type    = "enum"
+values  = ["auto", "dark", "light"]
+default = "auto"
+help    = "Which palette to apply: 'auto' follows the system light/dark setting, 'dark' / 'light' force one"
