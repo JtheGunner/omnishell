@@ -149,10 +149,12 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 | `starship` | The minimal, blazing-fast cross-shell prompt — [starship.rs](https://starship.rs). **Opt-in: it sets the prompt.** Seeds `~/.config/omnishell/starship.toml` (a curated single-line theme) the first time a shell starts and points `STARSHIP_CONFIG` at it — edit that file to taste, omnishell never overwrites it. **Mutually exclusive with `omnishell-prompt`** — enabling both is a config error. | `starship` (`brew`, `apt`, `pacman`, `apk`); else `git` + `cargo` fallback (needs Rust) | zsh, bash | — |
 | `broot` | A navigable directory-tree TUI; the `br` function cd's into the directory you pick — [Canop/broot](https://github.com/Canop/broot) | `broot` (`brew`, `apt`, `dnf`, `pacman`); else `git` + `cargo` fallback (needs Rust) | zsh, bash | `cmd` (string, default `br`) |
 | `welcome` | Run [fastfetch](https://github.com/fastfetch-cli/fastfetch) on every interactive shell start for a system summary. **Opt-in — this runs a program on each new shell and adds visible startup latency.** | `fastfetch`; `git` + `cmake` fallback | zsh, bash | `only_ssh` (bool, default `false`) |
+| `tmux` | Auto-attach to (or start) a [tmux](https://github.com/tmux/tmux) session on interactive shell start, unless already inside one (`$TMUX` set). **Opt-in — every new interactive shell drops you into the multiplexer.** Loads before the prompt modules so the session is up before the prompt initialises. | `tmux` (all managers) | zsh, bash | `session` (string, default `default`) |
 
 `autosuggestions` and `syntax-highlighting` are zsh-only and always render last
 (with `syntax-highlighting` after `autosuggestions`); `fzf-tab`, when enabled,
-loads after `completion`/`fzf` and before both of those.
+loads after `completion`/`fzf` and before both of those. `tmux`, when enabled,
+loads before the prompt modules (`starship`, `omnishell-prompt`).
 
 ## Writing your own module
 

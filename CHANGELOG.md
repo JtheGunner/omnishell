@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Built-in `tmux` module: installs [tmux](https://github.com/tmux/tmux) (the
+  `tmux` package on every supported manager) and emits a shell snippet that, on
+  an interactive shell not already inside tmux, runs
+  `tmux attach-session -t <session> || tmux new-session -s <session>`. Guarded on
+  `[[ $- == *i* ]]`, `$TMUX` unset, and `command -v tmux`. The `session` option
+  (string, default `default`) names the session. Ordered ahead of the prompt
+  modules (`starship`, `omnishell-prompt`) via their `after` lists so the
+  multiplexer is running before the prompt initialises.
 - Built-in `root-loops` module: config-only, no package. On shell start it
   pushes a [rootloops.sh](https://rootloops.sh)-generated 16-colour palette
   (plus foreground/background) into the terminal via OSC 4/10/11 escapes, with

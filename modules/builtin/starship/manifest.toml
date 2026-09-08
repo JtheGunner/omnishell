@@ -1,6 +1,6 @@
 platforms   = ["macos", "linux"]
 shells      = ["zsh", "bash"]
-after       = ["completion", "fzf-tab"]
+after       = ["completion", "fzf-tab", "tmux"]
 conflicts   = ["omnishell-prompt"]
 
 [module]

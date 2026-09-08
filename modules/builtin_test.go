@@ -332,6 +332,46 @@ func TestStarshipConflictsWithOmnishellPrompt(t *testing.T) {
 	}
 }
 
+func TestTmux(t *testing.T) {
+	def := map[string]any{"session": "default"}
+	custom := map[string]any{"session": "work"}
+	assertGoldenNamed(t, "tmux", "zsh", renderModule(t, "tmux", "zsh", def))
+	assertGoldenNamed(t, "tmux", "bash", renderModule(t, "tmux", "bash", def))
+	assertGoldenNamed(t, "tmux", "zsh-session", renderModule(t, "tmux", "zsh", custom))
+	assertGoldenNamed(t, "tmux", "bash-session", renderModule(t, "tmux", "bash", custom))
+}
+
+func TestTmuxLoadOrder(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// starship and omnishell-prompt conflict, so check tmux against each
+	// prompt module in a separate active set.
+	for _, prompt := range []string{"starship", "omnishell-prompt"} {
+		active := map[string]module.Manifest{}
+		for _, id := range []string{"completion", "tmux", prompt} {
+			m, ok := reg.Get(id)
+			if !ok {
+				t.Fatalf("module %q not embedded", id)
+			}
+			active[id] = m.Manifest
+		}
+		order, err := graph.Order(active)
+		if err != nil {
+			t.Fatalf("graph.Order: %v", err)
+		}
+		pos := map[string]int{}
+		for i, id := range order {
+			pos[id] = i
+		}
+		// The multiplexer must be running before the prompt module initialises.
+		if pos["tmux"] > pos[prompt] {
+			t.Fatalf("tmux must load before %s: %v", prompt, order)
+		}
+	}
+}
+
 func TestPayRespects(t *testing.T) {
 	def := map[string]any{"alias": "f"}
 	custom := map[string]any{"alias": "oops"}

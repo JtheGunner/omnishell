@@ -1,6 +1,6 @@
 platforms   = ["macos", "linux"]
 shells      = ["zsh", "bash"]
-after       = ["completion"]
+after       = ["completion", "tmux"]
 
 [module]
 id          = "omnishell-prompt"
