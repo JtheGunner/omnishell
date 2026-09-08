@@ -1,0 +1,25 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+
+[module]
+id          = "tmux"
+name        = "tmux"
+description = "Auto-attach to (or start) a tmux session on interactive shell start, unless already inside one"
+homepage    = "https://github.com/tmux/tmux"
+version     = "1.0.0"
+schema      = 1
+
+# tmux ships in the base repos of every supported manager - no git fallback.
+[packages]
+brew   = ["tmux"]
+apt    = ["tmux"]
+dnf    = ["tmux"]
+pacman = ["tmux"]
+zypper = ["tmux"]
+apk    = ["tmux"]
+
+[options.session]
+type    = "string"
+default = "default"
+pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
+help    = "Name of the tmux session to attach to or create"
