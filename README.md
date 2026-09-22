@@ -1,8 +1,23 @@
-# omnishell
+<div align="center">
 
-Modular, declarative terminal configuration for macOS and Linux.
+# 🐚 omnishell
 
-## What it is
+**Modular, declarative, reversible terminal configuration for macOS and Linux.**
+One `config.toml` lists the modules you want; `omnishell apply` installs, renders and wires them into a single tool-managed init file.
+
+<code>📝 config.toml</code> &nbsp;→&nbsp; <code>⚙️ omnishell apply</code> &nbsp;→&nbsp; <code>🐚 init.zsh · init.bash</code>
+
+![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)
+![Go](https://img.shields.io/badge/built%20with-Go-00add8?style=flat-square&logo=go&logoColor=white)
+![Platforms](https://img.shields.io/badge/macOS%20·%20Linux-supported-0ea5e9?style=flat-square)
+![Shells](https://img.shields.io/badge/shells-zsh%20·%20bash-8b5cf6?style=flat-square)
+![Dependencies](https://img.shields.io/badge/runtime%20deps-none-f59e0b?style=flat-square)
+
+</div>
+
+---
+
+## 🎯 What it is
 
 `omnishell` is a single static binary that applies **terminal configuration** on
 macOS and Linux in a **modular, declarative, reversible** way. You keep a plain
@@ -19,11 +34,14 @@ options. Running `omnishell apply` then:
 4. records the result in a lockfile for idempotency, drift detection and clean
    removal.
 
-Your own `.zshrc` / `.bashrc` is never rewritten beyond that one marker block,
-every write is backed up first, and running `apply` twice with no config change
-is a no-op. No git repo, no account, and no network are required for normal use.
+> [!NOTE]
+> Your own `.zshrc` / `.bashrc` is never rewritten beyond that one marker block,
+> every write is backed up first, and running `apply` twice with no config change
+> is a no-op. No git repo, no account, and no network are required for normal use.
 
-## Install
+---
+
+## 📦 Install
 
 Homebrew:
 
@@ -43,7 +61,9 @@ Go:
 go install github.com/JtheGunner/omnishell/cmd/omnishell@latest
 ```
 
-## Quick start
+---
+
+## 🚀 Quick start
 
 ```sh
 omnishell init                 # create the config, hook it into your shells
@@ -57,7 +77,9 @@ disabled and inserts the `source` marker block into the detected shells' rc
 files. `enable` / `disable` / `set` only edit `config.toml` — nothing touches
 your system until you run `omnishell apply`.
 
-## Commands
+---
+
+## 🎛️ Commands
 
 `-h` / `--help` works on every command.
 
@@ -69,7 +91,6 @@ your system until you run `omnishell apply`.
 | `omnishell disable <module>` | Disable a module in the config. Does not apply. | — |
 | `omnishell set <module>.<key> <value>` | Set a module option in the config, validated against that module's option schema. | — |
 | `omnishell validate` | Check `config.toml` against the module option schemas and dependency rules (`requires` / `conflicts` / cycles). Computes no plan and probes nothing on the host; exit 2 on any problem. Useful in CI for a version-controlled `config.toml`. | `--json` (emit a JSON object instead of the text report) |
-| `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt) |
 | `omnishell apply` | Bring your shells up to date with the config. | `--dry-run` (show the plan without changing anything), `--force` (overwrite init files that were edited by hand), `--no-packages` (skip package installation), `-y` / `--yes` (apply without the confirmation prompt), `--reload` (re-exec `$SHELL` after a successful apply; no-op in a non-interactive shell) |
 | `omnishell diff` | Show what apply would change (`apply --dry-run`). | — |
 | `omnishell doctor` | Check the installed shell environment for drift. Exit 3 if any drift is found. `--fix` repairs the drift a re-apply resolves (missing / stale init file, missing rc source line, orphaned lockfile entries); a hand-edited init file and missing packages are left for a manual `apply` / `apply --force`. | `--fix` (repair re-apply-able drift), `-y` / `--yes` (with `--fix`, skip the prompt) |
@@ -80,7 +101,9 @@ your system until you run `omnishell apply`.
 | `omnishell version` | Print the omnishell version. | — |
 | `omnishell completion` | Cobra-generated shell autocompletion script generator (distinct from the `completion` module). | — |
 
-## Shell completion & man page for the `omnishell` command
+---
+
+## 📖 Shell completion & man page for the `omnishell` command
 
 Not to be confused with the `completion` **module** (which configures *your
 shell's* completion system) — this is tab-completion for typing `omnishell`
@@ -94,19 +117,21 @@ itself, plus `man omnishell`.
 - **`go install`**: generate on demand, e.g.
   `omnishell completion zsh > ~/.local/share/zsh/site-functions/_omnishell`.
 
-## How it works
+---
+
+## 🔧 How it works
 
 The config directory is `$XDG_CONFIG_HOME/omnishell`, or `~/.config/omnishell`
 when `XDG_CONFIG_HOME` is unset:
 
-| Path | What it is |
-|------|------------|
-| `config.toml` | The file you edit (by hand, or via `enable` / `disable` / `set`). The `[omnishell]` table also takes `startup_budget_ms` (default `200`) — the per-shell added-cost threshold `omnishell bench` warns above. |
-| `init.zsh` / `init.bash` | Tool-generated. **Do not edit** — `apply` regenerates them and `doctor` flags manual edits. |
-| `state.lock.json` | Machine-managed lockfile (idempotency, drift detection, clean removal). Not for editing. |
-| `backups/<timestamp>/` | Every rc-file and init-file write is copied here first. |
-| `modules/<id>/` | Your own modules (same format as the built-ins). |
-| `vendor/` | Clones made by the `git` package fallback. |
+|    | Path | What it is |
+|:--:|------|------------|
+| 📝 | `config.toml` | The file you edit (by hand, or via `enable` / `disable` / `set`). The `[omnishell]` table also takes `startup_budget_ms` (default `200`) — the per-shell added-cost threshold `omnishell bench` warns above. |
+| 🐚 | `init.zsh` / `init.bash` | Tool-generated. **Do not edit** — `apply` regenerates them and `doctor` flags manual edits. |
+| 🔒 | `state.lock.json` | Machine-managed lockfile (idempotency, drift detection, clean removal). Not for editing. |
+| 💾 | `backups/<timestamp>/` | Every rc-file and init-file write is copied here first. |
+| 🧩 | `modules/<id>/` | Your own modules (same format as the built-ins). |
+| 📥 | `vendor/` | Clones made by the `git` package fallback. |
 
 Each managed rc file gets **exactly one** marker block, appended at the end:
 
@@ -124,7 +149,9 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 (and `init` inserts the rc block); everything else just reads or edits
 `config.toml`.
 
-## Built-in modules
+---
+
+## 🧩 Built-in modules
 
 | id | Description | Packages | Shells | Options |
 |----|-------------|----------|--------|---------|
@@ -156,7 +183,9 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system
 loads after `completion`/`fzf` and before both of those. `tmux`, when enabled,
 loads before the prompt modules (`starship`, `omnishell-prompt`).
 
-## Writing your own module
+---
+
+## ✍️ Writing your own module
 
 A module is just a folder: a `manifest.toml`, one `zsh.tmpl` / `bash.tmpl` per
 shell, and an optional `hooks/` directory. Drop it in
@@ -166,7 +195,9 @@ rebuild; a user module with the same id as a built-in overrides it (and
 [docs/writing-a-module.md](docs/writing-a-module.md) for the full manifest
 reference, the template context, and a worked example.
 
-## Safety
+---
+
+## 🛡️ Safety
 
 - Nothing changes on your system without `omnishell apply`, `omnishell remove`,
   or `omnishell uninstall` (`init` also inserts the rc marker block).
@@ -191,7 +222,9 @@ reference, the template context, and a worked example.
   runs); and anything `remove --purge` uninstalled (packages, vendored files)
   — `remove --purge` reverses those, not `rollback`.
 
-## Exit codes
+---
+
+## 🔢 Exit codes
 
 | Code | Meaning |
 |------|---------|
@@ -200,7 +233,9 @@ reference, the template context, and a worked example.
 | 2 | Config / schema error — nothing was changed |
 | 3 | Drift detected (`omnishell doctor` only) |
 
-## Not in v1
+---
+
+## 🚧 Not in v1
 
 - fish support
 - remote module registry / installing modules from a URL
@@ -208,15 +243,25 @@ reference, the template context, and a worked example.
 - self-update (`brew` / `install.sh` cover it)
 - Windows / PowerShell
 
-## Contributing
+---
+
+## 🤝 Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for build commands, test requirements,
 and the module-authoring reference.
 
-## Changelog
+---
+
+## 📜 Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 
-## License
+---
+
+## 📄 License
 
 MIT — see [LICENSE](LICENSE). © 2026 Jeffry Würmli.
+
+<div align="center">
+<sub>One binary, one config file, one init file per shell — and a backup before every write.</sub>
+</div>

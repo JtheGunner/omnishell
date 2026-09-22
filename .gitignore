@@ -11,5 +11,9 @@
 # Local per-issue plan notes (youtrack-task); the plan lives in the issue + PR
 /docs/plans/
 
+# Local roadmap tracker; the source of truth is the YouTrack OMNIS project
+/docs/roadmap.md
+
 # IDE
 .idea/
+.gstack/
