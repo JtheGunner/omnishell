@@ -4,6 +4,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-23
+
+### Changed
+- Minimum Go version for building from source raised from 1.23 (no longer
+  receiving security fixes) to 1.26. Release binaries are now built with the
+  latest stable Go toolchain, so they ship the newest standard-library
+  security fixes.
+
+### Fixed
+- CI: the `govulncheck` job runs on the stable Go toolchain again; it broke
+  when govulncheck started requiring a newer Go version than the pinned one.
+
 ## [0.3.1] - 2026-09-08
 
 ### Added
@@ -141,7 +153,8 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/JtheGunner/omnishell/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/JtheGunner/omnishell/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/JtheGunner/omnishell/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/JtheGunner/omnishell/compare/v0.2.0...v0.2.1
