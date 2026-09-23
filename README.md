@@ -1,4 +1,4 @@
-<div style="text-align:center">
+<div style="text-align: center;">
 
 # 🐚 omnishell
 
@@ -257,6 +257,6 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 MIT — see [LICENSE](LICENSE). © 2026 Jeffry Würmli.
 
-<div style="text-align:center">
+<div style="text-align: center;">
 <sub>One binary, one config file, one init file per shell — and a backup before every write.</sub>
 </div>
