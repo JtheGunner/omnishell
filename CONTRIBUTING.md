@@ -2,7 +2,7 @@
 
 ## Setup
 
-- Go 1.23+
+- Go 1.26+
 - `go build ./...` should work with no extra setup — no external services,
   no network access required for tests.
 
