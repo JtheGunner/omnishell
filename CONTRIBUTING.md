@@ -65,6 +65,18 @@ Before merging such a pull request, check that each module's `requires` still ma
 Two optional repository settings:
 
 - **`FALLBACK_TAGS_TOKEN`** (secret): a fine-grained personal access token limited to this repository (contents and pull requests: read and write). Without it the pull request is created with the default token and `ci` does not run on it.
-- **Auto-merge:** set the repository variable `FALLBACK_TAGS_AUTOMERGE` to `true` to let the workflow request auto-merge for pull requests whose bumps keep their major version. It only takes effect when *Allow auto-merge* is enabled and `main` has branch protection with required status checks; otherwise the workflow leaves the pull request open and says so in the job summary.
+- **Auto-merge:** set the repository variable `FALLBACK_TAGS_AUTOMERGE` to `true` to let the workflow request auto-merge for pull requests whose bumps stay within their compatibility line (the same major version, or the same minor version while the major is 0). It only takes effect when *Allow auto-merge* is enabled and `main` has branch protection with required status checks; otherwise the workflow leaves the pull request open and says so in the job summary.
 
 The workflow also needs *Settings → Actions → General → Allow GitHub Actions to create and approve pull requests*.
+
+## Releases
+
+A release is a `vX.Y.Z` tag on a commit that is on `main`. Pushing the tag starts the `release` workflow (`.github/workflows/release.yml`), which builds the GoReleaser archives and updates the Homebrew formula.
+
+1. Through a pull request, move the entries under "Unreleased" in `CHANGELOG.md` to a new version section with its date, and update the compare links at the bottom.
+2. After that pull request is merged, tag the merge commit and push the tag.
+
+Two guards keep release tags under control:
+
+- **Tag ruleset (repository setting, not part of the repo):** a ruleset named *Protect release tags* (*Settings → Rules → Rulesets*, target tags, pattern `v*`) restricts creating, moving and deleting those tags to repository administrators. This is what decides who may release; recreate it if the repository is ever set up from scratch.
+- **Check in the workflow:** `.github/scripts/verify-release-tag.sh` fails the release job when the tagged commit is not part of `main`'s history. It protects against mistakes only: a tag push runs the workflow file of the tagged commit, so it cannot stop someone who can edit that file, which is why the ruleset is the real control.
