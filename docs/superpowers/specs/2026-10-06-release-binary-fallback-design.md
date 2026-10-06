@@ -52,6 +52,7 @@ A `release` entry is another `[[packages.fallback]]` table, listed before the `g
 ```toml
 [[packages.fallback]]
 type = "release"
+repo = "https://github.com/jdx/mise"   # used by the tag updater, not by apply
 ref  = "v2026.10.3"
 bin  = "mise"                      # installed as {{.VendorDir}}/bin/mise
 
@@ -76,7 +77,7 @@ type = "git"
 
 - `url` is rendered with `{{.Ref}}` (the pinned tag) and `{{.Version}}` (the tag without a leading `v`, for `broot_1.61.0.zip`). It must be `https://`.
 - The archive format follows the URL suffix: `.tar.gz` and `.zip` are extracted, anything else is taken as the raw binary and must not set `member`.
-- **Validation** at manifest load: a `release` entry needs `ref`, `bin` (a plain file name) and at least one asset; each asset needs `os` (`linux`), `arch` (`amd64`|`arm64`), an `https` `url` and a 64-hex `sha256`. No two assets share `(os, arch)`. `modules/builtin_test.go` additionally requires every built-in `release` entry to cover `linux/amd64` and `linux/arm64`.
+- **Validation** at manifest load: a `release` entry needs `repo`, `ref`, `bin` (a plain file name) and at least one asset; each asset needs `os` (`linux`), `arch` (`amd64`|`arm64`), an `https` `url` and a 64-hex `sha256`. No two assets share `(os, arch)`. `modules/builtin_test.go` additionally requires every built-in `release` entry to cover `linux/amd64` and `linux/arm64`.
 - `requires` on a `release` entry is rejected; build prerequisites belong to the `git` entry only.
 
 ## Asset selection
@@ -140,7 +141,7 @@ The old and the new binary share one path, so a download simply replaces the Car
 
 ## Tag updater extension (phase 2)
 
-`tools/update-fallback-tags` currently bumps the `ref` of `Packages.Fallback[0]`. It is extended so that for a module with a `release` entry it bumps `ref` and every asset's `url` (by substituting the old ref) and `sha256` together:
+`tools/update-fallback-tags` currently bumps the `ref` of `Packages.Fallback[0]`. It is extended so that for a module with a `release` entry it bumps `ref` and every asset's `sha256` together (asset URLs are templated on `{{.Ref}}`, so they follow the ref on their own):
 
 - The new checksums come from the GitHub release API (`digest` per asset), looked up by the rendered asset's file name, through an injectable client so tests need no network.
 - If any asset of a module has no digest, the module is left unchanged and the PR summary says why. A half-bumped manifest never results.
