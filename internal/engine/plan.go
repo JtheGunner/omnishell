@@ -42,8 +42,11 @@ type ModulePlan struct {
 	OptionsHash     string
 	MissingPackages []PackagePlan
 	UsesFallback    bool
-	UsesCheckHook   bool
-	DegradedReason  string
+	// UnavailablePackages are the manager packages the repositories cannot
+	// provide; non-empty only when the plan switched to the module's fallback.
+	UnavailablePackages []string
+	UsesCheckHook       bool
+	DegradedReason      string
 }
 
 // Plan is the full computed plan.
@@ -266,27 +269,51 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string) 
 	}
 	pkgs := mf.Packages.ForManager(e.Manager.Name())
 	if len(pkgs) > 0 {
+		var missing []PackagePlan
+		var unavailable []string
 		for _, name := range pkgs {
 			installed, _ := e.Manager.IsInstalled(name)
-			if !installed {
-				mp.MissingPackages = append(mp.MissingPackages, PackagePlan{Name: name, Manager: e.Manager.Name()})
+			if installed {
+				continue
+			}
+			missing = append(missing, PackagePlan{Name: name, Manager: e.Manager.Name()})
+			// Only probe when there is a fallback to switch to. A failed probe
+			// means "unknown": keep the package path so a real error surfaces.
+			if len(mf.Packages.Fallback) == 0 {
+				continue
+			}
+			if ok, err := e.Manager.Available(name); err == nil && !ok {
+				unavailable = append(unavailable, name)
 			}
 		}
+		if len(unavailable) > 0 {
+			mp.UnavailablePackages = unavailable
+			planFallback(mp, e)
+			return
+		}
+		mp.MissingPackages = append(mp.MissingPackages, missing...)
 		return
 	}
 	if len(mf.Packages.Fallback) > 0 {
-		mp.UsesFallback = true
-		ok, _ := pkgmgr.FallbackSatisfied(mf.Packages.Fallback[0], pkgmgr.FallbackContext{
-			VendorDir: e.Platform.ConfigDir + "/vendor",
-			Platform:  string(e.Platform.OS),
-		})
-		if !ok {
-			mp.MissingPackages = append(mp.MissingPackages, PackagePlan{Name: mf.Packages.Fallback[0].Repo, Manager: "git"})
-		}
+		planFallback(mp, e)
 		return
 	}
 	if mod.HasHook("check") {
 		mp.UsesCheckHook = true
+	}
+}
+
+// planFallback selects the module's git fallback, queueing it unless its
+// destination already exists.
+func planFallback(mp *ModulePlan, e Engine) {
+	fb := mp.Manifest.Packages.Fallback[0]
+	mp.UsesFallback = true
+	ok, _ := pkgmgr.FallbackSatisfied(fb, pkgmgr.FallbackContext{
+		VendorDir: e.Platform.ConfigDir + "/vendor",
+		Platform:  string(e.Platform.OS),
+	})
+	if !ok {
+		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{Name: fb.Repo, Manager: "git"})
 	}
 }
 

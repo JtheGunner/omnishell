@@ -1,6 +1,7 @@
 package pkgmgr_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -146,5 +147,96 @@ func TestPacmanIsInstalled(t *testing.T) {
 	m, _ := pkgmgr.DetectManager("linux", r)
 	if got, _ := m.IsInstalled("fzf"); !got {
 		t.Fatal("pacman -Q success should mean installed")
+	}
+}
+
+func managerFor(t *testing.T, goos, bin string, r *pkgmgr.MockRunner) pkgmgr.Manager {
+	t.Helper()
+	r.LookOK = map[string]bool{bin: true}
+	m, ok := pkgmgr.DetectManager(goos, r)
+	if !ok {
+		t.Fatalf("no manager detected for %s", bin)
+	}
+	return m
+}
+
+func TestAvailableAptReadsCandidate(t *testing.T) {
+	cases := map[string]struct {
+		out  string
+		want bool
+	}{
+		"candidate present": {"starship:\n  Installed: (none)\n  Candidate: 1.16.0-1\n", true},
+		"candidate none":    {"starship:\n  Installed: (none)\n  Candidate: (none)\n", false},
+		"unknown package":   {"", false},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{
+				"env LC_ALL=C apt-cache policy -- starship": {Out: []byte(tc.out)},
+			}}
+			m := managerFor(t, "linux", "apt-get", r)
+			got, err := m.Available("starship")
+			if err != nil || got != tc.want {
+				t.Fatalf("Available = %v, %v; want %v, nil", got, err, tc.want)
+			}
+		})
+	}
+}
+
+func TestAvailableAptProbeFailureIsUnknown(t *testing.T) {
+	r := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{
+		"env LC_ALL=C apt-cache policy -- starship": {Err: errors.New("exec failed")},
+	}}
+	m := managerFor(t, "linux", "apt-get", r)
+	if _, err := m.Available("starship"); err == nil {
+		t.Fatal("want an error so the caller treats availability as unknown")
+	}
+}
+
+func TestAvailableExitCodeManagers(t *testing.T) {
+	cases := []struct {
+		goos, bin, argv string
+	}{
+		{"darwin", "brew", "brew info -- starship"},
+		{"linux", "dnf", "dnf -q info -- starship"},
+		{"linux", "pacman", "pacman -Si -- starship"},
+		{"linux", "zypper", "zypper -q info -- starship"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.bin+"/found", func(t *testing.T) {
+			r := &pkgmgr.MockRunner{}
+			m := managerFor(t, tc.goos, tc.bin, r)
+			got, err := m.Available("starship")
+			if err != nil || !got {
+				t.Fatalf("Available = %v, %v; want true, nil", got, err)
+			}
+			if last := r.Calls[len(r.Calls)-1]; last != tc.argv {
+				t.Fatalf("probe argv = %q, want %q", last, tc.argv)
+			}
+		})
+		t.Run(tc.bin+"/missing", func(t *testing.T) {
+			r := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{
+				tc.argv: {Err: errors.New("exit status 1")},
+			}}
+			m := managerFor(t, tc.goos, tc.bin, r)
+			got, err := m.Available("starship")
+			if err != nil || got {
+				t.Fatalf("Available = %v, %v; want false, nil", got, err)
+			}
+		})
+	}
+}
+
+func TestAvailableApkNeedsSearchOutput(t *testing.T) {
+	r := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{
+		"apk search -e -- starship": {Out: []byte("starship-1.16.0-r0\n")},
+		"apk search -e -- nope":     {Out: []byte("")},
+	}}
+	m := managerFor(t, "linux", "apk", r)
+	if got, err := m.Available("starship"); err != nil || !got {
+		t.Fatalf("starship: %v, %v; want true, nil", got, err)
+	}
+	if got, err := m.Available("nope"); err != nil || got {
+		t.Fatalf("nope: %v, %v; want false, nil", got, err)
 	}
 }

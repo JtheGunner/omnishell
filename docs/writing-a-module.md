@@ -58,8 +58,10 @@ schema      = 1                  # manifest schema version (compatibility gate)
 
 # ─── packages: the concrete package name per package manager ───
 # The engine installs the list for the ONE detected manager. A manager with no
-# entry falls through to [[packages.fallback]]; if there's no fallback either,
-# the module is skipped with a warning. The six recognised keys:
+# entry — or a listed package its repositories cannot provide — falls through
+# to [[packages.fallback]]; if there's no fallback either, the module is
+# skipped with a warning (an unavailable package then degrades the module with
+# the manager's install error). The six recognised keys:
 
 [packages]
 brew   = ["direnv"]
@@ -69,7 +71,8 @@ pacman = ["direnv"]
 zypper = ["direnv"]
 apk    = ["direnv"]
 
-# ─── optional git fallback, used when the detected manager has no entry ───
+# ─── optional git fallback, used when the detected manager has no entry or
+#     cannot provide the package ───
 
 [[packages.fallback]]
 type = "git"                                    # only "git" in v1

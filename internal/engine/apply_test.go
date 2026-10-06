@@ -583,3 +583,99 @@ enabled = true
 		t.Fatalf("manifest does not record %s: %+v", lockPath, m.Files)
 	}
 }
+
+func applyFzf(t *testing.T, mgr *pkgmgr.MockManager, runner pkgmgr.Runner) (engine.Result, error) {
+	t.Helper()
+	home := t.TempDir()
+	var out bytes.Buffer
+	e := applyEngine(t, home, mgr, &out)
+	e.Runner = runner
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.fzf]\nenabled=true\n")
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true})
+}
+
+func moduleResult(t *testing.T, res engine.Result, id string) engine.ModuleResult {
+	t.Helper()
+	for _, m := range res.Modules {
+		if m.ID == id {
+			return m
+		}
+	}
+	t.Fatalf("no result for module %q in %+v", id, res.Modules)
+	return engine.ModuleResult{}
+}
+
+func TestApplyFallsBackWhenPackageUnavailable(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, Unavailable: map[string]bool{"fzf": true}}
+	runner := &pkgmgr.MockRunner{}
+	res, err := applyFzf(t, mgr, runner)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := moduleResult(t, res, "fzf").Status; got != "applied" {
+		t.Fatalf("fzf status = %q, want applied", got)
+	}
+	if len(mgr.InstallCalls) != 0 {
+		t.Fatalf("unavailable package must not be installed: %+v", mgr.InstallCalls)
+	}
+	if len(runner.Calls) == 0 || !strings.HasPrefix(runner.Calls[0], "git clone") {
+		t.Fatalf("fallback not attempted; runner calls = %v", runner.Calls)
+	}
+}
+
+func TestApplyNamesBothAttemptsWhenFallbackFails(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, Unavailable: map[string]bool{"fzf": true}}
+	runner := &prefixFailRunner{prefix: "git clone", err: errors.New("network unreachable")}
+	res, err := applyFzf(t, mgr, runner)
+	if !errors.Is(err, engine.ErrDegraded) {
+		t.Fatalf("err = %v, want ErrDegraded", err)
+	}
+	mr := moduleResult(t, res, "fzf")
+	if mr.Status != "degraded" {
+		t.Fatalf("fzf status = %q, want degraded", mr.Status)
+	}
+	for _, want := range []string{"apt", "fzf", "unavailable", "fallback", "network unreachable"} {
+		if !strings.Contains(mr.Note, want) {
+			t.Fatalf("note %q does not mention %q", mr.Note, want)
+		}
+	}
+}
+
+func TestApplyKeepsRealInstallErrorWithoutFallback(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, InstallErr: errors.New("sudo: a password is required")}
+	runner := &pkgmgr.MockRunner{}
+	res, err := applyFzf(t, mgr, runner)
+	if !errors.Is(err, engine.ErrDegraded) {
+		t.Fatalf("err = %v, want ErrDegraded", err)
+	}
+	mr := moduleResult(t, res, "fzf")
+	if !strings.Contains(mr.Note, "sudo: a password is required") {
+		t.Fatalf("real error hidden: %q", mr.Note)
+	}
+	if len(runner.Calls) != 0 {
+		t.Fatalf("a real install failure must not trigger the fallback: %v", runner.Calls)
+	}
+}
+
+// prefixFailRunner fails every command whose argv starts with prefix and
+// succeeds for the rest. The clone destination depends on the sandbox HOME, so
+// an exact-argv MockRunner response cannot target it.
+type prefixFailRunner struct {
+	prefix string
+	err    error
+}
+
+func (r *prefixFailRunner) Run(name string, args ...string) ([]byte, error) {
+	if strings.HasPrefix(strings.TrimSpace(name+" "+strings.Join(args, " ")), r.prefix) {
+		return nil, r.err
+	}
+	return nil, nil
+}
+
+func (r *prefixFailRunner) Look(string) (string, error) { return "", errors.New("not found") }

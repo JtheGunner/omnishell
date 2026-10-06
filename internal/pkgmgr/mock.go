@@ -44,6 +44,10 @@ type MockManager struct {
 	InstallCalls [][]string
 	SudoV        bool
 	InstallErr   error
+	// Unavailable lists packages Available reports as not provided; every other
+	// package is available. AvailableErr, when set, makes Available fail.
+	Unavailable  map[string]bool
+	AvailableErr error
 }
 
 // Name returns the configured name.
@@ -58,6 +62,14 @@ func (m *MockManager) NeedsSudo() bool { return m.SudoV }
 // IsInstalled reports whether pkg is marked installed.
 func (m *MockManager) IsInstalled(pkg string) (bool, error) {
 	return m.Installed[pkg], nil
+}
+
+// Available reports false for packages in Unavailable, or AvailableErr.
+func (m *MockManager) Available(pkg string) (bool, error) {
+	if m.AvailableErr != nil {
+		return false, m.AvailableErr
+	}
+	return !m.Unavailable[pkg], nil
 }
 
 // Install records the call and marks pkgs installed unless InstallErr is set.

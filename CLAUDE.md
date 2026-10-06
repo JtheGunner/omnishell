@@ -104,7 +104,10 @@ files matters more than any single file:
 8. **`internal/pkgmgr`** — `Manager` interface implemented per package manager
    (brew/apt/dnf/pacman/zypper/apk), detected via `DetectManager` in OS-specific
    priority order, plus a `git`-clone-based fallback (`gitfallback.go`) used
-   when a module has no package for the detected manager (or none was found).
+   when a module has no package for the detected manager, none was found, or
+   `Manager.Available` reports the repositories cannot provide the package
+   (`ComputePlan` probes only when the module has a fallback; a failed probe
+   means "unknown" and keeps the package path).
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 
