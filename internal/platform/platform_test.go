@@ -73,3 +73,31 @@ func TestDetectWithMissingHome(t *testing.T) {
 		t.Fatal("want error when HOME is unset")
 	}
 }
+
+func TestDetectWithGoARM(t *testing.T) {
+	cases := []struct {
+		name, goarch, raw, want string
+	}{
+		{"armv7", "arm", "7", "7"},
+		{"armv6", "arm", "6", "6"},
+		{"float suffix", "arm", "7,softfloat", "7"},
+		{"hardfloat suffix", "arm", "6,hardfloat", "6"},
+		{"unset on arm", "arm", "", ""},
+		{"unknown value", "arm", "5", ""},
+		{"ignored off arm", "amd64", "7", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			e := env("linux", nil, map[string]string{"HOME": "/home/j"})
+			e.GOARCH = c.goarch
+			e.GoARM = c.raw
+			info, err := platform.DetectWith(e)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.GoARM != c.want {
+				t.Fatalf("GoARM = %q, want %q", info.GoARM, c.want)
+			}
+		})
+	}
+}
