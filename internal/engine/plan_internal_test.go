@@ -255,3 +255,74 @@ func TestDescribeReleasePackages(t *testing.T) {
 		t.Fatalf("unrecorded = %q", got)
 	}
 }
+
+func TestPlanReleaseAdoptsAMatchingGitBuild(t *testing.T) {
+	mp := modulePlanWith(releaseFallbackEntry("v2"), gitFallbackEntry("v2"))
+	planFallback(&mp, engineWithBinary(t, true, "amd64"), lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v2"})
+	if len(mp.MissingPackages) != 1 {
+		t.Fatalf("MissingPackages = %+v, want one adopt entry", mp.MissingPackages)
+	}
+	pp := mp.MissingPackages[0]
+	if pp.Manager != "release" || !pp.Adopt || pp.Update || pp.From != "" || pp.To != "v2" {
+		t.Fatalf("entry = %+v, want an adopt entry without update", pp)
+	}
+}
+
+func TestPlanReleaseCleanup(t *testing.T) {
+	e := engineWithBinary(t, true, "amd64")
+	vendor := filepath.Join(e.Platform.ConfigDir, "vendor")
+	tree := filepath.Join(vendor, "x")
+	if err := os.MkdirAll(filepath.Join(tree, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitConfig := "[remote \"origin\"]\n\turl = https://example.com/x.git\n"
+	if err := os.WriteFile(filepath.Join(tree, ".git", "config"), []byte(gitConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tree, "Cargo.toml"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name        string
+		prev        lockfile.ModuleState
+		wantCleanup bool
+	}{
+		{"adopting a matching Cargo build cleans its source", lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v2"}, true},
+		{"replacing an older Cargo build cleans its source", lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v1"}, true},
+		{"a settled release install has nothing to clean", lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mp := modulePlanWith(releaseFallbackEntry("v2"), gitFallbackEntry("v2"))
+			planFallback(&mp, e, tc.prev)
+			if got := len(mp.Cleanup) > 0; got != tc.wantCleanup {
+				t.Fatalf("Cleanup = %+v, want cleanup=%v", mp.Cleanup, tc.wantCleanup)
+			}
+		})
+	}
+
+	// Planning lists the cleanup but removes nothing.
+	if _, err := os.Stat(filepath.Join(tree, "Cargo.toml")); err != nil {
+		t.Fatalf("planning deleted the source tree: %v", err)
+	}
+}
+
+func TestRenderPlanListsTheCleanup(t *testing.T) {
+	mp := modulePlanWith(releaseFallbackEntry("v2"))
+	mp.ID, mp.Action = "x", ActionUpdate
+	mp.MissingPackages = []PackagePlan{{Name: "x", Manager: "release", Adopt: true, To: "v2"}}
+	mp.Cleanup = []pkgmgr.Leftover{{Kind: pkgmgr.LeftoverTree, Path: "/v/x"}}
+	got := RenderPlan(Plan{Order: []string{"x"}, Modules: map[string]ModulePlan{"x": mp}, ManagedShells: []string{"bash"}})
+	for _, want := range []string{"adopt the Cargo build v2", "remove build leftover /v/x"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("plan lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestDescribeAdoptedPackage(t *testing.T) {
+	if got := describePackage(PackagePlan{Name: "x", Manager: "release", Adopt: true, To: "v2"}); got != "x (adopt the Cargo build v2)" {
+		t.Fatalf("adopt = %q", got)
+	}
+}

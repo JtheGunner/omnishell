@@ -257,24 +257,58 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 	}
 }
 
-// installRelease downloads and installs a module's release binary, recording
-// the result for the lockfile. A failure degrades the module; it never falls
-// through to the Cargo build.
+// installRelease downloads and installs a module's release binary, or adopts
+// a Cargo build that already is the pinned version, then removes the leftovers
+// of the old build. A failed install degrades the module and never falls
+// through to the Cargo build; a failed cleanup only warns.
 func (e Engine) installRelease(id string, mp ModulePlan, fb module.Fallback, degraded map[string]string,
 	vendorPaths map[string][]string, outcome *fallbackOutcome) {
 	if len(mp.UnavailablePackages) > 0 {
 		_, _ = fmt.Fprintln(e.Stdout, fallbackNotice(e.Manager.Name(), mp))
 	}
-	_, _ = fmt.Fprintf(e.Stdout, "installing %s %s from its release binary\n", fb.Bin, fb.Ref)
-	res, err := pkgmgr.InstallRelease(fb, e.releaseContext(), e.Downloader)
-	if err != nil {
-		degraded[id] = fallbackFailure(e.Manager, mp, err)
-		return
+	binPath := e.releaseContext().BinPath(fb)
+	if isReleaseAdopt(mp) {
+		_, _ = fmt.Fprintf(e.Stdout, "adopting the existing build of %s %s as its release binary\n", fb.Bin, fb.Ref)
+		outcome.sha[id] = ""
+	} else {
+		_, _ = fmt.Fprintf(e.Stdout, "installing %s %s from its release binary\n", fb.Bin, fb.Ref)
+		res, err := pkgmgr.InstallRelease(fb, e.releaseContext(), e.Downloader)
+		if err != nil {
+			degraded[id] = fallbackFailure(e.Manager, mp, err)
+			return
+		}
+		binPath = res.BinPath
+		outcome.sha[id] = res.SHA256
 	}
-	vendorPaths[id] = append(vendorPaths[id], res.BinPath)
+	vendorPaths[id] = append(vendorPaths[id], binPath)
 	outcome.built[id] = fb.Ref
 	outcome.kind[id] = fallbackKindRelease
-	outcome.sha[id] = res.SHA256
+	e.removeLeftovers(id, mp)
+}
+
+// removeLeftovers deletes the planned leftovers of an old Cargo build, logging
+// each one. A failure is reported and does not stop the others.
+func (e Engine) removeLeftovers(id string, mp ModulePlan) {
+	for _, note := range mp.CleanupNotes {
+		_, _ = fmt.Fprintf(e.Stdout, "%s: %s; leaving it as is\n", id, note)
+	}
+	for _, l := range mp.Cleanup {
+		_, _ = fmt.Fprintf(e.Stdout, "removing build leftover %s\n", l.Describe())
+		if err := pkgmgr.RemoveLeftover(l); err != nil {
+			_, _ = fmt.Fprintf(e.Stdout, "%s: could not remove %s: %v\n", id, l.Describe(), err)
+		}
+	}
+}
+
+// isReleaseAdopt reports whether the module's queued release fallback keeps an
+// existing Cargo build instead of downloading.
+func isReleaseAdopt(mp ModulePlan) bool {
+	for _, pp := range mp.MissingPackages {
+		if pp.Manager == "release" && pp.Adopt {
+			return true
+		}
+	}
+	return false
 }
 
 // fallbackOutcome records what installPackages did to each module's git

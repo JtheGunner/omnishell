@@ -320,3 +320,135 @@ func TestDoctorReportsAnOutdatedReleaseBinary(t *testing.T) {
 		t.Fatalf("an outdated binary must not be reported as a missing package: %v", codes)
 	}
 }
+
+// seedCargoBuild lays out an old Cargo build for reltool under the sandbox's
+// vendor dir: a clone of the git fallback's repo, a binary, and cargo metadata
+// that also lists another tool.
+func (s relSandbox) seedCargoBuild(t *testing.T) (tree, crates string) {
+	t.Helper()
+	vendor := filepath.Join(s.home, ".config", "omnishell", "vendor")
+	tree = filepath.Join(vendor, "reltool")
+	if err := os.MkdirAll(filepath.Join(tree, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitConfig := "[remote \"origin\"]\n\turl = https://example.com/reltool.git\n"
+	if err := os.WriteFile(filepath.Join(tree, ".git", "config"), []byte(gitConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tree, "Cargo.toml"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(vendor, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.binPath(), []byte("cargo-built"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	crates = filepath.Join(vendor, ".crates.toml")
+	body := "[v1]\n\"reltool 1.0.0 (path+file://" + tree + ")\" = [\"reltool\"]\n\"other 2.0.0 (path+file://" + filepath.Join(vendor, "other") + ")\" = [\"other\"]\n"
+	if err := os.WriteFile(crates, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return tree, crates
+}
+
+func (s relSandbox) recordGitBuild(t *testing.T, ref string) {
+	t.Helper()
+	lock := lockfile.Lock{Schema: lockfile.SchemaVersion, Modules: map[string]lockfile.ModuleState{
+		"reltool": {ModuleVersion: "1.0.0", Enabled: true, FallbackKind: "git", FallbackRef: ref, Status: "ok"},
+	}}
+	if err := lock.Write(s.lockPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyAdoptsAMatchingCargoBuild(t *testing.T) {
+	s := newRelSandbox(t)
+	tree, crates := s.seedCargoBuild(t)
+	s.recordGitBuild(t, "v1.0.0") // built from the pinned tag
+
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(s.dl.calls) != 0 {
+		t.Fatalf("downloaded although the Cargo build already is the pinned version: %v", s.dl.calls)
+	}
+	if got, _ := os.ReadFile(s.binPath()); string(got) != "cargo-built" {
+		t.Fatalf("the Cargo binary was replaced by %q", got)
+	}
+	if _, err := os.Stat(tree); !os.IsNotExist(err) {
+		t.Fatalf("source tree not cleaned up (err %v)", err)
+	}
+	meta, _ := os.ReadFile(crates)
+	if strings.Contains(string(meta), "reltool 1.0.0") || !strings.Contains(string(meta), "other 2.0.0") {
+		t.Fatalf(".crates.toml after cleanup:\n%s", meta)
+	}
+	st := s.lockState(t)
+	if st.FallbackKind != "release" || st.FallbackSHA256 != "" || st.FallbackRef != "v1.0.0" {
+		t.Fatalf("lock state = %+v, want an adopted release record with no checksum", st)
+	}
+	if !strings.Contains(s.out.String(), "removing build leftover") {
+		t.Fatalf("output does not log the cleanup:\n%s", s.out.String())
+	}
+
+	before := len(s.dl.calls)
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("second Apply: %v", err)
+	}
+	if len(s.dl.calls) != before {
+		t.Fatalf("the run after adoption downloaded: %v", s.dl.calls)
+	}
+}
+
+func TestApplyReplacesAnOlderCargoBuildAndCleansUp(t *testing.T) {
+	s := newRelSandbox(t)
+	tree, _ := s.seedCargoBuild(t)
+	s.recordGitBuild(t, "v0.9.0")
+
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got, _ := os.ReadFile(s.binPath()); string(got) != relPayload {
+		t.Fatalf("binary = %q, want the release binary", got)
+	}
+	if _, err := os.Stat(tree); !os.IsNotExist(err) {
+		t.Fatalf("source tree not cleaned up (err %v)", err)
+	}
+}
+
+func TestApplyLeavesAForeignDirectoryAndStillSucceeds(t *testing.T) {
+	s := newRelSandbox(t)
+	tree, _ := s.seedCargoBuild(t)
+	other := "[remote \"origin\"]\n\turl = https://example.com/someone-elses.git\n"
+	if err := os.WriteFile(filepath.Join(tree, ".git", "config"), []byte(other), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.recordGitBuild(t, "v0.9.0")
+
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tree, "Cargo.toml")); err != nil {
+		t.Fatalf("a directory that is not our clone was deleted: %v", err)
+	}
+}
+
+func TestDryRunPlansTheCleanupWithoutTouchingDisk(t *testing.T) {
+	s := newRelSandbox(t)
+	tree, _ := s.seedCargoBuild(t)
+	s.recordGitBuild(t, "v1.0.0")
+
+	res, err := s.applyWith(t, engine.ApplyOptions{DryRun: true})
+	if err != nil {
+		t.Fatalf("dry-run Apply: %v", err)
+	}
+	if !strings.Contains(res.PlanText, "remove build leftover") {
+		t.Fatalf("the plan does not show the cleanup:\n%s", res.PlanText)
+	}
+	if _, err := os.Stat(filepath.Join(tree, "Cargo.toml")); err != nil {
+		t.Fatalf("a dry run deleted the source tree: %v", err)
+	}
+	if len(s.dl.calls) != 0 {
+		t.Fatalf("a dry run downloaded: %v", s.dl.calls)
+	}
+}
