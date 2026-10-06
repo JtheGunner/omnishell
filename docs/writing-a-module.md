@@ -78,7 +78,14 @@ apk    = ["direnv"]
 type = "git"                                    # only "git" in v1
 repo = "https://github.com/direnv/direnv.git"   # clone source
 dest = "{{.VendorDir}}/direnv"                  # clone target (templated)
-run  = "make -C {{.VendorDir}}/direnv install"  # optional build/install command
+run  = ["make", "-C", "{{.VendorDir}}/direnv", "install"]  # optional build/install argv
+requires = ["make"]                             # optional: tools the build needs; checked before cloning
+
+# `requires` entries are "tool" or "tool>=X.Y[.Z]". Before cloning, omnishell runs
+# `<tool> --version`; a tool that cannot be run counts as missing, and one with a
+# minimum must print a version at or above it. All problems are reported in one
+# message and the module is degraded; omnishell never installs build tools. A
+# malformed entry makes the manifest invalid.
 
 # ─── option schema: allowed keys, types, defaults, validation ───
 # Each option table carries `type`, `default`, optional `help`, and — for enum
@@ -224,7 +231,8 @@ apk    = ["direnv"]
 type = "git"
 repo = "https://github.com/direnv/direnv.git"
 dest = "{{.VendorDir}}/direnv"
-run  = "make -C {{.VendorDir}}/direnv install"
+run  = ["make", "-C", "{{.VendorDir}}/direnv", "install"]
+requires = ["make"]
 
 [options.log_format]
 type    = "string"

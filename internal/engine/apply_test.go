@@ -586,13 +586,18 @@ enabled = true
 
 func applyFzf(t *testing.T, mgr *pkgmgr.MockManager, runner pkgmgr.Runner) (engine.Result, error) {
 	t.Helper()
+	return applyModule(t, "fzf", mgr, runner)
+}
+
+func applyModule(t *testing.T, id string, mgr *pkgmgr.MockManager, runner pkgmgr.Runner) (engine.Result, error) {
+	t.Helper()
 	home := t.TempDir()
 	var out bytes.Buffer
 	e := applyEngine(t, home, mgr, &out)
 	e.Runner = runner
 	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
 	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
-	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.fzf]\nenabled=true\n")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules."+id+"]\nenabled=true\n")
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		t.Fatal(err)
@@ -643,6 +648,32 @@ func TestApplyNamesBothAttemptsWhenFallbackFails(t *testing.T) {
 	for _, want := range []string{"apt", "fzf", "unavailable", "fallback", "network unreachable"} {
 		if !strings.Contains(mr.Note, want) {
 			t.Fatalf("note %q does not mention %q", mr.Note, want)
+		}
+	}
+}
+
+func TestApplyDegradesWithPrerequisiteMessageBeforeBuilding(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	runner := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{
+		"cargo --version": {Out: []byte("cargo 1.75.0 (1d8b05cdd 2023-11-20)\n")},
+		"cmake --version": {Err: errors.New("exec: \"cmake\": executable file not found in $PATH")},
+	}}
+	res, err := applyModule(t, "cargo-built", mgr, runner)
+	if !errors.Is(err, engine.ErrDegraded) {
+		t.Fatalf("err = %v, want ErrDegraded", err)
+	}
+	mr := moduleResult(t, res, "cargo-built")
+	if mr.Status != "degraded" {
+		t.Fatalf("status = %q, want degraded", mr.Status)
+	}
+	for _, want := range []string{"cargo >= 1.85 (found 1.75.0)", "cmake (not found)"} {
+		if !strings.Contains(mr.Note, want) {
+			t.Fatalf("note %q does not mention %q", mr.Note, want)
+		}
+	}
+	for _, c := range runner.Calls {
+		if strings.HasPrefix(c, "git ") || strings.HasPrefix(c, "cargo install") {
+			t.Fatalf("build attempted despite missing prerequisites: %v", runner.Calls)
 		}
 	}
 }

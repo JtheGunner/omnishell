@@ -3,6 +3,7 @@ package module_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/module"
@@ -115,4 +116,85 @@ func TestParseManifestRejectsUnknownKey(t *testing.T) {
 	if err == nil {
 		t.Fatal("want error for unknown key")
 	}
+}
+
+func TestParseRequirement(t *testing.T) {
+	tests := []struct {
+		in      string
+		tool    string
+		min     []int
+		wantErr bool
+	}{
+		{in: "cmake", tool: "cmake"},
+		{in: "cargo>=1.85", tool: "cargo", min: []int{1, 85}},
+		{in: "cargo>=1.85.2", tool: "cargo", min: []int{1, 85, 2}},
+		{in: "", wantErr: true},
+		{in: ">=1.85", wantErr: true},
+		{in: "cargo>=", wantErr: true},
+		{in: "cargo>=abc", wantErr: true},
+		{in: "cargo>1.85", wantErr: true},
+		{in: "cargo >= 1.85", wantErr: true},
+		{in: "car go", wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.in, func(t *testing.T) {
+			got, err := module.ParseRequirement(tc.in)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("ParseRequirement(%q) = %+v, want error", tc.in, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseRequirement(%q): %v", tc.in, err)
+			}
+			if got.Tool != tc.tool || !equalInts(got.Min, tc.min) {
+				t.Fatalf("ParseRequirement(%q) = %+v, want tool %q min %v", tc.in, got, tc.tool, tc.min)
+			}
+		})
+	}
+}
+
+func equalInts(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestValidateManifestChecksFallbackRequires(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Packages.Fallback[0].Requires = []string{"cargo>=1.85", "cmake"}
+	if err := module.ValidateManifest(m); err != nil {
+		t.Fatalf("valid requires rejected: %v", err)
+	}
+	m.Packages.Fallback[0].Requires = []string{"cargo>=nope"}
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error for malformed requires entry")
+	}
+}
+
+func TestParseManifestReadsFallbackRequires(t *testing.T) {
+	src := string(loadFixture(t, "fzf-manifest.toml")) + "\n"
+	src = replaceFirst(src, "[[packages.fallback]]", "[[packages.fallback]]\nrequires = [\"cargo>=1.85\"]")
+	m, err := module.ParseManifest([]byte(src))
+	if err != nil {
+		t.Fatalf("ParseManifest: %v", err)
+	}
+	if got := m.Packages.Fallback[0].Requires; len(got) != 1 || got[0] != "cargo>=1.85" {
+		t.Fatalf("requires = %v", got)
+	}
+}
+
+func replaceFirst(s, old, repl string) string {
+	i := strings.Index(s, old)
+	if i < 0 {
+		return s
+	}
+	return s[:i] + repl + s[i+len(old):]
 }

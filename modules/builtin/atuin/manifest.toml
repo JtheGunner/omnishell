@@ -21,6 +21,7 @@ type = "git"
 repo = "https://github.com/atuinsh/atuin.git"
 dest = "{{.VendorDir}}/atuin"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/atuin/crates/atuin", "--root", "{{.VendorDir}}"]
+requires = ["cargo>=1.95"]
 
 [options.bind_ctrl_r]
 type    = "bool"

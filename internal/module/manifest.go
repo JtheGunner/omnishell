@@ -30,12 +30,14 @@ type ModuleMeta struct {
 
 // Fallback is one [[packages.fallback]] entry. Run is an argv array (each
 // element is rendered as a template) so a VendorDir containing spaces does not
-// break the command.
+// break the command. Requires lists tools the Run step needs ("cargo>=1.85",
+// "cmake"); they are checked before the clone.
 type Fallback struct {
-	Type string   `toml:"type"`
-	Repo string   `toml:"repo"`
-	Dest string   `toml:"dest"`
-	Run  []string `toml:"run"`
+	Type     string   `toml:"type"`
+	Repo     string   `toml:"repo"`
+	Dest     string   `toml:"dest"`
+	Run      []string `toml:"run"`
+	Requires []string `toml:"requires"`
 }
 
 // Packages is the [packages] table.
@@ -185,6 +187,13 @@ func ValidateManifest(m Manifest) error {
 		}
 		if requireSet[c] {
 			return e("conflicts", "id "+c+" is in both requires and conflicts")
+		}
+	}
+	for i, fb := range m.Packages.Fallback {
+		for _, req := range fb.Requires {
+			if _, err := ParseRequirement(req); err != nil {
+				return e(fmt.Sprintf("packages.fallback[%d].requires", i), err.Error())
+			}
 		}
 	}
 	for key, opt := range m.Options {

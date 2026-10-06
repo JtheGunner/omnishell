@@ -108,6 +108,8 @@ files matters more than any single file:
    `Manager.Available` reports the repositories cannot provide the package
    (`ComputePlan` probes only when the module has a fallback; a failed probe
    means "unknown" and keeps the package path).
+   A fallback's `requires` (`"cargo>=1.85"`, `"cmake"`) is probed via the
+   `Runner` inside `InstallGitFallback`, before the clone — never in `ComputePlan`.
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 
