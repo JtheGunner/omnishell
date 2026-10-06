@@ -112,6 +112,10 @@ files matters more than any single file:
    `Runner` inside `InstallGitFallback`, before the clone — never in `ComputePlan`.
    A fallback's optional `ref` pins the clone to a tag or branch; every
    built-in fallback must set one (`modules/builtin_test.go` enforces it).
+   The lockfile records the ref a clone was built from (`fallback_ref`);
+   `ComputePlan` compares it with the manifest's `ref` (no git probe) and plans
+   an update, which `UpdateGitFallback` performs unless the clone has tracked
+   local changes.
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 
