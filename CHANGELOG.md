@@ -29,8 +29,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   release binary where no package exists: a Cargo build at the pinned tag is
   kept and only cleaned up, an older one is replaced by the download. A failed
   update of a binary that already works keeps the module and its shell
-  integration and is retried on the next `apply`; only a first install that
-  fails degrades the module.
+  integration and is retried on the next `apply`. A first install that fails,
+  and any checksum mismatch, still degrades the module.
 - A `[[packages.fallback]]` table now needs a valid `type` (`git` or
   `release`). A user module that left it out is reported as malformed and
   skipped.

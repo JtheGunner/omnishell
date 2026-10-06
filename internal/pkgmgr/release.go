@@ -12,6 +12,11 @@ import (
 	"github.com/JtheGunner/omnishell/internal/module"
 )
 
+// ErrChecksumMismatch reports that a downloaded asset does not match the
+// SHA-256 the manifest pins. Callers treat it as an integrity failure, unlike a
+// network error.
+var ErrChecksumMismatch = errors.New("checksum mismatch")
+
 // MaxReleaseBytes caps both a release download and the file extracted from it.
 const MaxReleaseBytes int64 = 512 << 20
 
@@ -98,7 +103,7 @@ func downloadVerified(d Downloader, url string, asset module.Asset, dir string) 
 		return fail(fmt.Errorf("close %s: %w", name, closeErr))
 	}
 	if got := hex.EncodeToString(hasher.Sum(nil)); got != asset.SHA256 {
-		return fail(fmt.Errorf("checksum mismatch for %s/%s (expected %s, got %s)", asset.OS, asset.Arch, asset.SHA256, got))
+		return fail(fmt.Errorf("%w for %s/%s (expected %s, got %s)", ErrChecksumMismatch, asset.OS, asset.Arch, asset.SHA256, got))
 	}
 	return name, nil
 }

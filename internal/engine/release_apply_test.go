@@ -587,3 +587,34 @@ func TestDoctorDoesNotReportAnAdoptAsAMissingPackage(t *testing.T) {
 		t.Fatalf("doctor lacks the fallback-adopt notice: %v", codes)
 	}
 }
+
+// A checksum mismatch is an integrity signal, not an availability problem: it
+// must still fail apply even when an older binary is kept in place.
+func TestChecksumMismatchOnAReleaseUpdateStillDegrades(t *testing.T) {
+	s := newRelSandbox(t)
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	lock, _, err := lockfile.Load(s.lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := lock.Modules["reltool"]
+	st.FallbackRef = "v0.9.0"
+	lock.Modules["reltool"] = st
+	if err := lock.Write(s.lockPath); err != nil {
+		t.Fatal(err)
+	}
+	s.dl.body = []byte("tampered")
+
+	res, err := s.apply(t)
+	if !errors.Is(err, engine.ErrDegraded) {
+		t.Fatalf("err = %v, want ErrDegraded for a checksum mismatch", err)
+	}
+	if note := moduleResult(t, res, "reltool").Note; !strings.Contains(note, "checksum mismatch") {
+		t.Fatalf("note %q does not name the checksum mismatch", note)
+	}
+	if got, _ := os.ReadFile(s.binPath()); string(got) != relPayload {
+		t.Fatalf("the installed binary changed: %q", got)
+	}
+}

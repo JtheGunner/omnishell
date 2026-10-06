@@ -276,9 +276,11 @@ func (e Engine) installRelease(id string, mp ModulePlan, fb module.Fallback, deg
 		if err != nil {
 			// A failed replacement leaves the installed binary untouched, so
 			// the tool still works: keep the module (and its snippet) and let
-			// the next apply retry, as a failed git update does. Only a first
-			// install, with no binary to keep, degrades the module.
-			if isReleaseUpdate(mp) && pkgmgr.ReleaseInstalled(fb, e.releaseContext()) {
+			// the next apply retry, as a failed git update does. A first
+			// install, with no binary to keep, degrades the module, and so
+			// does a checksum mismatch: that is an integrity failure, not an
+			// availability problem, and must not pass silently.
+			if isReleaseUpdate(mp) && pkgmgr.ReleaseInstalled(fb, e.releaseContext()) && !errors.Is(err, pkgmgr.ErrChecksumMismatch) {
 				_, _ = fmt.Fprintf(e.Stdout, "%s: release update to %s failed: %v; keeping the installed version\n", id, fb.Ref, err)
 				return
 			}
