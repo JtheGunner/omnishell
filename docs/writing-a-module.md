@@ -140,7 +140,8 @@ bin  = "mise"                           # installed as <vendor>/bin/mise
 
 [[packages.fallback.assets]]
 os     = "linux"
-arch   = "amd64"                        # amd64 | arm64
+arch   = "amd64"                        # amd64 | arm64 | arm
+# goarm = "7"                           # optional, arch = "arm" only: 6 | 7
 url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-x64-musl.tar.gz"
 sha256 = "…64 lowercase hex characters…"
 member = "mise/bin/mise"                # file inside the .tar.gz / .zip; omit for a raw binary
@@ -150,6 +151,7 @@ member = "mise/bin/mise"                # file inside the .tar.gz / .zip; omit f
 - `.tar.gz` and `.zip` downloads are extracted (`member` is required); any other URL is taken as the binary itself (`member` must be omitted).
 - `sha256` pins the downloaded file; a mismatch aborts the install and degrades the module.
 - Prefer static (musl) builds: they run on glibc and musl systems alike, so no libc detection is needed. A host without a matching `(os, arch)` asset moves on to the next fallback entry.
+- On `arch = "arm"` an asset with `goarm` matches only that variant of the host; an asset without it matches every variant, and the variant-specific one wins when both exist. A host whose variant is unknown matches only variant-less assets.
 - `requires` is not allowed on a release entry; it belongs to the `git` entry.
 
 ## Templates

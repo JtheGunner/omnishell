@@ -65,6 +65,18 @@ Go:
 go install github.com/JtheGunner/omnishell/cmd/omnishell@latest
 ```
 
+### 🖥️ Supported platforms
+
+| | OS | Architecture | `uname -m` | Release archive |
+|-|----|--------------|------------|-----------------|
+| 🍎 | macOS | x86_64, arm64 | `x86_64`, `arm64` | `omnishell_darwin_amd64`, `omnishell_darwin_arm64` |
+| 🐧 | Linux | x86_64 | `x86_64` | `omnishell_linux_amd64` |
+| 🐧 | Linux | arm64 | `aarch64` | `omnishell_linux_arm64` |
+| 🐧 | Linux | armv7 (also a 32-bit userland on a 64-bit CPU) | `armv7l`, `armv8l` | `omnishell_linux_armv7` |
+| 🐧 | Linux | armv6 (Raspberry Pi 1 / Zero) | `armv6l` | `omnishell_linux_armv6` |
+
+On 32-bit ARM, `starship` installs a release binary on armv6 and armv7 and `mise` on armv7. `broot` has no 32-bit ARM binary, so it builds from source there (needs Rust).
+
 ---
 
 ## 🚀 Quick start
@@ -188,7 +200,7 @@ loads before the prompt modules (`starship`, `omnishell-prompt`).
 ### 🔨 Build prerequisites for the `git` fallback
 
 > [!NOTE]
-> `mise`, `starship` and `broot` install a verified release binary first (Linux x86_64 and arm64). The prerequisites below only apply to them on other architectures.
+> `mise`, `starship` and `broot` install a verified release binary first (Linux x86_64 and arm64; on 32-bit ARM `starship`, and `mise` on armv7). The prerequisites below only apply to them on other architectures.
 
 When no package is available, some modules are built from source. Before
 cloning anything, `omnishell apply` checks that the required tools are present
