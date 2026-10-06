@@ -10,6 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
+      # A tag push cannot be filtered by branch, so confirm here that the tagged
+      # commit is on main before anything is built or published.
+      - name: Verify the tag is on main
+        run: |
+          git fetch --no-tags --quiet origin "+refs/heads/main:refs/remotes/origin/main"
+          sh .github/scripts/verify-release-tag.sh
       - uses: actions/setup-go@v7
         with: { go-version: stable }
       - uses: goreleaser/goreleaser-action@v7

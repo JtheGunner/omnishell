@@ -4,6 +4,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-06
+
+### Changed
+- `apply` moves an existing `git` fallback clone in `vendor/` to the tag the
+  module's manifest pins and rebuilds it. The plan lists the update first. A
+  clone with local changes, or a directory that is not a git clone, is left
+  alone and not retried until the pinned tag changes; a failed update keeps the
+  installed tool and its shell integration. The first `apply` after upgrading
+  rebuilds each fallback-built tool once.
+- The pinned `git` fallback tag of the `direnv` module moved to v2.38.0.
+
+## [0.3.3] - 2026-10-06
+
 ### Added
 - `[[packages.fallback]]` accepts an optional `requires` list (`"cmake"`,
   `"cargo>=1.85"`). `omnishell apply` checks it before cloning and, when a tool
@@ -19,12 +32,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - The built-in modules pin their `git` fallback to a release tag, so a
-  fallback build is reproducible. `apply` moves an existing clone in `vendor/`
-  to the pinned tag and rebuilds it (the plan lists the update first). A clone
-  with local changes, or a directory that is not a git clone, is left alone and
-  not retried until the pinned tag changes; a failed update keeps the installed
-  tool and its shell integration. The first `apply` after upgrading rebuilds each
-  fallback-built tool once.
+  fallback build is reproducible. An existing clone in `vendor/` is kept
+  as is; remove it to pick up the pinned tag.
 
 ### Fixed
 - A module whose package is listed for the active package manager but cannot
@@ -182,7 +191,9 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/JtheGunner/omnishell/compare/v0.3.3...v0.4.0
+[0.3.3]: https://github.com/JtheGunner/omnishell/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/JtheGunner/omnishell/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/JtheGunner/omnishell/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/JtheGunner/omnishell/compare/v0.2.1...v0.3.0
