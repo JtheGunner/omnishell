@@ -373,6 +373,19 @@ func planFallback(mp *ModulePlan, e Engine, prev lockfile.ModuleState) {
 	}
 }
 
+// recordedChecksumHolds reports whether the checksum recorded for an installed
+// release binary is the one the manifest pins for this host. An empty record (a
+// Cargo build adopted as the release binary) holds, since there is nothing to
+// compare; a different one means the pin moved after the install, so the
+// binary is installed again from the pinned asset.
+func recordedChecksumHolds(fb module.Fallback, e Engine, prev lockfile.ModuleState) bool {
+	if prev.FallbackSHA256 == "" {
+		return true
+	}
+	asset, ok := fb.AssetFor(string(e.Platform.OS), e.Platform.Arch)
+	return ok && asset.SHA256 == prev.FallbackSHA256
+}
+
 // planRelease queues the release binary when it is missing or was installed
 // from another ref or another kind of fallback. The recorded kind of a
 // lockfile entry that has a ref but no kind is git.
@@ -385,8 +398,8 @@ func planRelease(mp *ModulePlan, e Engine, fb module.Fallback, prev lockfile.Mod
 	switch {
 	case !pkgmgr.ReleaseInstalled(fb, e.releaseContext()):
 		mp.MissingPackages = append(mp.MissingPackages, pp)
-	case recordedKind == fallbackKindRelease && prev.FallbackRef == fb.Ref:
-		// Settled: this ref is installed.
+	case recordedKind == fallbackKindRelease && prev.FallbackRef == fb.Ref && recordedChecksumHolds(fb, e, prev):
+		// Settled: this ref is installed from the asset the manifest pins.
 	default:
 		pp.Update, pp.From = true, prev.FallbackRef
 		mp.MissingPackages = append(mp.MissingPackages, pp)

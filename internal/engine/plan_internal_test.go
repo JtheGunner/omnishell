@@ -178,6 +178,8 @@ func TestPlanRelease(t *testing.T) {
 		{"fresh install", false, lockfile.ModuleState{}, 1, false, ""},
 		{"settled", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2"}, 0, false, ""},
 		{"recorded but the binary is gone", false, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2"}, 1, false, ""},
+		{"a matching recorded checksum is settled", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2", FallbackSHA256: strings.Repeat("a", 64)}, 0, false, ""},
+		{"a checksum re-pinned for the same ref is installed again", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2", FallbackSHA256: strings.Repeat("b", 64)}, 1, true, "v2"},
 		{"older release is replaced", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v1"}, 1, true, "v1"},
 		{"a git build is replaced", true, lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v1"}, 1, true, "v1"},
 		{"a legacy lockfile entry counts as git", true, lockfile.ModuleState{FallbackRef: "v1"}, 1, true, "v1"},
