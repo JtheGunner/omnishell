@@ -1,0 +1,60 @@
+name: fallback-tags
+on:
+  schedule: [{ cron: '0 6 * * 1' }]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version-file: go.mod }
+      - name: Look up newer tags
+        id: tags
+        run: |
+          go run ./tools/update-fallback-tags \
+            --summary "$RUNNER_TEMP/summary.md" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Open or update the pull request
+        id: cpr
+        if: steps.tags.outputs.changed == 'true'
+        # Pinned to a commit SHA because this step runs with write access (and
+        # possibly a personal access token); Dependabot keeps the SHA current.
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          # A PR created with the default GITHUB_TOKEN does not trigger other
+          # workflows, so ci would not run on it. Set FALLBACK_TAGS_TOKEN to a
+          # personal access token to get CI on the PR.
+          token: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
+          branch: chore/update-fallback-tags
+          delete-branch: true
+          add-paths: modules/builtin
+          commit-message: 'chore: update pinned fallback tags'
+          title: 'chore: update pinned fallback tags'
+          body-path: ${{ runner.temp }}/summary.md
+      - name: Enable auto-merge when main requires status checks
+        if: >-
+          steps.cpr.outputs.pull-request-number != '' &&
+          vars.FALLBACK_TAGS_AUTOMERGE == 'true' &&
+          steps.tags.outputs.same_major == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+          REPO: ${{ github.repository }}
+        run: sh .github/scripts/enable-automerge.sh
+      # Auto-merge stays on a pull request once enabled, and the PR branch is
+      # reused across runs. If a later run no longer qualifies (a major bump, or
+      # the variable was switched off), take it back instead of letting the new
+      # content merge on the old approval.
+      - name: Disable auto-merge when the guard no longer holds
+        if: >-
+          steps.cpr.outputs.pull-request-number != '' &&
+          (vars.FALLBACK_TAGS_AUTOMERGE != 'true' || steps.tags.outputs.same_major != 'true')
+        env:
+          GH_TOKEN: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+          REPO: ${{ github.repository }}
+        run: gh pr merge "$PR" --repo "$REPO" --disable-auto || true

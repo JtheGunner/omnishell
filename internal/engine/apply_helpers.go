@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -172,7 +173,7 @@ func staleShells(lock lockfile.Lock, managed []string) []string {
 // installPackages walks plan.Order and satisfies MissingPackages, marking a
 // module degraded when a package cannot be installed.
 func (e Engine) installPackages(plan Plan, degraded map[string]string,
-	vendorPaths map[string][]string, installedNow map[string]map[string]bool) {
+	vendorPaths map[string][]string, outcome *fallbackOutcome, installedNow map[string]map[string]bool) {
 	for _, id := range plan.Order {
 		mp, ok := plan.Modules[id]
 		if !ok || mp.Action == ActionRemove || len(mp.MissingPackages) == 0 {
@@ -212,21 +213,64 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 		}
 
 		if fallback && mp.UsesFallback && len(mp.Manifest.Packages.Fallback) > 0 {
+			fb := mp.Manifest.Packages.Fallback[0]
+			ctx := pkgmgr.FallbackContext{VendorDir: e.vendorDir(), Platform: string(e.Platform.OS)}
+			if isFallbackUpdate(mp) {
+				_, _ = fmt.Fprintf(e.Stdout, "updating %s fallback to %s (rebuilding)\n", id, fb.Ref)
+				dest, err := pkgmgr.UpdateGitFallback(fb, ctx, e.Runner)
+				switch {
+				case errors.Is(err, pkgmgr.ErrCloneModified), errors.Is(err, pkgmgr.ErrNotAClone):
+					// Not an error: the user's clone stays as it is, and the
+					// declined ref is remembered so this is not planned again.
+					_, _ = fmt.Fprintf(e.Stdout, "%s: not updating fallback clone %s: %v; keeping it as is\n", id, dest, err)
+					vendorPaths[id] = append(vendorPaths[id], dest)
+					outcome.skipped[id] = fb.Ref
+				case err != nil:
+					// The installed tool still works, so the module is not
+					// degraded and keeps its snippet; the ref stays unrecorded
+					// so the next apply retries.
+					_, _ = fmt.Fprintf(e.Stdout, "%s: fallback update to %s failed: %v; keeping the installed version\n", id, fb.Ref, err)
+				default:
+					vendorPaths[id] = append(vendorPaths[id], dest)
+					outcome.built[id] = fb.Ref
+				}
+				continue
+			}
 			// UnavailablePackages is only set when a manager was detected.
 			if len(mp.UnavailablePackages) > 0 {
 				_, _ = fmt.Fprintln(e.Stdout, fallbackNotice(e.Manager.Name(), mp))
 			}
-			dest, err := pkgmgr.InstallGitFallback(mp.Manifest.Packages.Fallback[0], pkgmgr.FallbackContext{
-				VendorDir: e.vendorDir(),
-				Platform:  string(e.Platform.OS),
-			}, e.Runner)
+			dest, err := pkgmgr.InstallGitFallback(fb, ctx, e.Runner)
 			if err != nil {
 				degraded[id] = fallbackFailure(e.Manager, mp, err)
 				continue
 			}
 			vendorPaths[id] = append(vendorPaths[id], dest)
+			outcome.built[id] = fb.Ref
 		}
 	}
+}
+
+// fallbackOutcome records what installPackages did to each module's git
+// fallback clone, for rebuildLock.
+type fallbackOutcome struct {
+	built   map[string]string // module id -> ref the clone was (re)built from
+	skipped map[string]string // module id -> pinned ref an update was declined for
+}
+
+func newFallbackOutcome() *fallbackOutcome {
+	return &fallbackOutcome{built: map[string]string{}, skipped: map[string]string{}}
+}
+
+// isFallbackUpdate reports whether the module's queued git fallback moves an
+// existing clone instead of creating one.
+func isFallbackUpdate(mp ModulePlan) bool {
+	for _, pp := range mp.MissingPackages {
+		if pp.Manager == "git" && pp.Update {
+			return true
+		}
+	}
+	return false
 }
 
 // fallbackNotice tells the user a git build replaces a distro package, naming
@@ -485,7 +529,7 @@ func (e Engine) ensureRC(shell, initPath string, bk *backup.Session, lock *lockf
 // modules dropped (only when they were really applied before), and every other
 // module upserted from the plan + install results.
 func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
-	degraded map[string]string, vendorPaths map[string][]string,
+	degraded map[string]string, vendorPaths map[string][]string, outcome *fallbackOutcome,
 	installedNow map[string]map[string]bool) lockfile.Lock {
 
 	nl := lockfile.Lock{
@@ -549,14 +593,31 @@ func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
 			vps = prevMod.VendorPaths
 		}
 
+		fallbackRef, skippedRef := prevMod.FallbackRef, prevMod.FallbackSkippedRef
+		if ref, ok := outcome.built[id]; ok {
+			fallbackRef, skippedRef = ref, ""
+		}
+		if ref, ok := outcome.skipped[id]; ok {
+			skippedRef = ref
+		}
+		// Forget the recorded refs only when packages were actually planned and
+		// the module no longer uses a fallback. `apply --no-packages` (which is
+		// what doctor --fix runs) and a planner-degraded module plan no packages
+		// and must keep what an earlier apply recorded.
+		if mp.PackagesPlanned && !mp.UsesFallback {
+			fallbackRef, skippedRef = "", ""
+		}
+
 		nl.Modules[id] = lockfile.ModuleState{
-			ModuleVersion:  mp.Manifest.Module.Version,
-			Enabled:        true,
-			OptionsHash:    mp.OptionsHash,
-			ShellsRendered: shellsRendered,
-			Packages:       mergePackages(mp, plan, prevMod, installedNow[id]),
-			VendorPaths:    vps,
-			Status:         status,
+			ModuleVersion:      mp.Manifest.Module.Version,
+			Enabled:            true,
+			OptionsHash:        mp.OptionsHash,
+			ShellsRendered:     shellsRendered,
+			Packages:           mergePackages(mp, plan, prevMod, installedNow[id]),
+			VendorPaths:        vps,
+			FallbackRef:        fallbackRef,
+			FallbackSkippedRef: skippedRef,
+			Status:             status,
 		}
 	}
 

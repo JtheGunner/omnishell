@@ -51,3 +51,20 @@ it.
   change.
 - See [CLAUDE.md](CLAUDE.md) for the package-by-package architecture overview
   and the invariants that engine/apply changes must preserve.
+
+## Pinned fallback tags
+
+Every built-in module that falls back to a `git` clone pins a release tag in its manifest (`ref`). The `fallback-tags` workflow (`.github/workflows/fallback-tags.yml`) looks for newer stable tags every Monday and opens a pull request that bumps them. Run it by hand from the Actions tab (`workflow_dispatch`) or locally:
+
+```sh
+go run ./tools/update-fallback-tags --summary summary.md
+```
+
+Before merging such a pull request, check that each module's `requires` still matches the toolchain the new tag needs; CI does not build the fallbacks.
+
+Two optional repository settings:
+
+- **`FALLBACK_TAGS_TOKEN`** (secret): a fine-grained personal access token limited to this repository (contents and pull requests: read and write). Without it the pull request is created with the default token and `ci` does not run on it.
+- **Auto-merge:** set the repository variable `FALLBACK_TAGS_AUTOMERGE` to `true` to let the workflow request auto-merge for pull requests whose bumps keep their major version. It only takes effect when *Allow auto-merge* is enabled and `main` has branch protection with required status checks; otherwise the workflow leaves the pull request open and says so in the job summary.
+
+The workflow also needs *Settings → Actions → General → Allow GitHub Actions to create and approve pull requests*.

@@ -30,7 +30,14 @@ type ModuleState struct {
 	ShellsRendered []string       `json:"shells_rendered"`
 	Packages       []PackageState `json:"packages"`
 	VendorPaths    []string       `json:"vendor_paths"`
-	Status         string         `json:"status"`
+	// FallbackRef is the ref the module's git fallback clone was built from.
+	// Empty means unknown (a lockfile from before this field) or no pinned ref.
+	FallbackRef string `json:"fallback_ref,omitempty"`
+	// FallbackSkippedRef is the pinned ref an update was declined for because
+	// the clone has local changes or is not a git clone; it stops the same
+	// update from being planned on every run until the manifest pins another ref.
+	FallbackSkippedRef string `json:"fallback_skipped_ref,omitempty"`
+	Status             string `json:"status"`
 }
 
 // FileState records an init file's path and content hash.

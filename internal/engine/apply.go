@@ -100,6 +100,7 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	}
 
 	vendorPaths := map[string][]string{}
+	outcome := newFallbackOutcome()
 	installedNow := map[string]map[string]bool{}
 
 	// Carry a planner-detected degradation into the apply pass when the module
@@ -134,7 +135,7 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 	}
 
 	if !opts.NoPackages {
-		e.installPackages(plan, degraded, vendorPaths, installedNow)
+		e.installPackages(plan, degraded, vendorPaths, outcome, installedNow)
 	}
 	e.runCheckHooks(plan, degraded)
 
@@ -157,7 +158,7 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 
 	defer func() { _ = bk.WriteManifest("apply", e.now()) }()
 
-	newLock := e.rebuildLock(cfg, plan, lock, degraded, vendorPaths, installedNow)
+	newLock := e.rebuildLock(cfg, plan, lock, degraded, vendorPaths, outcome, installedNow)
 
 	// A shell that dropped out of ManagedShells since the last apply (its
 	// binary was removed from the host) leaves an orphaned init file and rc

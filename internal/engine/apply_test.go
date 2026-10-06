@@ -730,3 +730,306 @@ func TestApplyAnnouncesFallbackReplacingPackage(t *testing.T) {
 		t.Fatalf("output lacks %q:\n%s", want, out.String())
 	}
 }
+
+// fzfSandbox is an apply sandbox whose only module is the fzf fixture, which
+// pins ref v0.1.0 and falls back to a git clone when apt lacks the package.
+type fzfSandbox struct {
+	e                 engine.Engine
+	mgr               *pkgmgr.MockManager
+	home              string
+	cfgPath, lockPath string
+	out               *bytes.Buffer
+}
+
+const fzfRepo = "https://github.com/junegunn/fzf.git"
+
+func newFzfSandbox(t *testing.T, runner pkgmgr.Runner) fzfSandbox {
+	t.Helper()
+	home := t.TempDir()
+	out := &bytes.Buffer{}
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, Unavailable: map[string]bool{"fzf": true}}
+	e := applyEngine(t, home, mgr, out)
+	e.Runner = runner
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.fzf]\nenabled=true\n")
+	return fzfSandbox{e: e, mgr: mgr, home: home, cfgPath: cfgPath, lockPath: filepath.Join(home, ".config", "omnishell", "state.lock.json"), out: out}
+}
+
+func (s fzfSandbox) cloneDir() string {
+	return filepath.Join(s.home, ".config", "omnishell", "vendor", "fzf")
+}
+
+// populateClone simulates a git clone that an earlier apply left behind; the
+// mock runner cannot create one.
+func (s fzfSandbox) populateClone(t *testing.T) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(s.cloneDir(), ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(s.cloneDir(), "install"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// populatePlainDir creates a non-empty directory that is not a git clone.
+func (s fzfSandbox) populatePlainDir(t *testing.T) {
+	t.Helper()
+	if err := os.MkdirAll(s.cloneDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(s.cloneDir(), "install"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (s fzfSandbox) applyWith(t *testing.T, opts engine.ApplyOptions) (engine.Result, error) {
+	t.Helper()
+	cfg, err := config.Load(s.cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s.e.Apply(cfg, s.cfgPath, s.lockPath, opts)
+}
+
+func (s fzfSandbox) apply(t *testing.T) (engine.Result, error) {
+	t.Helper()
+	return s.applyWith(t, engine.ApplyOptions{Yes: true})
+}
+
+func (s fzfSandbox) lockState(t *testing.T) lockfile.ModuleState {
+	t.Helper()
+	lock, ok, err := lockfile.Load(s.lockPath)
+	if err != nil || !ok {
+		t.Fatalf("lock: ok=%v err=%v", ok, err)
+	}
+	return lock.Modules["fzf"]
+}
+
+func (s fzfSandbox) statusKey() string {
+	return "git -C " + s.cloneDir() + " status --porcelain --untracked-files=no"
+}
+
+func (s fzfSandbox) fetchKey() string {
+	return "git -C " + s.cloneDir() + " fetch --depth 1 " + fzfRepo + " v0.1.0"
+}
+
+func (s fzfSandbox) initBash(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(s.home, ".config", "omnishell", "init.bash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func (s fzfSandbox) findings(t *testing.T) map[string]string {
+	t.Helper()
+	cfg, err := config.Load(s.cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep, err := s.e.Doctor(cfg, s.cfgPath, s.lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codes := map[string]string{}
+	for _, f := range rep.Findings {
+		codes[f.Code] = f.Severity
+	}
+	return codes
+}
+
+func anyCallContains(calls []string, sub string) bool {
+	for _, c := range calls {
+		if strings.Contains(c, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestApplyRecordsTheFallbackRefOnAFreshClone(t *testing.T) {
+	s := newFzfSandbox(t, &pkgmgr.MockRunner{})
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := s.lockState(t).FallbackRef; got != "v0.1.0" {
+		t.Fatalf("recorded fallback ref = %q, want v0.1.0", got)
+	}
+}
+
+func TestApplyUpdatesAnExistingCloneOnceAndThenSettles(t *testing.T) {
+	runner := &pkgmgr.MockRunner{}
+	s := newFzfSandbox(t, runner)
+	s.populateClone(t) // a clone from before the lockfile recorded refs
+
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if !anyCallContains(runner.Calls, "fetch --depth 1 "+fzfRepo+" v0.1.0") || !anyCallContains(runner.Calls, "checkout --detach FETCH_HEAD") {
+		t.Fatalf("the clone was not moved to the pinned tag from the manifest's repo: %v", runner.Calls)
+	}
+	if !strings.Contains(s.out.String(), "updating fzf fallback to v0.1.0") {
+		t.Fatalf("output lacks the update line:\n%s", s.out.String())
+	}
+	if got := s.lockState(t).FallbackRef; got != "v0.1.0" {
+		t.Fatalf("recorded fallback ref = %q, want v0.1.0", got)
+	}
+
+	before := len(runner.Calls)
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("second Apply: %v", err)
+	}
+	if len(runner.Calls) != before {
+		t.Fatalf("the second apply must be a no-op, but ran: %v", runner.Calls[before:])
+	}
+}
+
+func TestApplyKeepsAModifiedFallbackCloneAndSettles(t *testing.T) {
+	runner := &pkgmgr.MockRunner{}
+	s := newFzfSandbox(t, runner)
+	runner.Responses = map[string]pkgmgr.MockResponse{s.statusKey(): {Out: []byte(" M install\n")}}
+	s.populateClone(t)
+
+	res, err := s.apply(t)
+	if err != nil {
+		t.Fatalf("a modified clone must not fail the apply: %v", err)
+	}
+	if got := moduleResult(t, res, "fzf").Status; got != "applied" {
+		t.Fatalf("fzf status = %q, want applied", got)
+	}
+	if !strings.Contains(s.out.String(), "has local changes") {
+		t.Fatalf("output lacks the note:\n%s", s.out.String())
+	}
+	if anyCallContains(runner.Calls, "fetch") {
+		t.Fatalf("a modified clone must not be fetched: %v", runner.Calls)
+	}
+	if st := s.lockState(t); st.FallbackRef != "" || st.FallbackSkippedRef != "v0.1.0" {
+		t.Fatalf("lock state = %+v, want no built ref and the declined ref v0.1.0", st)
+	}
+
+	// The decision is remembered: nothing is planned again until the manifest
+	// pins another ref, and doctor reports a notice instead of drift.
+	before := len(runner.Calls)
+	res2, err := s.apply(t)
+	if err != nil {
+		t.Fatalf("second Apply: %v", err)
+	}
+	if res2.Changed || len(runner.Calls) != before {
+		t.Fatalf("the second apply must be a no-op; changed=%v calls=%v", res2.Changed, runner.Calls[before:])
+	}
+	codes := s.findings(t)
+	if codes["fallback-modified:fzf"] != engine.SeverityNotice {
+		t.Fatalf("doctor lacks the fallback-modified notice: %v", codes)
+	}
+	if _, drift := codes["pending-apply:fzf"]; drift {
+		t.Fatalf("a declined update must not stay pending drift: %v", codes)
+	}
+}
+
+func TestApplyKeepsTheModuleWhenTheFallbackUpdateFails(t *testing.T) {
+	runner := &pkgmgr.MockRunner{}
+	s := newFzfSandbox(t, runner)
+	runner.Responses = map[string]pkgmgr.MockResponse{s.fetchKey(): {Err: errors.New("network down")}}
+	s.populateClone(t)
+
+	res, err := s.apply(t)
+	if err != nil {
+		t.Fatalf("a failed update keeps the installed version and must not fail the apply: %v", err)
+	}
+	if got := moduleResult(t, res, "fzf").Status; got != "applied" {
+		t.Fatalf("fzf status = %q, want applied", got)
+	}
+	if !strings.Contains(s.initBash(t), "omnishell:fzf") {
+		t.Fatal("the working tool's shell integration must stay in init.bash after a failed update")
+	}
+	if out := s.out.String(); !strings.Contains(out, "fallback update to v0.1.0 failed") || !strings.Contains(out, "network down") {
+		t.Fatalf("output lacks the failure:\n%s", out)
+	}
+	if got := s.lockState(t).FallbackRef; got != "" {
+		t.Fatalf("recorded fallback ref = %q, want it unchanged so the next apply retries", got)
+	}
+
+	runner.Responses = nil // the network is back
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("retry Apply: %v", err)
+	}
+	if got := s.lockState(t).FallbackRef; got != "v0.1.0" {
+		t.Fatalf("after the retry the recorded ref = %q, want v0.1.0", got)
+	}
+}
+
+func TestApplyNeverRunsGitInADirectoryThatIsNotAClone(t *testing.T) {
+	runner := &pkgmgr.MockRunner{}
+	s := newFzfSandbox(t, runner)
+	s.populatePlainDir(t)
+
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if anyCallContains(runner.Calls, " -C ") {
+		t.Fatalf("git must not run in a directory that is not a clone: %v", runner.Calls)
+	}
+	if !strings.Contains(s.out.String(), "not a git clone") {
+		t.Fatalf("output lacks the note:\n%s", s.out.String())
+	}
+}
+
+func TestApplyWithoutPackagesKeepsTheRecordedFallbackRef(t *testing.T) {
+	s := newFzfSandbox(t, &pkgmgr.MockRunner{})
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	// A config change forces a re-apply; doctor --fix runs apply without
+	// packages, and that must not forget which ref the clone was built from.
+	writeConfig(t, s.cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.fzf]\nenabled=true\n[modules.fzf.options]\nctrl_t=true\n")
+	if _, err := s.applyWith(t, engine.ApplyOptions{Yes: true, NoPackages: true}); err != nil {
+		t.Fatalf("Apply without packages: %v", err)
+	}
+	if got := s.lockState(t).FallbackRef; got != "v0.1.0" {
+		t.Fatalf("recorded fallback ref = %q, want v0.1.0 to survive a no-packages apply", got)
+	}
+}
+
+func TestApplySwitchingToARealPackageClearsTheFallbackRef(t *testing.T) {
+	s := newFzfSandbox(t, &pkgmgr.MockRunner{})
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	s.mgr.Unavailable = map[string]bool{} // apt can provide fzf now
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("second Apply: %v", err)
+	}
+	if got := s.lockState(t).FallbackRef; got != "" {
+		t.Fatalf("recorded fallback ref = %q, want it cleared once a real package is used", got)
+	}
+}
+
+func TestDoctorReportsAnOutdatedFallbackClone(t *testing.T) {
+	s := newFzfSandbox(t, &pkgmgr.MockRunner{})
+	if _, err := s.apply(t); err != nil { // fresh clone, records v0.1.0
+		t.Fatalf("Apply: %v", err)
+	}
+	s.populateClone(t)
+	lock, _, err := lockfile.Load(s.lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := lock.Modules["fzf"]
+	st.FallbackRef = "v0.0.9"
+	lock.Modules["fzf"] = st
+	if err := lock.Write(s.lockPath); err != nil {
+		t.Fatal(err)
+	}
+
+	codes := s.findings(t)
+	if codes["fallback-outdated:fzf"] != engine.SeverityNotice {
+		t.Fatalf("doctor lacks the fallback-outdated notice: %v", codes)
+	}
+	if _, bad := codes["packages-missing:fzf"]; bad {
+		t.Fatalf("an outdated clone must not be reported as a missing package: %v", codes)
+	}
+	if _, ok := codes["pending-apply:fzf"]; !ok {
+		t.Fatalf("doctor lacks pending-apply for the outdated clone: %v", codes)
+	}
+}
