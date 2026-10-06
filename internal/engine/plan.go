@@ -47,6 +47,9 @@ type ModulePlan struct {
 	OptionsHash     string
 	MissingPackages []PackagePlan
 	UsesFallback    bool
+	// Fallback is the fallback entry the plan selected; the zero value when the
+	// module uses none.
+	Fallback module.Fallback
 	// PackagesPlanned is true once package planning ran to completion for the
 	// module. It is false under --no-packages and when the planner gave up
 	// early (no package manager, planned degradation); in those cases
@@ -315,19 +318,53 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, 
 	}
 }
 
-// planFallback selects the module's git fallback. A missing clone is queued as
-// a fresh install; an existing clone is queued as an update when the manifest
-// pins a ref and the clone was not recorded as built from it. The lockfile
-// supplies the recorded ref, so planning never probes the clone itself.
+const (
+	fallbackKindGit     = "git"
+	fallbackKindRelease = "release"
+)
+
+// selectFallback returns the first fallback entry usable on this host: a
+// release entry needs an asset for the host's OS and architecture, a git entry
+// is always usable.
+func selectFallback(fbs []module.Fallback, info platform.Info) (module.Fallback, bool) {
+	for _, fb := range fbs {
+		if fb.Type == "release" {
+			if _, ok := fb.AssetFor(string(info.OS), info.Arch); !ok {
+				continue
+			}
+		}
+		return fb, true
+	}
+	return module.Fallback{}, false
+}
+
+func (e Engine) releaseContext() pkgmgr.ReleaseContext {
+	return pkgmgr.ReleaseContext{VendorDir: e.vendorDir(), OS: string(e.Platform.OS), Arch: e.Platform.Arch}
+}
+
+// planFallback selects the module's fallback. A git fallback with a missing
+// clone is queued as a fresh install; an existing clone is queued as an update
+// when the manifest pins a ref and the clone was not recorded as built from it.
+// A release fallback is planned by planRelease. The lockfile supplies the
+// recorded ref and kind, so planning never probes anything but the filesystem.
 func planFallback(mp *ModulePlan, e Engine, prev lockfile.ModuleState) {
-	fb := mp.Manifest.Packages.Fallback[0]
+	fb, ok := selectFallback(mp.Manifest.Packages.Fallback, e.Platform)
+	if !ok {
+		mp.DegradedReason = fmt.Sprintf("no fallback is available for %s/%s", e.Platform.OS, e.Platform.Arch)
+		return
+	}
 	mp.UsesFallback = true
-	ok, _ := pkgmgr.FallbackSatisfied(fb, pkgmgr.FallbackContext{
+	mp.Fallback = fb
+	if fb.Type == "release" {
+		planRelease(mp, e, fb, prev)
+		return
+	}
+	satisfied, _ := pkgmgr.FallbackSatisfied(fb, pkgmgr.FallbackContext{
 		VendorDir: e.Platform.ConfigDir + "/vendor",
 		Platform:  string(e.Platform.OS),
 	})
 	switch {
-	case !ok:
+	case !satisfied:
 		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{Name: fb.Repo, Manager: "git"})
 	case fb.Ref != "" && prev.FallbackRef != fb.Ref && prev.FallbackSkippedRef != fb.Ref:
 		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{
@@ -336,8 +373,38 @@ func planFallback(mp *ModulePlan, e Engine, prev lockfile.ModuleState) {
 	}
 }
 
+// planRelease queues the release binary when it is missing or was installed
+// from another ref or another kind of fallback. The recorded kind of a
+// lockfile entry that has a ref but no kind is git.
+func planRelease(mp *ModulePlan, e Engine, fb module.Fallback, prev lockfile.ModuleState) {
+	recordedKind := prev.FallbackKind
+	if recordedKind == "" && prev.FallbackRef != "" {
+		recordedKind = fallbackKindGit
+	}
+	pp := PackagePlan{Name: fb.Bin, Manager: "release", To: fb.Ref}
+	switch {
+	case !pkgmgr.ReleaseInstalled(fb, e.releaseContext()):
+		mp.MissingPackages = append(mp.MissingPackages, pp)
+	case recordedKind == fallbackKindRelease && prev.FallbackRef == fb.Ref:
+		// Settled: this ref is installed.
+	default:
+		pp.Update, pp.From = true, prev.FallbackRef
+		mp.MissingPackages = append(mp.MissingPackages, pp)
+	}
+}
+
 // describePackage names a planned package for the plan output.
 func describePackage(pp PackagePlan) string {
+	if pp.Manager == "release" {
+		if !pp.Update {
+			return fmt.Sprintf("%s (release binary %s)", pp.Name, pp.To)
+		}
+		from := pp.From
+		if from == "" {
+			from = "unrecorded"
+		}
+		return fmt.Sprintf("%s (release update %s → %s)", pp.Name, from, pp.To)
+	}
 	if pp.Update {
 		from := pp.From
 		if from == "" {

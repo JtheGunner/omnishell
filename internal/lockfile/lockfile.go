@@ -33,6 +33,13 @@ type ModuleState struct {
 	// FallbackRef is the ref the module's git fallback clone was built from.
 	// Empty means unknown (a lockfile from before this field) or no pinned ref.
 	FallbackRef string `json:"fallback_ref,omitempty"`
+	// FallbackKind is the kind of fallback FallbackRef was installed by: "git"
+	// or "release". Empty with a non-empty FallbackRef means a lockfile from
+	// before the field existed, which always was a git clone.
+	FallbackKind string `json:"fallback_kind,omitempty"`
+	// FallbackSHA256 is the checksum of the release asset that was installed;
+	// empty for a git build or for a Cargo build adopted as the release binary.
+	FallbackSHA256 string `json:"fallback_sha256,omitempty"`
 	// FallbackSkippedRef is the pinned ref an update was declined for because
 	// the clone has local changes or is not a git clone; it stops the same
 	// update from being planned on every run until the manifest pins another ref.

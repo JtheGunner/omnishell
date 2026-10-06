@@ -13,15 +13,16 @@ import (
 
 // Engine holds every dependency the operations need.
 type Engine struct {
-	Platform  platform.Info
-	Registry  module.Registry
-	Manager   pkgmgr.Manager
-	ManagerOK bool
-	Runner    pkgmgr.Runner
-	Now       func() time.Time
-	Stdout    io.Writer
-	Stderr    io.Writer
-	Prompt    func(question string) bool
+	Platform   platform.Info
+	Registry   module.Registry
+	Manager    pkgmgr.Manager
+	ManagerOK  bool
+	Runner     pkgmgr.Runner
+	Downloader pkgmgr.Downloader
+	Now        func() time.Time
+	Stdout     io.Writer
+	Stderr     io.Writer
+	Prompt     func(question string) bool
 }
 
 func (e Engine) now() time.Time {
