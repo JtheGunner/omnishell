@@ -4,6 +4,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `install.sh` honours `OMNISHELL_VERSION` to install a specific release.
+
+### Fixed
+- `install.sh` no longer calls the rate-limited GitHub API to find the latest
+  release (it failed with HTTP 403 on shared IPs such as CI runners); it reads
+  the `releases/latest` redirect instead. A failed lookup now reports the HTTP
+  status.
+
 ## [0.5.0] - 2026-10-06
 
 ### Added

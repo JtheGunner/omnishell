@@ -55,6 +55,10 @@ Curl (servers without Homebrew — downloads the matching binary):
 curl -fsSL https://raw.githubusercontent.com/JtheGunner/omnishell/main/install.sh | sh
 ```
 
+The installer resolves the latest release through the `github.com` redirect, so
+it does not use the rate-limited GitHub API. To install a specific release, set
+`OMNISHELL_VERSION` (for example `OMNISHELL_VERSION=v0.5.0`).
+
 Go:
 
 ```sh
