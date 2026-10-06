@@ -1,5 +1,6 @@
 #!/bin/sh
 # Install the latest omnishell release into ~/.local/bin (override with OMNISHELL_BIN_DIR).
+# Set OMNISHELL_VERSION (for example v0.5.0) to install a specific release.
 set -eu
 
 repo="JtheGunner/omnishell"
@@ -18,8 +19,33 @@ case "$arch" in
   *) echo "unsupported arch: $arch" >&2; exit 1 ;;
 esac
 
-tag="$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')"
-[ -n "$tag" ] || { echo "could not determine latest release" >&2; exit 1; }
+# Resolve the tag from the redirect of github.com/<repo>/releases/latest rather
+# than the REST API: the API is rate limited per IP (60/h unauthenticated), which
+# breaks shared runners, while the redirect is not.
+if [ -n "${OMNISHELL_VERSION:-}" ]; then
+  tag="v${OMNISHELL_VERSION#v}"
+  case "$tag" in
+    *[!0-9A-Za-z._-]*) echo "invalid OMNISHELL_VERSION: $OMNISHELL_VERSION" >&2; exit 1 ;;
+  esac
+else
+  latest_url="https://github.com/$repo/releases/latest"
+  headers="$(curl -sSI "$latest_url")" \
+    || { echo "could not determine latest release: request to $latest_url failed" >&2; exit 1; }
+  headers="$(printf '%s\n' "$headers" | tr -d '\r')"
+  status="$(printf '%s\n' "$headers" | awk 'NR==1 {print $2}')"
+  location="$(printf '%s\n' "$headers" | awk 'tolower($1) == "location:" {print $2}')"
+  case "$location" in
+    */releases/tag/*) tag="${location##*/releases/tag/}" ;;
+    *) tag="" ;;
+  esac
+  if [ -z "$tag" ]; then
+    echo "could not determine latest release: HTTP ${status:-?} from $latest_url" >&2
+    case "$status" in
+      403|429) echo "GitHub is rate limiting this IP; set OMNISHELL_VERSION (for example v0.5.0) to skip the lookup" >&2 ;;
+    esac
+    exit 1
+  fi
+fi
 
 tarball="omnishell_${os}_${arch}.tar.gz"
 url="https://github.com/$repo/releases/download/$tag/$tarball"
