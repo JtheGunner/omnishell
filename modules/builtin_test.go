@@ -456,3 +456,31 @@ func TestBuiltinFallbacksArePinned(t *testing.T) {
 		}
 	}
 }
+
+// The three Rust modules ship a release fallback ahead of the Cargo build; each
+// covers both supported architectures, so an arm64 server needs no toolchain.
+func TestBuiltinReleaseFallbacks(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"mise", "starship", "broot"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %s missing", id)
+		}
+		fbs := m.Manifest.Packages.Fallback
+		if len(fbs) != 2 || fbs[0].Type != "release" || fbs[1].Type != "git" {
+			t.Errorf("module %s: fallbacks = %+v, want release then git", id, fbs)
+			continue
+		}
+		for _, arch := range []string{"amd64", "arm64"} {
+			if _, ok := fbs[0].AssetFor("linux", arch); !ok {
+				t.Errorf("module %s: release fallback has no linux/%s asset", id, arch)
+			}
+		}
+		if fbs[0].Ref != fbs[1].Ref {
+			t.Errorf("module %s: release ref %s and git ref %s must pin the same tag", id, fbs[0].Ref, fbs[1].Ref)
+		}
+	}
+}

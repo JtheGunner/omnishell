@@ -12,12 +12,33 @@ version     = "1.0.0"
 schema      = 1
 
 # starship is in brew / pacman / apk and recent apt; dnf / zypper and older
-# releases fall through to the git + cargo fallback (starship is Rust).
+# releases install the upstream release binary, and only build from source
+# (starship is Rust) where no release binary exists for the host.
 [packages]
 brew   = ["starship"]
 apt    = ["starship"]
 pacman = ["starship"]
 apk    = ["starship"]
+
+[[packages.fallback]]
+type = "release"
+repo = "https://github.com/starship/starship"
+ref  = "v1.26.0"
+bin  = "starship"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "amd64"
+url    = "https://github.com/starship/starship/releases/download/{{.Ref}}/starship-x86_64-unknown-linux-musl.tar.gz"
+sha256 = "b7c232b0e8249d8e55a40beb79c5c43a7d370f3f9408bd215deb0170daeaadf3"
+member = "starship"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "arm64"
+url    = "https://github.com/starship/starship/releases/download/{{.Ref}}/starship-aarch64-unknown-linux-musl.tar.gz"
+sha256 = "dc30189378d2f2e287384e8a692d3f95ad1df64cf0e8c36aa9201516028aed6b"
+member = "starship"
 
 [[packages.fallback]]
 type = "git"

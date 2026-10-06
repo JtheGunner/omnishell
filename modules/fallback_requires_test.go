@@ -28,11 +28,19 @@ func TestBuiltinFallbackRequirements(t *testing.T) {
 		if !ok {
 			t.Fatalf("module %q not embedded", id)
 		}
-		fbs := m.Manifest.Packages.Fallback
-		if len(fbs) == 0 {
-			t.Fatalf("%s has no fallback", id)
+		// The prerequisites belong to the build, i.e. the git entry; a release
+		// entry ahead of it declares none.
+		var build *module.Fallback
+		for i := range m.Manifest.Packages.Fallback {
+			if m.Manifest.Packages.Fallback[i].Type == "git" {
+				build = &m.Manifest.Packages.Fallback[i]
+				break
+			}
 		}
-		if got := strings.Join(fbs[0].Requires, ","); got != strings.Join(wantReqs, ",") {
+		if build == nil {
+			t.Fatalf("%s has no git fallback", id)
+		}
+		if got := strings.Join(build.Requires, ","); got != strings.Join(wantReqs, ",") {
 			t.Errorf("%s requires = %q, want %q", id, got, strings.Join(wantReqs, ","))
 		}
 	}

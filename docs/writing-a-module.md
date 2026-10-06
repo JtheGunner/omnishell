@@ -75,7 +75,7 @@ apk    = ["direnv"]
 #     cannot provide the package ───
 
 [[packages.fallback]]
-type = "git"                                    # only "git" in v1
+type = "git"                                    # "git", or "release" (see below)
 repo = "https://github.com/direnv/direnv.git"   # clone source
 dest = "{{.VendorDir}}/direnv"                  # clone target (templated)
 ref  = "v2.37.1"                                # optional tag or branch to clone;
@@ -126,6 +126,31 @@ help    = "Directories direnv trusts without an explicit `direnv allow`"
 unknown keys, invalid values, or values that fail an option's `pattern` with
 exit code 2 (nothing is changed). A missing option falls back to the manifest
 `default`.
+
+## Release fallback
+
+A module can install a ready-made binary instead of building from source. List a `type = "release"` entry **before** the `git` entry; omnishell uses the first entry that fits the host, so the build stays the last resort:
+
+```toml
+[[packages.fallback]]
+type = "release"
+repo = "https://github.com/jdx/mise"   # used by the tag updater
+ref  = "v2026.10.3"                     # the pinned upstream tag
+bin  = "mise"                           # installed as <vendor>/bin/mise
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "amd64"                        # amd64 | arm64
+url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-x64-musl.tar.gz"
+sha256 = "…64 lowercase hex characters…"
+member = "mise/bin/mise"                # file inside the .tar.gz / .zip; omit for a raw binary
+```
+
+- `url` must be `https://`. `{{.Ref}}` is the pinned tag and `{{.Version}}` the tag without a leading `v`. The host and the end of the URL must be literal (not templated).
+- `.tar.gz` and `.zip` downloads are extracted (`member` is required); any other URL is taken as the binary itself (`member` must be omitted).
+- `sha256` pins the downloaded file; a mismatch aborts the install and degrades the module.
+- Prefer static (musl) builds: they run on glibc and musl systems alike, so no libc detection is needed. A host without a matching `(os, arch)` asset moves on to the next fallback entry.
+- `requires` is not allowed on a release entry; it belongs to the `git` entry.
 
 ## Templates
 

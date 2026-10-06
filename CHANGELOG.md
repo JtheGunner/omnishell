@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `[[packages.fallback]]` accepts `type = "release"`: a pinned, SHA-256-verified
+  binary per OS and architecture (`[[packages.fallback.assets]]`), installed to
+  `<vendor>/bin`. It is listed before the `git` entry, so the order is system
+  package → release binary → source build. A host with no matching asset moves
+  on to the source build; a failed download or checksum degrades the module.
+- `mise`, `starship` and `broot` install their upstream release binary on
+  Linux x86_64 and arm64 instead of building with Cargo (about 22 minutes for
+  `mise`). Their `requires` now apply only to the source build.
 - `[[packages.fallback]]` accepts an optional `requires` list (`"cmake"`,
   `"cargo>=1.85"`). `omnishell apply` checks it before cloning and, when a tool
   is missing or too old, degrades the module with a message naming what is

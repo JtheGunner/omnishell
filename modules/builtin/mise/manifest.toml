@@ -11,10 +11,32 @@ version     = "1.0.0"
 schema      = 1
 
 # mise is not in the base apt / dnf / zypper / apk repos (it ships its own),
-# so only brew and pacman get a system package; everything else falls back.
+# so only brew and pacman get a system package. Everything else installs the
+# upstream release binary, and only builds from source where no release
+# binary exists for the host.
 [packages]
 brew   = ["mise"]
 pacman = ["mise"]
+
+[[packages.fallback]]
+type = "release"
+repo = "https://github.com/jdx/mise"
+ref  = "v2026.10.3"
+bin  = "mise"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "amd64"
+url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-x64-musl.tar.gz"
+sha256 = "23c45c76567f8f1e4cfc40efff3f19e3352d3745e6c25e74891102765d1cdc3c"
+member = "mise/bin/mise"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "arm64"
+url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-arm64-musl.tar.gz"
+sha256 = "0af3379b7a8060b047416576a746078daee3c9d2bf57fa8f6ba07d3cdf5f47aa"
+member = "mise/bin/mise"
 
 [[packages.fallback]]
 type = "git"
