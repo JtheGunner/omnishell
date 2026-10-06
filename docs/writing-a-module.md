@@ -148,7 +148,7 @@ member = "mise/bin/mise"                # file inside the .tar.gz / .zip; omit f
 
 - `url` must be `https://`. `{{.Ref}}` is the pinned tag and `{{.Version}}` the tag without a leading `v`. The host and the end of the URL must be literal (not templated).
 - `.tar.gz` and `.zip` downloads are extracted (`member` is required); any other URL is taken as the binary itself (`member` must be omitted).
-- `sha256` pins the downloaded file; a mismatch aborts the install and degrades the module.
+- `sha256` pins the downloaded file; a mismatch aborts the install (the module is degraded when there is no working binary to keep).
 - Prefer static (musl) builds: they run on glibc and musl systems alike, so no libc detection is needed. A host without a matching `(os, arch)` asset moves on to the next fallback entry.
 - `requires` is not allowed on a release entry; it belongs to the `git` entry.
 

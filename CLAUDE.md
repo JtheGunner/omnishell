@@ -124,8 +124,9 @@ files matters more than any single file:
    injectable `Downloader` and renamed into `{{.VendorDir}}/bin`. `ComputePlan`
    walks a module's fallbacks in order (`selectFallback`) and takes the first
    usable one, so the order is system package → release → git; an unsupported
-   architecture reaches the git entry. A failed download or checksum degrades
-   the module and never falls through to the build. The lockfile records
+   architecture reaches the git entry. A failed first install degrades the
+   module (a failed update keeps the working binary) and never falls through
+   to the build. The lockfile records
    `fallback_kind` (`git`/`release`; a ref without a kind counts as git) and
    `fallback_sha256`, and a changed pin re-installs. A git build recorded at the
    pinned ref is adopted (its binary stays) and its leftovers (`leftovers.go`:

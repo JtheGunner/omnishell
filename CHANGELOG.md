@@ -4,6 +4,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-06
+
+### Added
+- When a release binary replaces an earlier Cargo build, `apply` removes the
+  build's leftovers (the cloned source tree and this tool's entries in cargo's
+  install metadata) after verifying they are its own, and lists them in the
+  plan. A Cargo build already at the pinned tag is kept as the release binary
+  and only cleaned up. `doctor` notes another copy of the binary on `PATH`.
+- The `fallback-tags` workflow re-pins the SHA-256 of release assets together
+  with the tag.
+- `[[packages.fallback]]` accepts `type = "release"`: a pinned, SHA-256-verified
+  binary per OS and architecture (`[[packages.fallback.assets]]`), installed to
+  `<vendor>/bin`. It is listed before the `git` entry, so the order is system
+  package → release binary → source build. A host with no matching asset moves
+  on to the source build; a failed first download or a checksum mismatch
+  degrades the module.
+- `mise`, `starship` and `broot` install their upstream release binary on
+  Linux x86_64 and arm64 instead of building with Cargo (about 22 minutes for
+  `mise`). Their `requires` now apply only to the source build.
+
+### Changed
+- The first `apply` after upgrading moves `mise`, `starship` and `broot` to the
+  release binary where no package exists: a Cargo build at the pinned tag is
+  kept and only cleaned up, an older one is replaced by the download. A failed
+  update of a binary that already works keeps the module and its shell
+  integration and is retried on the next `apply`; only a first install that
+  fails degrades the module.
+- A `[[packages.fallback]]` table now needs a valid `type` (`git` or
+  `release`). A user module that left it out is reported as malformed and
+  skipped.
+
 ## [0.4.0] - 2026-10-06
 
 ### Changed
@@ -18,21 +49,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.3] - 2026-10-06
 
 ### Added
-- When a release binary replaces an earlier Cargo build, `apply` removes the
-  build's leftovers (the cloned source tree and this tool's entries in cargo's
-  install metadata) after verifying they are its own, and lists them in the
-  plan. A Cargo build already at the pinned tag is kept as the release binary
-  and only cleaned up. `doctor` notes another copy of the binary on `PATH`.
-- The `fallback-tags` workflow re-pins the SHA-256 of release assets together
-  with the tag.
-- `[[packages.fallback]]` accepts `type = "release"`: a pinned, SHA-256-verified
-  binary per OS and architecture (`[[packages.fallback.assets]]`), installed to
-  `<vendor>/bin`. It is listed before the `git` entry, so the order is system
-  package → release binary → source build. A host with no matching asset moves
-  on to the source build; a failed download or checksum degrades the module.
-- `mise`, `starship` and `broot` install their upstream release binary on
-  Linux x86_64 and arm64 instead of building with Cargo (about 22 minutes for
-  `mise`). Their `requires` now apply only to the source build.
 - `[[packages.fallback]]` accepts an optional `requires` list (`"cmake"`,
   `"cargo>=1.85"`). `omnishell apply` checks it before cloning and, when a tool
   is missing or too old, degrades the module with a message naming what is
@@ -206,7 +222,8 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/JtheGunner/omnishell/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/JtheGunner/omnishell/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/JtheGunner/omnishell/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/JtheGunner/omnishell/compare/v0.3.1...v0.3.2
