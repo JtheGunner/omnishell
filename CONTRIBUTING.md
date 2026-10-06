@@ -62,6 +62,8 @@ go run ./tools/update-fallback-tags --summary summary.md
 
 Before merging such a pull request, check that each module's `requires` still matches the toolchain the new tag needs; CI does not build the fallbacks.
 
+Modules with a `release` fallback also pin one `sha256` per asset. The updater re-pins them together with `ref`, taking the digests GitHub reports for the new release's assets; if any asset has no digest it leaves that module unchanged and says so in the pull request. Review the new checksums like any other pinned value. When adding a release fallback by hand, copy the digest from `gh api repos/<owner>/<repo>/releases/tags/<tag> --jq '.assets[] | "\(.digest) \(.name)"'`.
+
 Two optional repository settings:
 
 - **`FALLBACK_TAGS_TOKEN`** (secret): a fine-grained personal access token limited to this repository (contents and pull requests: read and write). Without it the pull request is created with the default token and `ci` does not run on it.

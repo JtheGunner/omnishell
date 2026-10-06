@@ -118,6 +118,18 @@ files matters more than any single file:
    local changes or is not a git clone (declined refs are recorded as
    `fallback_skipped_ref`). A failed update never degrades the module, and
    `--no-packages` keeps the recorded refs (`ModulePlan.PackagesPlanned`).
+   A fallback can instead be `type = "release"` (`release.go`): a pinned,
+   SHA-256-verified binary per `(os, arch)` asset, downloaded through the
+   injectable `Downloader` and renamed into `{{.VendorDir}}/bin`. `ComputePlan`
+   walks a module's fallbacks in order (`selectFallback`) and takes the first
+   usable one, so the order is system package → release → git; an unsupported
+   architecture reaches the git entry. A failed download or checksum degrades
+   the module and never falls through to the build. The lockfile records
+   `fallback_kind` (`git`/`release`; a ref without a kind counts as git) and
+   `fallback_sha256`, and a changed pin re-installs. A git build recorded at the
+   pinned ref is adopted (its binary stays) and its leftovers (`leftovers.go`:
+   source tree, this crate's `.crates.toml`/`.crates2.json` entries) are removed
+   only with filesystem evidence that they are ours; the plan lists them.
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 

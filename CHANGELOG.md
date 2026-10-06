@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- When a release binary replaces an earlier Cargo build, `apply` removes the
+  build's leftovers (the cloned source tree and this tool's entries in cargo's
+  install metadata) after verifying they are its own, and lists them in the
+  plan. A Cargo build already at the pinned tag is kept as the release binary
+  and only cleaned up. `doctor` notes another copy of the binary on `PATH`.
+- The `fallback-tags` workflow re-pins the SHA-256 of release assets together
+  with the tag.
 - `[[packages.fallback]]` accepts `type = "release"`: a pinned, SHA-256-verified
   binary per OS and architecture (`[[packages.fallback.assets]]`), installed to
   `<vendor>/bin`. It is listed before the `git` entry, so the order is system
