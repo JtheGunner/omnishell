@@ -115,6 +115,16 @@ func assetProblem(a Asset) string {
 	if _, err := a.RenderURL("v1.2.3"); err != nil {
 		return "invalid url template: " + err.Error()
 	}
+	// The host and the file-type suffix are what the checks above and Archive()
+	// read from the raw template, so they must be literal: a templated host or
+	// ending could render to something else than what was validated.
+	host, _, _ := strings.Cut(strings.TrimPrefix(a.URL, "https://"), "/")
+	switch {
+	case strings.Contains(host, "{{"):
+		return "url host must not be templated"
+	case strings.HasSuffix(a.URL, "}}"):
+		return "url must not end with a template action"
+	}
 	switch {
 	case a.Archive() == "" && a.Member != "":
 		return "member is only valid for .tar.gz and .zip assets"

@@ -189,15 +189,16 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 	manager, ok := pkgmgr.DetectManager(runtime.GOOS, runner)
 
 	e = engine.Engine{
-		Platform:  info,
-		Registry:  reg,
-		Manager:   manager,
-		ManagerOK: ok,
-		Runner:    runner,
-		Now:       time.Now,
-		Stdout:    stdout,
-		Stderr:    stderr,
-		Prompt:    promptFn,
+		Platform:   info,
+		Registry:   reg,
+		Manager:    manager,
+		ManagerOK:  ok,
+		Runner:     runner,
+		Downloader: pkgmgr.NewHTTPDownloader(),
+		Now:        time.Now,
+		Stdout:     stdout,
+		Stderr:     stderr,
+		Prompt:     promptFn,
 	}
 	return e, cfgPath, lockPath, nil
 }

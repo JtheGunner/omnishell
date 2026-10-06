@@ -106,6 +106,12 @@ func TestParseManifestRejectsInvalidRelease(t *testing.T) {
 		{"broken url template", func(s string) string { return strings.Replace(s, "{{.Ref}}", "{{.Ref", 1) }, "invalid url template"},
 		{"archive without member", func(s string) string { return strings.Replace(s, "member = \"tool/bin/tool\"\n", "", 1) }, "archive asset needs member"},
 		{"member on a raw asset", func(s string) string { return strings.Replace(s, "-linux-amd64.tar.gz", "-linux-amd64", 1) }, "member is only valid"},
+		{"templated host", func(s string) string {
+			return strings.Replace(s, "https://example.com/{{.Ref}}/", "https://{{.Ref}}.example.com/", 1)
+		}, "host must not be templated"},
+		{"templated file type", func(s string) string {
+			return strings.Replace(s, "tool-{{.Version}}-linux-amd64.tar.gz", "tool-{{.Ref}}", 1)
+		}, "must not end with a template action"},
 		{"duplicate asset", func(s string) string {
 			return s + "\n[[packages.fallback.assets]]\nos = \"linux\"\narch = \"amd64\"\nurl = \"https://example.com/b.tar.gz\"\nsha256 = \"" + sha + "\"\nmember = \"b\"\n"
 		}, "duplicate asset"},
