@@ -71,7 +71,7 @@ Behaviour: when a module's fallback has a `ref` and the existing clone was not b
 - **Apply.** In the clone: `git fetch --depth 1 origin <ref>`, `git checkout --detach FETCH_HEAD`, then the module's `run`. The hand-edit guard still runs first, and the update happens in the same position as a fresh fallback install.
 - **Safety.** If the clone has tracked local changes (`git status --porcelain --untracked-files=no`; untracked `target/` build output is ignored) it is left alone with a note and the module stays healthy on the old version. If fetch, checkout or build fails, the module degrades with the reason and the recorded ref is unchanged, so the next `apply` retries. A failed `cargo install` keeps the previously installed binary.
 - **No `ref`, no change.** A fallback without `ref` behaves as today (populated clone = satisfied).
-- **Doctor.** `doctor` reports a clone whose recorded ref differs from the manifest as pending work, not as drift.
+- **Doctor.** An outdated clone makes the module's plan action `update`, so `doctor` reports it through the existing `pending-apply` finding (the one drift code that `doctor --fix` repairs with a re-apply). The misleading `packages-missing` finding is replaced for this case by a `fallback-outdated` notice that names the recorded and the pinned ref.
 
 ## Testing
 
