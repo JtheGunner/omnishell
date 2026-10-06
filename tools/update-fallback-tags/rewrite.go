@@ -2,32 +2,74 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 )
 
-const fallbackHeader = "[[packages.fallback]]"
+const (
+	fallbackHeader = "[[packages.fallback]]"
+	assetsHeader   = "[[packages.fallback.assets]]"
+)
 
-// refLineRe matches a ref assignment. Group 1 is everything up to and including
-// the opening quote, group 2 the closing quote and any trailing text.
-var refLineRe = regexp.MustCompile(`(?m)^(ref\s*=\s*")[^"\n]*(".*)$`)
+// refLineRe matches a ref assignment. Groups: 1 up to and including the opening
+// quote, 2 the value, 3 the closing quote and any trailing text.
+var refLineRe = regexp.MustCompile(`^(ref\s*=\s*")([^"\n]*)(".*)$`)
 
-// rewriteRef sets the ref of the first [[packages.fallback]] table to newRef by
-// replacing only the value between the quotes, so comments and formatting are
-// preserved.
-func rewriteRef(manifest, newRef string) (string, error) {
-	start := strings.Index(manifest, fallbackHeader)
-	if start < 0 {
-		return "", errors.New("manifest has no [[packages.fallback]] table")
+// shaLineRe matches a sha256 assignment, with the same group layout.
+var shaLineRe = regexp.MustCompile(`^(sha256\s*=\s*")([^"\n]*)(".*)$`)
+
+// rewriteRefs sets the ref of every [[packages.fallback]] table whose ref is
+// oldRef to newRef, replacing only the value between the quotes so comments and
+// formatting survive. It fails when no table pins oldRef.
+func rewriteRefs(manifest, oldRef, newRef string) (string, error) {
+	lines := strings.Split(manifest, "\n")
+	inFallback, replaced := false, 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[") {
+			inFallback = trimmed == fallbackHeader
+			continue
+		}
+		if !inFallback {
+			continue
+		}
+		if m := refLineRe.FindStringSubmatch(line); m != nil && m[2] == oldRef {
+			lines[i] = m[1] + newRef + m[3]
+			replaced++
+		}
 	}
-	tail := manifest[start:]
-	loc := refLineRe.FindStringSubmatchIndex(tail)
-	if loc == nil {
-		return "", errors.New("fallback has no ref line")
+	if replaced == 0 {
+		return "", errors.New("no fallback pins ref " + oldRef)
 	}
-	// The ref must belong to the fallback table, not to a table after it.
-	if strings.Contains(tail[len(fallbackHeader):loc[0]], "\n[") {
-		return "", errors.New("fallback has no ref line")
+	return strings.Join(lines, "\n"), nil
+}
+
+// rewriteAssetSHAs replaces the sha256 of each [[packages.fallback.assets]]
+// table, in order, with shas. The number of checksums must equal the number of
+// asset tables.
+func rewriteAssetSHAs(manifest string, shas []string) (string, error) {
+	lines := strings.Split(manifest, "\n")
+	inAssets, n := false, 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[") {
+			inAssets = trimmed == assetsHeader
+			continue
+		}
+		if !inAssets {
+			continue
+		}
+		if m := shaLineRe.FindStringSubmatch(line); m != nil {
+			if n >= len(shas) {
+				return "", fmt.Errorf("manifest has more assets than the %d checksums given", len(shas))
+			}
+			lines[i] = m[1] + shas[n] + m[3]
+			n++
+		}
 	}
-	return manifest[:start] + tail[:loc[3]] + newRef + tail[loc[4]:], nil
+	if n != len(shas) {
+		return "", fmt.Errorf("manifest has %d asset checksums, %d were given", n, len(shas))
+	}
+	return strings.Join(lines, "\n"), nil
 }

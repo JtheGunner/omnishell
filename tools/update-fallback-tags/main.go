@@ -9,7 +9,8 @@ import (
 )
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout, execRunner{}); err != nil {
+	rel := newGitHubReleases(os.Getenv("GITHUB_TOKEN"))
+	if err := run(os.Args[1:], os.Stdout, execRunner{}, rel); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
@@ -23,7 +24,7 @@ func (execRunner) Run(name string, args ...string) ([]byte, error) {
 }
 
 // run is main without the process exit, so tests can drive it.
-func run(args []string, stdout io.Writer, r Runner) error {
+func run(args []string, stdout io.Writer, r Runner, rel Releases) error {
 	fs := flag.NewFlagSet("update-fallback-tags", flag.ContinueOnError)
 	dir := fs.String("dir", "modules/builtin", "directory holding the built-in module folders")
 	summaryPath := fs.String("summary", "", "write the pull request body to this file")
@@ -32,7 +33,7 @@ func run(args []string, stdout io.Writer, r Runner) error {
 		return err
 	}
 
-	res, err := Update(*dir, r)
+	res, err := Update(*dir, r, rel)
 	if err != nil {
 		return err
 	}

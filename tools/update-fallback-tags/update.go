@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -21,6 +22,8 @@ type Change struct {
 	Module   string
 	Repo     string
 	Old, New string
+	// Checksums is how many release asset checksums were re-pinned with the ref.
+	Checksums int
 }
 
 // Failure is a module whose upstream could not be checked or rewritten.
@@ -38,7 +41,7 @@ type Result struct {
 // Update bumps the fallback ref of every module under dir (one folder per
 // module, each holding manifest.toml) to the latest stable upstream tag. A
 // problem with one module is recorded and does not stop the others.
-func Update(dir string, r Runner) (Result, error) {
+func Update(dir string, r Runner, rel Releases) (Result, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return Result{}, fmt.Errorf("read %s: %w", dir, err)
@@ -49,7 +52,7 @@ func Update(dir string, r Runner) (Result, error) {
 			continue
 		}
 		id := entry.Name()
-		change, err := updateModule(filepath.Join(dir, id, "manifest.toml"), id, r)
+		change, err := updateModule(filepath.Join(dir, id, "manifest.toml"), id, r, rel)
 		switch {
 		case err != nil:
 			res.Failures = append(res.Failures, Failure{Module: id, Err: err})
@@ -61,7 +64,7 @@ func Update(dir string, r Runner) (Result, error) {
 }
 
 // updateModule returns a nil Change when the module needs no change.
-func updateModule(path, id string, r Runner) (*Change, error) {
+func updateModule(path, id string, r Runner, rel Releases) (*Change, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -85,7 +88,19 @@ func updateModule(path, id string, r Runner) (*Change, error) {
 	if !ok {
 		return nil, nil
 	}
-	updated, err := rewriteRef(string(raw), newRef)
+	updated := string(raw)
+	checksums := 0
+	if release, ok := releaseEntry(m); ok {
+		shas, err := releaseChecksums(release, newRef, rel)
+		if err != nil {
+			return nil, err
+		}
+		if updated, err = rewriteAssetSHAs(updated, shas); err != nil {
+			return nil, err
+		}
+		checksums = len(shas)
+	}
+	updated, err = rewriteRefs(updated, fb.Ref, newRef)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +111,44 @@ func updateModule(path, id string, r Runner) (*Change, error) {
 	if err := os.WriteFile(path, []byte(updated), info.Mode().Perm()); err != nil {
 		return nil, err
 	}
-	return &Change{Module: id, Repo: fb.Repo, Old: fb.Ref, New: newRef}, nil
+	return &Change{Module: id, Repo: fb.Repo, Old: fb.Ref, New: newRef, Checksums: checksums}, nil
+}
+
+// releaseEntry returns the module's release fallback, if it has one.
+func releaseEntry(m module.Manifest) (module.Fallback, bool) {
+	for _, fb := range m.Packages.Fallback {
+		if fb.Type == "release" {
+			return fb, true
+		}
+	}
+	return module.Fallback{}, false
+}
+
+// releaseChecksums returns the digest of every asset of the release entry at
+// newRef, in manifest order. It fails, so nothing is written, when any asset
+// has no digest.
+func releaseChecksums(fb module.Fallback, newRef string, rel Releases) ([]string, error) {
+	if rel == nil {
+		return nil, errors.New("module has a release fallback but no release client was given")
+	}
+	digests, err := rel.AssetDigests(fb.Repo, newRef)
+	if err != nil {
+		return nil, fmt.Errorf("release digests for %s %s: %w", fb.Repo, newRef, err)
+	}
+	shas := make([]string, len(fb.Assets))
+	for i, asset := range fb.Assets {
+		assetURL, err := asset.RenderURL(newRef)
+		if err != nil {
+			return nil, fmt.Errorf("render asset url: %w", err)
+		}
+		name := path.Base(assetURL)
+		sum, ok := digests[name]
+		if !ok {
+			return nil, fmt.Errorf("no sha256 digest for %s in %s %s", name, fb.Repo, newRef)
+		}
+		shas[i] = sum
+	}
+	return shas, nil
 }
 
 // parseTags extracts tag names from `git ls-remote --tags --refs` output.
@@ -149,10 +201,19 @@ func summary(res Result) string {
 	}
 	var b strings.Builder
 	if len(res.Changes) > 0 {
-		b.WriteString("Bumps the pinned `git` fallback tags of the built-in modules to the latest stable upstream release.\n\n")
+		b.WriteString("Bumps the pinned fallback tags of the built-in modules to the latest stable upstream release.\n\n")
 		b.WriteString("| Module | Old | New |\n| --- | --- | --- |\n")
 		for _, c := range res.Changes {
 			_, _ = fmt.Fprintf(&b, "| `%s` | `%s` | `%s` |\n", c.Module, c.Old, c.New)
+		}
+		var repinned []string
+		for _, c := range res.Changes {
+			if c.Checksums > 0 {
+				repinned = append(repinned, "`"+c.Module+"`")
+			}
+		}
+		if len(repinned) > 0 {
+			_, _ = fmt.Fprintf(&b, "\nRelease checksums were re-pinned from the per-asset digests GitHub reports for: %s. Review them like any other pinned value.\n", strings.Join(repinned, ", "))
 		}
 		b.WriteString("\n**Before merging:** check that each module's `requires` still matches the toolchain the new tag needs (for example the Rust `rust-version` in `Cargo.toml`). CI does not build the fallbacks.\n")
 	}
