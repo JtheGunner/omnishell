@@ -162,6 +162,11 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 		}
 		var missing []string
 		for _, pp := range mp.MissingPackages {
+			if pp.Adopt {
+				add(SeverityNotice, "fallback-adopt:"+id,
+					fmt.Sprintf("module %q: the existing build of %s %s will be kept as its release binary and its build leftovers removed (run apply)", id, pp.Name, pp.To))
+				continue
+			}
 			if pp.Update {
 				from := pp.From
 				if from == "" {
