@@ -38,6 +38,15 @@ url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-l
 sha256 = "0af3379b7a8060b047416576a746078daee3c9d2bf57fa8f6ba07d3cdf5f47aa"
 member = "mise/bin/mise"
 
+# mise ships no armv6 build.
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "arm"
+goarm  = "7"
+url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-armv7-musl.tar.gz"
+sha256 = "8448b5f0e1733944eaceef9e1588d33e88ed157b1edc13e1363fd7fd6fb01f56"
+member = "mise/bin/mise"
+
 [[packages.fallback]]
 type = "git"
 repo = "https://github.com/jdx/mise.git"

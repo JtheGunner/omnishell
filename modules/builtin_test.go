@@ -484,3 +484,34 @@ func TestBuiltinReleaseFallbacks(t *testing.T) {
 		}
 	}
 }
+
+// 32-bit ARM: starship ships one armv6-compatible binary, mise only armv7, and
+// broot nothing, so broot builds from source there.
+func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		id, goarm string
+		want      bool
+	}{
+		{"starship", "6", true},
+		{"starship", "7", true},
+		{"mise", "7", true},
+		{"mise", "6", false},
+		{"mise", "", false},
+		{"broot", "7", false},
+		{"broot", "6", false},
+	}
+	for _, c := range cases {
+		m, ok := reg.Get(c.id)
+		if !ok {
+			t.Fatalf("module %s missing", c.id)
+		}
+		_, got := m.Manifest.Packages.Fallback[0].AssetFor("linux", "arm", c.goarm)
+		if got != c.want {
+			t.Errorf("%s goarm=%q: release asset = %v, want %v", c.id, c.goarm, got, c.want)
+		}
+	}
+}
