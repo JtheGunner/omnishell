@@ -10,7 +10,8 @@ homepage    = "https://github.com/Canop/broot"
 version     = "1.0.0"
 schema      = 1
 
-# zypper / apk don't ship broot in the base repos → git + cargo fallback.
+# zypper / apk don't ship broot in the base repos, and older apt releases lack
+# it too → git + cargo fallback.
 [packages]
 brew   = ["broot"]
 apt    = ["broot"]

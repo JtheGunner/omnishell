@@ -26,7 +26,8 @@ options. Running `omnishell apply` then:
 
 1. installs any programs a module needs (via the detected system package
    manager — `brew`, `apt`, `dnf`, `pacman`, `zypper`, `apk` — with a `git`
-   clone fallback),
+   clone fallback when the manager has no package for the module or its
+   repositories cannot provide it),
 2. renders each module's shell snippet,
 3. writes everything into a single tool-managed init file per shell (`init.zsh` / `init.bash`), sourced from your `~/.zshrc` / `~/.bashrc` via
    one marker block,

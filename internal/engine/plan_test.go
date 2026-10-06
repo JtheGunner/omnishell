@@ -230,3 +230,66 @@ func TestComputePlanConflictingModules(t *testing.T) {
 		t.Fatalf("err = %v, want wrapped graph.ConflictError{conflictor, fzf}", err)
 	}
 }
+
+func TestComputePlanUsesFallbackWhenPackageUnavailable(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, Unavailable: map[string]bool{"fzf": true}}
+	e := testEngine(t, mgr)
+	cfg := config.Config{
+		Omnishell: config.OmnishellSection{Version: 1, Shells: []string{"bash"}},
+		Modules:   map[string]config.ModuleConfig{"fzf": {Enabled: true}},
+	}
+	p, err := engine.ComputePlan(e, cfg, lockfile.Lock{Modules: map[string]lockfile.ModuleState{}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mp := p.Modules["fzf"]
+	if !mp.UsesFallback {
+		t.Fatalf("UsesFallback = false, want true: %+v", mp)
+	}
+	if len(mp.MissingPackages) != 1 || mp.MissingPackages[0].Manager != "git" {
+		t.Fatalf("MissingPackages = %+v, want one git entry", mp.MissingPackages)
+	}
+	if len(mp.UnavailablePackages) != 1 || mp.UnavailablePackages[0] != "fzf" {
+		t.Fatalf("UnavailablePackages = %v, want [fzf]", mp.UnavailablePackages)
+	}
+	if len(mgr.InstallCalls) != 0 {
+		t.Fatalf("planning must not install: %+v", mgr.InstallCalls)
+	}
+}
+
+func TestComputePlanKeepsPackageWhenAvailable(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}}
+	e := testEngine(t, mgr)
+	cfg := config.Config{
+		Omnishell: config.OmnishellSection{Version: 1, Shells: []string{"bash"}},
+		Modules:   map[string]config.ModuleConfig{"fzf": {Enabled: true}},
+	}
+	p, err := engine.ComputePlan(e, cfg, lockfile.Lock{Modules: map[string]lockfile.ModuleState{}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mp := p.Modules["fzf"]
+	if mp.UsesFallback || len(mp.UnavailablePackages) != 0 {
+		t.Fatalf("available package must not select the fallback: %+v", mp)
+	}
+	if len(mp.MissingPackages) != 1 || mp.MissingPackages[0].Manager != "apt" {
+		t.Fatalf("MissingPackages = %+v, want one apt entry", mp.MissingPackages)
+	}
+}
+
+func TestComputePlanProbeErrorKeepsPackagePath(t *testing.T) {
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, AvailableErr: errors.New("probe failed")}
+	e := testEngine(t, mgr)
+	cfg := config.Config{
+		Omnishell: config.OmnishellSection{Version: 1, Shells: []string{"bash"}},
+		Modules:   map[string]config.ModuleConfig{"fzf": {Enabled: true}},
+	}
+	p, err := engine.ComputePlan(e, cfg, lockfile.Lock{Modules: map[string]lockfile.ModuleState{}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mp := p.Modules["fzf"]
+	if mp.UsesFallback || len(mp.MissingPackages) != 1 || mp.MissingPackages[0].Manager != "apt" {
+		t.Fatalf("unknown availability must keep the package path: %+v", mp)
+	}
+}

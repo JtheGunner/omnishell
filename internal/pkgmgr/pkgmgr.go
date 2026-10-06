@@ -43,6 +43,10 @@ type Manager interface {
 	Name() string
 	Detect() bool
 	IsInstalled(pkg string) (bool, error)
+	// Available reports whether the manager's repositories can provide pkg,
+	// using read-only commands. An error means availability is unknown (the
+	// probe itself failed); callers must not treat that as "unavailable".
+	Available(pkg string) (bool, error)
 	Install(pkgs []string) error
 	NeedsSudo() bool
 }

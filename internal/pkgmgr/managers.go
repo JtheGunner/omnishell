@@ -28,6 +28,7 @@ type cmdManager struct {
 	sudo        bool
 	runner      Runner
 	isInstalled func(r Runner, pkg string) (bool, error)
+	available   func(r Runner, pkg string) (bool, error)
 	installArgv func(pkgs []string) []string
 }
 
@@ -36,6 +37,8 @@ func (m cmdManager) NeedsSudo() bool { return m.sudo && !runningAsRoot }
 func (m cmdManager) Detect() bool    { _, err := m.runner.Look(m.bin); return err == nil }
 
 func (m cmdManager) IsInstalled(pkg string) (bool, error) { return m.isInstalled(m.runner, pkg) }
+
+func (m cmdManager) Available(pkg string) (bool, error) { return m.available(m.runner, pkg) }
 
 func (m cmdManager) Install(pkgs []string) error {
 	if len(pkgs) == 0 {
@@ -53,12 +56,36 @@ func exitZero(r Runner, name string, args ...string) (bool, error) {
 	return err == nil, nil
 }
 
+// queryExitsZero probes availability with a query command that exits non-zero
+// for a package the repositories do not know.
+func queryExitsZero(name string, args ...string) func(r Runner, pkg string) (bool, error) {
+	return func(r Runner, pkg string) (bool, error) {
+		return exitZero(r, name, append(args, "--", pkg)...)
+	}
+}
+
 func outputNonEmpty(r Runner, name string, args ...string) (bool, error) {
 	out, err := r.Run(name, args...)
 	if err != nil {
 		return false, nil
 	}
 	return strings.TrimSpace(string(out)) != "", nil
+}
+
+// aptAvailable reads the Candidate line of `apt-cache policy`. apt-cache exits
+// zero for a package it does not know (printing nothing on stdout), so absence
+// of a Candidate is the signal; a failing probe means availability is unknown.
+func aptAvailable(r Runner, pkg string) (bool, error) {
+	out, err := r.Run("apt-cache", "policy", "--", pkg)
+	if err != nil {
+		return false, fmt.Errorf("apt-cache policy %s: %w", pkg, err)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if cand, ok := strings.CutPrefix(strings.TrimSpace(line), "Candidate:"); ok {
+			return strings.TrimSpace(cand) != "(none)", nil
+		}
+	}
+	return false, nil
 }
 
 // UninstallArgv returns the argv (sudo-prefixed where the manager requires it
@@ -95,6 +122,7 @@ func newManager(name string, r Runner) Manager {
 			isInstalled: func(r Runner, pkg string) (bool, error) {
 				return outputNonEmpty(r, "brew", "list", "--versions", pkg)
 			},
+			available:   queryExitsZero("brew", "info"),
 			installArgv: func(p []string) []string { return append([]string{"brew", "install", "--"}, p...) },
 		}
 	case "apt":
@@ -107,6 +135,7 @@ func newManager(name string, r Runner) Manager {
 				}
 				return strings.Contains(string(out), "install ok installed"), nil
 			},
+			available: aptAvailable,
 			installArgv: func(p []string) []string {
 				return append(append(sudoPrefix(), "apt-get", "install", "-y", "--"), p...)
 			},
@@ -115,6 +144,7 @@ func newManager(name string, r Runner) Manager {
 		return cmdManager{
 			name: "dnf", bin: "dnf", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
+			available:   queryExitsZero("dnf", "-q", "info"),
 			installArgv: func(p []string) []string {
 				return append(append(sudoPrefix(), "dnf", "install", "-y", "--"), p...)
 			},
@@ -123,6 +153,7 @@ func newManager(name string, r Runner) Manager {
 		return cmdManager{
 			name: "pacman", bin: "pacman", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "pacman", "-Q", pkg) },
+			available:   queryExitsZero("pacman", "-Si"),
 			installArgv: func(p []string) []string {
 				return append(append(sudoPrefix(), "pacman", "-S", "--noconfirm", "--"), p...)
 			},
@@ -131,6 +162,7 @@ func newManager(name string, r Runner) Manager {
 		return cmdManager{
 			name: "zypper", bin: "zypper", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
+			available:   queryExitsZero("zypper", "-q", "info"),
 			installArgv: func(p []string) []string {
 				return append(append(sudoPrefix(), "zypper", "install", "-y", "--"), p...)
 			},
@@ -140,6 +172,9 @@ func newManager(name string, r Runner) Manager {
 			name: "apk", bin: "apk", sudo: true, runner: r,
 			isInstalled: func(r Runner, pkg string) (bool, error) {
 				return outputNonEmpty(r, "apk", "info", "-e", pkg)
+			},
+			available: func(r Runner, pkg string) (bool, error) {
+				return outputNonEmpty(r, "apk", "search", "-e", "--", pkg)
 			},
 			installArgv: func(p []string) []string {
 				return append(append(sudoPrefix(), "apk", "add", "--"), p...)

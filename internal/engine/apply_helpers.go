@@ -217,12 +217,23 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 				Platform:  string(e.Platform.OS),
 			}, e.Runner)
 			if err != nil {
-				degraded[id] = "fallback install failed: " + err.Error()
+				degraded[id] = fallbackFailure(e.Manager, mp, err)
 				continue
 			}
 			vendorPaths[id] = append(vendorPaths[id], dest)
 		}
 	}
+}
+
+// fallbackFailure words the degraded reason for a failed git fallback. When the
+// fallback was chosen because the manager could not provide the package, it
+// names both attempts.
+func fallbackFailure(mgr pkgmgr.Manager, mp ModulePlan, err error) string {
+	if len(mp.UnavailablePackages) == 0 || mgr == nil {
+		return "fallback install failed: " + err.Error()
+	}
+	return fmt.Sprintf("%s: %s unavailable; fallback install failed: %s",
+		mgr.Name(), strings.Join(mp.UnavailablePackages, ", "), err.Error())
 }
 
 func mark(m map[string]map[string]bool, id, key string) {

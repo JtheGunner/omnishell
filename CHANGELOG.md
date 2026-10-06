@@ -4,6 +4,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- A module whose package is listed for the active package manager but cannot
+  be provided by its repositories (for example `starship` or `broot` on Ubuntu
+  24.04's `apt`) now uses its `git` fallback instead of ending up degraded. If
+  the fallback fails too, the reason names both attempts; genuine install
+  errors such as network or `sudo` failures still surface as before.
+
 ## [0.3.2] - 2026-09-23
 
 ### Changed

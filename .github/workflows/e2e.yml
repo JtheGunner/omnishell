@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [debian:stable-slim, fedora:latest, archlinux:latest, alpine:latest]
+        image: [debian:stable-slim, ubuntu:24.04, fedora:latest, archlinux:latest, alpine:latest]
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     steps:
