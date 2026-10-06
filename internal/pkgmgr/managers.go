@@ -76,7 +76,8 @@ func outputNonEmpty(r Runner, name string, args ...string) (bool, error) {
 // zero for a package it does not know (printing nothing on stdout), so absence
 // of a Candidate is the signal; a failing probe means availability is unknown.
 func aptAvailable(r Runner, pkg string) (bool, error) {
-	out, err := r.Run("apt-cache", "policy", "--", pkg)
+	// apt-cache translates the "Candidate:" label, so force the C locale.
+	out, err := r.Run("env", "LC_ALL=C", "apt-cache", "policy", "--", pkg)
 	if err != nil {
 		return false, fmt.Errorf("apt-cache policy %s: %w", pkg, err)
 	}

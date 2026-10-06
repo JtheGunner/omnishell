@@ -172,7 +172,7 @@ func TestAvailableAptReadsCandidate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{
-				"apt-cache policy -- starship": {Out: []byte(tc.out)},
+				"env LC_ALL=C apt-cache policy -- starship": {Out: []byte(tc.out)},
 			}}
 			m := managerFor(t, "linux", "apt-get", r)
 			got, err := m.Available("starship")
@@ -185,7 +185,7 @@ func TestAvailableAptReadsCandidate(t *testing.T) {
 
 func TestAvailableAptProbeFailureIsUnknown(t *testing.T) {
 	r := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{
-		"apt-cache policy -- starship": {Err: errors.New("exec failed")},
+		"env LC_ALL=C apt-cache policy -- starship": {Err: errors.New("exec failed")},
 	}}
 	m := managerFor(t, "linux", "apt-get", r)
 	if _, err := m.Available("starship"); err == nil {
