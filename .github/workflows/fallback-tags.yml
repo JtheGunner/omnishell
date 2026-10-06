@@ -44,17 +44,7 @@ jobs:
           GH_TOKEN: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
           PR: ${{ steps.cpr.outputs.pull-request-number }}
           REPO: ${{ github.repository }}
-        run: |
-          set -eu
-          checks=$(gh api "repos/$REPO/branches/main" \
-            --jq '.protection.required_status_checks.checks | length' 2>/dev/null || echo 0)
-          if [ "$checks" -eq 0 ]; then
-            echo "::warning::Auto-merge not enabled: main has no required status checks."
-            echo "Auto-merge skipped: main has no required status checks." >> "$GITHUB_STEP_SUMMARY"
-            gh pr merge "$PR" --repo "$REPO" --disable-auto || true
-            exit 0
-          fi
-          gh pr merge "$PR" --repo "$REPO" --auto --squash
+        run: sh .github/scripts/enable-automerge.sh
       # Auto-merge stays on a pull request once enabled, and the PR branch is
       # reused across runs. If a later run no longer qualifies (a major bump, or
       # the variable was switched off), take it back instead of letting the new

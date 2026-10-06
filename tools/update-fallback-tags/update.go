@@ -114,8 +114,19 @@ func parseTags(out []byte) []string {
 	return tags
 }
 
-// sameMajor reports whether there is at least one change and every change keeps
-// its major version. Auto-merge is only requested in that case.
+// compatKey returns the leading components that must stay equal for a bump to
+// count as compatible: the major version, or major.minor while the major is 0,
+// where a minor bump is conventionally breaking.
+func compatKey(nums []int) []int {
+	if nums[0] == 0 && len(nums) > 1 {
+		return nums[:2]
+	}
+	return nums[:1]
+}
+
+// sameMajor reports whether there is at least one change and every change stays
+// within its compatibility line (see compatKey). Auto-merge is only requested
+// in that case.
 func sameMajor(changes []Change) bool {
 	if len(changes) == 0 {
 		return false
@@ -123,7 +134,7 @@ func sameMajor(changes []Change) bool {
 	for _, c := range changes {
 		oldV, okOld := parseTag(c.Old)
 		newV, okNew := parseTag(c.New)
-		if !okOld || !okNew || oldV.nums[0] != newV.nums[0] {
+		if !okOld || !okNew || compare(compatKey(oldV.nums), compatKey(newV.nums)) != 0 {
 			return false
 		}
 	}

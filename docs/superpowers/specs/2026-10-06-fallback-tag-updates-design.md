@@ -59,7 +59,8 @@ Design:
 
 - **Off by default.** The workflow enables auto-merge (`gh pr merge --auto --squash`) only when the repository variable `FALLBACK_TAGS_AUTOMERGE` is `true`.
 - **Fails closed.** Before enabling it the workflow reads the branch protection of `main` (`gh api repos/{repo}/branches/main/protection`). If `main` has no required status checks, or the call fails, it does not enable auto-merge and records why in the job summary.
-- **Same major only.** Auto-merge is requested only when every bump in the PR keeps its major version; a major bump is left for a human.
+- **Same major only.** Auto-merge is requested only when every bump in the PR stays within its compatibility line: the same major version, or the same minor version while the major is 0 (where a minor bump is conventionally breaking). Anything else is left for a human.
+- **Withdrawn when it no longer holds.** The PR branch is reused across runs and auto-merge persists on a PR once enabled, so a run that no longer qualifies (a major bump, the variable switched off, no required checks, or a guard that cannot read the protection state) turns auto-merge off again.
 - Prerequisites the owner has to set once: enable *Allow auto-merge*, protect `main` with required checks (`test`, `vuln`, `build`), set the variable. Documented in `CONTRIBUTING.md`.
 
 ## Part D: vendor clone refresh (phase 2)

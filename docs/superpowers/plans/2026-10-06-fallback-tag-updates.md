@@ -17,7 +17,7 @@
 - Candidate tags match `^v?\d+(\.\d+)+$` **and** use the same `v`-prefix style as the current `ref`; never select a tag lower than the current one; compare versions numerically.
 - Rewrite only the `ref = "…"` line of the first `[[packages.fallback]]` table by text substitution (no TOML re-marshal).
 - The tool exits 0 when nothing changes; it exits non-zero only when there are failures **and** no change.
-- Auto-merge is off unless the repository variable `FALLBACK_TAGS_AUTOMERGE` is `true`; the workflow fails closed when `main` has no required status checks, and only requests it when every bump keeps its major version.
+- Auto-merge is off unless the repository variable `FALLBACK_TAGS_AUTOMERGE` is `true`; the workflow fails closed when `main` has no required status checks, and only requests it when every bump stays within its compatibility line (same major, or same minor while the major is 0); a later run that no longer qualifies withdraws it.
 - Workflow token: `secrets.FALLBACK_TAGS_TOKEN || github.token`. PR branch `chore/update-fallback-tags`, title `chore: update pinned fallback tags`.
 - Lockfile field: `fallback_ref` (JSON, `omitempty`); an absent value means "unknown" and triggers one refresh.
 - `ComputePlan` must stay side-effect-free (no git probing of the clone). A clone with tracked local changes (`git status --porcelain --untracked-files=no`) is never touched; untracked build output such as `target/` is ignored.
@@ -1001,7 +1001,9 @@ jobs:
       - name: Open or update the pull request
         id: cpr
         if: steps.tags.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v8
+        # Pinned to a commit SHA because this step runs with write access (and
+        # possibly a personal access token); Dependabot keeps the SHA current.
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           # A PR created with the default GITHUB_TOKEN does not trigger other
           # workflows, so ci would not run on it. Set FALLBACK_TAGS_TOKEN to a
@@ -1022,17 +1024,23 @@ jobs:
           GH_TOKEN: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
           PR: ${{ steps.cpr.outputs.pull-request-number }}
           REPO: ${{ github.repository }}
-        run: |
-          set -eu
-          checks=$(gh api "repos/$REPO/branches/main" \
-            --jq '.protection.required_status_checks.checks | length' 2>/dev/null || echo 0)
-          if [ "$checks" -eq 0 ]; then
-            echo "::warning::Auto-merge not enabled: main has no required status checks."
-            echo "Auto-merge skipped: main has no required status checks." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          gh pr merge "$PR" --repo "$REPO" --auto --squash
+        run: sh .github/scripts/enable-automerge.sh
+      # Auto-merge stays on a pull request once enabled, and the PR branch is
+      # reused across runs. If a later run no longer qualifies (a major bump, or
+      # the variable was switched off), take it back instead of letting the new
+      # content merge on the old approval.
+      - name: Disable auto-merge when the guard no longer holds
+        if: >-
+          steps.cpr.outputs.pull-request-number != '' &&
+          (vars.FALLBACK_TAGS_AUTOMERGE != 'true' || steps.tags.outputs.same_major != 'true')
+        env:
+          GH_TOKEN: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+          REPO: ${{ github.repository }}
+        run: gh pr merge "$PR" --repo "$REPO" --disable-auto || true
 ```
+
+The auto-merge guard lives in `.github/scripts/enable-automerge.sh` and is covered by `tools/update-fallback-tags/guard_test.go` (fake `gh` on PATH; it must fail closed on an API error, an empty or non-numeric answer, and zero required checks). `sameMajor` uses a compatibility key (major, or major.minor while the major is 0).
 
 - [ ] **Step 2: Lint the workflow syntax**
 

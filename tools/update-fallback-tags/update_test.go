@@ -181,6 +181,9 @@ func TestSameMajor(t *testing.T) {
 		{"no changes", nil, false},
 		{"minor and patch bumps", []Change{{Old: "v1.25.0", New: "v1.26.0"}, {Old: "2.68.0", New: "2.69.0"}}, true},
 		{"one major bump", []Change{{Old: "v1.25.0", New: "v1.26.0"}, {Old: "v18.9.0", New: "v19.0.0"}}, false},
+		{"a 0.x minor bump counts as breaking", []Change{{Old: "v0.7.1", New: "v0.8.0"}}, false},
+		{"a 0.x patch bump is compatible", []Change{{Old: "v0.7.1", New: "v0.7.2"}}, true},
+		{"leaving 0.x counts as breaking", []Change{{Old: "0.9.0", New: "1.0.0"}}, false},
 	}
 	for _, tc := range cases {
 		if got := sameMajor(tc.changes); got != tc.want {
