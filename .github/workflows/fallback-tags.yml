@@ -1,0 +1,54 @@
+name: fallback-tags
+on:
+  schedule: [{ cron: '0 6 * * 1' }]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version-file: go.mod }
+      - name: Look up newer tags
+        id: tags
+        run: |
+          go run ./tools/update-fallback-tags \
+            --summary "$RUNNER_TEMP/summary.md" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Open or update the pull request
+        id: cpr
+        if: steps.tags.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          # A PR created with the default GITHUB_TOKEN does not trigger other
+          # workflows, so ci would not run on it. Set FALLBACK_TAGS_TOKEN to a
+          # personal access token to get CI on the PR.
+          token: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
+          branch: chore/update-fallback-tags
+          delete-branch: true
+          add-paths: modules/builtin
+          commit-message: 'chore: update pinned fallback tags'
+          title: 'chore: update pinned fallback tags'
+          body-path: ${{ runner.temp }}/summary.md
+      - name: Enable auto-merge when main requires status checks
+        if: >-
+          steps.cpr.outputs.pull-request-number != '' &&
+          vars.FALLBACK_TAGS_AUTOMERGE == 'true' &&
+          steps.tags.outputs.same_major == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          checks=$(gh api "repos/$REPO/branches/main" \
+            --jq '.protection.required_status_checks.checks | length' 2>/dev/null || echo 0)
+          if [ "$checks" -eq 0 ]; then
+            echo "::warning::Auto-merge not enabled: main has no required status checks."
+            echo "Auto-merge skipped: main has no required status checks." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh pr merge "$PR" --repo "$REPO" --auto --squash
