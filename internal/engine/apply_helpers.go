@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -172,7 +173,7 @@ func staleShells(lock lockfile.Lock, managed []string) []string {
 // installPackages walks plan.Order and satisfies MissingPackages, marking a
 // module degraded when a package cannot be installed.
 func (e Engine) installPackages(plan Plan, degraded map[string]string,
-	vendorPaths map[string][]string, installedNow map[string]map[string]bool) {
+	vendorPaths map[string][]string, fallbackRefs map[string]string, installedNow map[string]map[string]bool) {
 	for _, id := range plan.Order {
 		mp, ok := plan.Modules[id]
 		if !ok || mp.Action == ActionRemove || len(mp.MissingPackages) == 0 {
@@ -212,21 +213,48 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 		}
 
 		if fallback && mp.UsesFallback && len(mp.Manifest.Packages.Fallback) > 0 {
+			fb := mp.Manifest.Packages.Fallback[0]
+			ctx := pkgmgr.FallbackContext{VendorDir: e.vendorDir(), Platform: string(e.Platform.OS)}
+			if isFallbackUpdate(mp) {
+				_, _ = fmt.Fprintf(e.Stdout, "updating %s fallback to %s (rebuilding)\n", id, fb.Ref)
+				dest, err := pkgmgr.UpdateGitFallback(fb, ctx, e.Runner)
+				if errors.Is(err, pkgmgr.ErrCloneModified) {
+					_, _ = fmt.Fprintf(e.Stdout, "%s: fallback clone %s has local changes; keeping it as is\n", id, dest)
+					vendorPaths[id] = append(vendorPaths[id], dest)
+					continue
+				}
+				if err != nil {
+					degraded[id] = "fallback update failed: " + err.Error()
+					continue
+				}
+				vendorPaths[id] = append(vendorPaths[id], dest)
+				fallbackRefs[id] = fb.Ref
+				continue
+			}
 			// UnavailablePackages is only set when a manager was detected.
 			if len(mp.UnavailablePackages) > 0 {
 				_, _ = fmt.Fprintln(e.Stdout, fallbackNotice(e.Manager.Name(), mp))
 			}
-			dest, err := pkgmgr.InstallGitFallback(mp.Manifest.Packages.Fallback[0], pkgmgr.FallbackContext{
-				VendorDir: e.vendorDir(),
-				Platform:  string(e.Platform.OS),
-			}, e.Runner)
+			dest, err := pkgmgr.InstallGitFallback(fb, ctx, e.Runner)
 			if err != nil {
 				degraded[id] = fallbackFailure(e.Manager, mp, err)
 				continue
 			}
 			vendorPaths[id] = append(vendorPaths[id], dest)
+			fallbackRefs[id] = fb.Ref
 		}
 	}
+}
+
+// isFallbackUpdate reports whether the module's queued git fallback moves an
+// existing clone instead of creating one.
+func isFallbackUpdate(mp ModulePlan) bool {
+	for _, pp := range mp.MissingPackages {
+		if pp.Manager == "git" && pp.Update {
+			return true
+		}
+	}
+	return false
 }
 
 // fallbackNotice tells the user a git build replaces a distro package, naming
@@ -485,7 +513,7 @@ func (e Engine) ensureRC(shell, initPath string, bk *backup.Session, lock *lockf
 // modules dropped (only when they were really applied before), and every other
 // module upserted from the plan + install results.
 func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
-	degraded map[string]string, vendorPaths map[string][]string,
+	degraded map[string]string, vendorPaths map[string][]string, fallbackRefs map[string]string,
 	installedNow map[string]map[string]bool) lockfile.Lock {
 
 	nl := lockfile.Lock{
@@ -549,6 +577,14 @@ func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
 			vps = prevMod.VendorPaths
 		}
 
+		fallbackRef := prevMod.FallbackRef
+		if ref, ok := fallbackRefs[id]; ok {
+			fallbackRef = ref
+		}
+		if !mp.UsesFallback {
+			fallbackRef = ""
+		}
+
 		nl.Modules[id] = lockfile.ModuleState{
 			ModuleVersion:  mp.Manifest.Module.Version,
 			Enabled:        true,
@@ -556,6 +592,7 @@ func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
 			ShellsRendered: shellsRendered,
 			Packages:       mergePackages(mp, plan, prevMod, installedNow[id]),
 			VendorPaths:    vps,
+			FallbackRef:    fallbackRef,
 			Status:         status,
 		}
 	}
