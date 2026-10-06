@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- 32-bit ARM Linux (armv6 and armv7): release builds, `install.sh` support, and
+  release-binary installs for `starship` (armv6 and armv7) and `mise` (armv7).
+  `broot` still builds from source there. Release assets accept an optional
+  `goarm` key to tell the variants apart.
 - `install.sh` honours `OMNISHELL_VERSION` to install a specific release.
 
 ### Fixed

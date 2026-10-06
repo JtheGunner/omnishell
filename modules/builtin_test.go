@@ -475,12 +475,43 @@ func TestBuiltinReleaseFallbacks(t *testing.T) {
 			continue
 		}
 		for _, arch := range []string{"amd64", "arm64"} {
-			if _, ok := fbs[0].AssetFor("linux", arch); !ok {
+			if _, ok := fbs[0].AssetFor("linux", arch, ""); !ok {
 				t.Errorf("module %s: release fallback has no linux/%s asset", id, arch)
 			}
 		}
 		if fbs[0].Ref != fbs[1].Ref {
 			t.Errorf("module %s: release ref %s and git ref %s must pin the same tag", id, fbs[0].Ref, fbs[1].Ref)
+		}
+	}
+}
+
+// 32-bit ARM: starship ships one armv6-compatible binary, mise only armv7, and
+// broot nothing, so broot builds from source there.
+func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		id, goarm string
+		want      bool
+	}{
+		{"starship", "6", true},
+		{"starship", "7", true},
+		{"mise", "7", true},
+		{"mise", "6", false},
+		{"mise", "", false},
+		{"broot", "7", false},
+		{"broot", "6", false},
+	}
+	for _, c := range cases {
+		m, ok := reg.Get(c.id)
+		if !ok {
+			t.Fatalf("module %s missing", c.id)
+		}
+		_, got := m.Manifest.Packages.Fallback[0].AssetFor("linux", "arm", c.goarm)
+		if got != c.want {
+			t.Errorf("%s goarm=%q: release asset = %v, want %v", c.id, c.goarm, got, c.want)
 		}
 	}
 }

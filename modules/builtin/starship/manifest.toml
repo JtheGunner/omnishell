@@ -40,6 +40,14 @@ url    = "https://github.com/starship/starship/releases/download/{{.Ref}}/starsh
 sha256 = "dc30189378d2f2e287384e8a692d3f95ad1df64cf0e8c36aa9201516028aed6b"
 member = "starship"
 
+# One armv6-compatible hard-float build serves every 32-bit ARM variant.
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "arm"
+url    = "https://github.com/starship/starship/releases/download/{{.Ref}}/starship-arm-unknown-linux-musleabihf.tar.gz"
+sha256 = "c7bd93b1cfb87dd4e531d100b4f87cb77eee9eb2982d9428940bc006db4ab689"
+member = "starship"
+
 [[packages.fallback]]
 type = "git"
 repo = "https://github.com/starship/starship.git"

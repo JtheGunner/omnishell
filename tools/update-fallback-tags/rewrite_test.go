@@ -93,3 +93,37 @@ func TestRewriteAssetSHAsFailsOnACountMismatch(t *testing.T) {
 		t.Fatal("want an error when the number of checksums differs from the number of assets")
 	}
 }
+
+func TestRewriteAssetSHAsKeepsGoARMAssetsInOrder(t *testing.T) {
+	manifest := `[[packages.fallback]]
+type = "release"
+ref  = "v1"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "amd64"
+sha256 = "` + strings.Repeat("a", 64) + `"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "arm"
+goarm  = "7"
+sha256 = "` + strings.Repeat("b", 64) + `"
+`
+	got, err := rewriteAssetSHAs(manifest, []string{strings.Repeat("1", 64), strings.Repeat("2", 64)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`sha256 = "` + strings.Repeat("1", 64) + `"`,
+		`goarm  = "7"`,
+		`sha256 = "` + strings.Repeat("2", 64) + `"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("rewritten manifest lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, strings.Repeat("a", 64)) || strings.Contains(got, strings.Repeat("b", 64)) {
+		t.Errorf("old checksums survived:\n%s", got)
+	}
+}

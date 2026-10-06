@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
+	"strings"
 )
 
 // OS is a normalized operating-system name.
@@ -27,8 +29,11 @@ type ShellInfo struct {
 
 // Info is the full host description omnishell needs.
 type Info struct {
-	OS        OS
-	Arch      string
+	OS   OS
+	Arch string
+	// GoARM is the 32-bit ARM variant ("6" or "7") the running binary was built
+	// for. It is empty off 32-bit ARM and when the build did not record one.
+	GoARM     string
 	HomeDir   string
 	ConfigDir string
 	Shells    []ShellInfo
@@ -36,10 +41,41 @@ type Info struct {
 
 // Env holds the runtime/environment dependencies of detection, injectable for tests.
 type Env struct {
-	GOOS     string
-	GOARCH   string
+	GOOS   string
+	GOARCH string
+	// GoARM is the raw GOARM build setting of the running binary (for example
+	// "7" or "7,softfloat"); see GoARMFromBuild.
+	GoARM    string
 	Getenv   func(string) string
 	LookPath func(string) (string, error)
+}
+
+// GoARMFromBuild returns the GOARM setting the running binary was built with,
+// or "" when the build info does not record one.
+func GoARMFromBuild() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	for _, s := range bi.Settings {
+		if s.Key == "GOARM" {
+			return s.Value
+		}
+	}
+	return ""
+}
+
+// goARMVariant normalizes a raw GOARM setting to "6" or "7": the leading digit,
+// ignoring a float-ABI suffix such as ",softfloat". Other values are unknown.
+func goARMVariant(arch, raw string) string {
+	if arch != "arm" {
+		return ""
+	}
+	variant, _, _ := strings.Cut(raw, ",")
+	if variant == "6" || variant == "7" {
+		return variant
+	}
+	return ""
 }
 
 // Detect inspects the real host.
@@ -47,6 +83,7 @@ func Detect() (Info, error) {
 	return DetectWith(Env{
 		GOOS:     runtime.GOOS,
 		GOARCH:   runtime.GOARCH,
+		GoARM:    GoARMFromBuild(),
 		Getenv:   os.Getenv,
 		LookPath: exec.LookPath,
 	})
@@ -82,6 +119,7 @@ func DetectWith(env Env) (Info, error) {
 	return Info{
 		OS:        osName,
 		Arch:      env.GOARCH,
+		GoARM:     goARMVariant(env.GOARCH, env.GoARM),
 		HomeDir:   home,
 		ConfigDir: ConfigDirFor(env.Getenv, home),
 		Shells:    shells,

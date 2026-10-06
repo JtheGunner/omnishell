@@ -16,7 +16,13 @@ arch="$(uname -m)"
 case "$arch" in
   x86_64|amd64) arch=amd64 ;;
   arm64|aarch64) arch=arm64 ;;
+  armv6l) arch=armv6 ;;
+  # armv8l is a 32-bit userland on a 64-bit CPU; armv7 binaries run on it.
+  armv7l|armv8l) arch=armv7 ;;
   *) echo "unsupported arch: $arch" >&2; exit 1 ;;
+esac
+case "$arch" in
+  armv6|armv7) [ "$os" = linux ] || { echo "unsupported OS for $arch: $os" >&2; exit 1; } ;;
 esac
 
 # Resolve the tag from the redirect of github.com/<repo>/releases/latest rather

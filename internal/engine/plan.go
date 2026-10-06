@@ -338,7 +338,7 @@ const (
 func selectFallback(fbs []module.Fallback, info platform.Info) (module.Fallback, bool) {
 	for _, fb := range fbs {
 		if fb.Type == "release" {
-			if _, ok := fb.AssetFor(string(info.OS), info.Arch); !ok {
+			if _, ok := fb.AssetFor(string(info.OS), info.Arch, info.GoARM); !ok {
 				continue
 			}
 		}
@@ -348,7 +348,7 @@ func selectFallback(fbs []module.Fallback, info platform.Info) (module.Fallback,
 }
 
 func (e Engine) releaseContext() pkgmgr.ReleaseContext {
-	return pkgmgr.ReleaseContext{VendorDir: e.vendorDir(), OS: string(e.Platform.OS), Arch: e.Platform.Arch}
+	return pkgmgr.ReleaseContext{VendorDir: e.vendorDir(), OS: string(e.Platform.OS), Arch: e.Platform.Arch, GoARM: e.Platform.GoARM}
 }
 
 // planFallback selects the module's fallback. A git fallback with a missing
@@ -391,7 +391,7 @@ func recordedChecksumHolds(fb module.Fallback, e Engine, prev lockfile.ModuleSta
 	if prev.FallbackSHA256 == "" {
 		return true
 	}
-	asset, ok := fb.AssetFor(string(e.Platform.OS), e.Platform.Arch)
+	asset, ok := fb.AssetFor(string(e.Platform.OS), e.Platform.Arch, e.Platform.GoARM)
 	return ok && asset.SHA256 == prev.FallbackSHA256
 }
 

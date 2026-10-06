@@ -41,6 +41,14 @@ fi
 cp "$STUB_FIXTURES/$(basename "$url")" "$out"
 `
 
+// stubUname reports STUB_UNAME_M / STUB_UNAME_S for `uname -m` / `uname -s` and
+// defers to the real uname otherwise, so a test can pretend to be another machine.
+const stubUname = `#!/bin/sh
+if [ "$1" = "-m" ] && [ -n "${STUB_UNAME_M:-}" ]; then echo "$STUB_UNAME_M"; exit 0; fi
+if [ "$1" = "-s" ] && [ -n "${STUB_UNAME_S:-}" ]; then echo "$STUB_UNAME_S"; exit 0; fi
+exec /usr/bin/uname "$@"
+`
+
 type fixture struct {
 	binDir     string
 	home       string
@@ -75,6 +83,10 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatal(err)
 	}
 
+	if err := os.WriteFile(filepath.Join(f.binDir, "uname"), []byte(stubUname), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
 	archive := buildTarball(t)
 	if err := os.WriteFile(filepath.Join(f.fixtures, f.tarball), archive, 0o644); err != nil {
 		t.Fatal(err)
@@ -84,6 +96,25 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatal(err)
 	}
 	return f
+}
+
+// addArchive makes the stub server answer for another archive name, with its
+// checksum appended to checksums.txt.
+func (f *fixture) addArchive(t *testing.T, name string) {
+	t.Helper()
+	archive := buildTarball(t)
+	if err := os.WriteFile(filepath.Join(f.fixtures, name), archive, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	line := fmt.Sprintf("%x  %s\n", sha256.Sum256(archive), name)
+	sums := filepath.Join(f.fixtures, "checksums.txt")
+	existing, err := os.ReadFile(sums)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sums, append(existing, line...), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func buildTarball(t *testing.T) []byte {
@@ -238,4 +269,48 @@ func contains(list []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestInstall_MapsMachineToArchive(t *testing.T) {
+	cases := map[string]string{
+		"armv6l":  "omnishell_linux_armv6.tar.gz",
+		"armv7l":  "omnishell_linux_armv7.tar.gz",
+		"armv8l":  "omnishell_linux_armv7.tar.gz",
+		"x86_64":  "omnishell_linux_amd64.tar.gz",
+		"aarch64": "omnishell_linux_arm64.tar.gz",
+	}
+	for machine, archive := range cases {
+		t.Run(machine, func(t *testing.T) {
+			f := newFixture(t)
+			f.addArchive(t, archive)
+			out, urls, err := f.run(t, "OMNISHELL_VERSION=v9.9.9", "STUB_UNAME_S=Linux", "STUB_UNAME_M="+machine)
+			if err != nil {
+				t.Fatalf("install.sh failed: %v\n%s", err, out)
+			}
+			want := "https://github.com/JtheGunner/omnishell/releases/download/v9.9.9/" + archive
+			if !contains(urls, want) {
+				t.Fatalf("no request for %s; requested %v", want, urls)
+			}
+		})
+	}
+}
+
+func TestInstall_RefusesUnsupportedMachines(t *testing.T) {
+	for _, machine := range []string{"armv5tel", "armv7", "arm", "mips"} {
+		t.Run(machine, func(t *testing.T) {
+			f := newFixture(t)
+			out, _, err := f.run(t, "OMNISHELL_VERSION=v9.9.9", "STUB_UNAME_S=Linux", "STUB_UNAME_M="+machine)
+			if err == nil || !strings.Contains(out, "unsupported arch: "+machine) {
+				t.Fatalf("err = %v, output = %q, want an unsupported-arch failure", err, out)
+			}
+		})
+	}
+}
+
+func TestInstall_RefusesArm32OnMacOS(t *testing.T) {
+	f := newFixture(t)
+	out, _, err := f.run(t, "OMNISHELL_VERSION=v9.9.9", "STUB_UNAME_S=Darwin", "STUB_UNAME_M=armv7l")
+	if err == nil || !strings.Contains(out, "unsupported OS for armv7") {
+		t.Fatalf("err = %v, output = %q, want an unsupported-OS failure", err, out)
+	}
 }

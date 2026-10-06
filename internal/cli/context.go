@@ -160,6 +160,7 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 	env := platform.Env{
 		GOOS:     runtime.GOOS,
 		GOARCH:   runtime.GOARCH,
+		GoARM:    platform.GoARMFromBuild(),
 		Getenv:   os.Getenv,
 		LookPath: lookPath,
 	}

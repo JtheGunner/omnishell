@@ -26,6 +26,8 @@ type ReleaseContext struct {
 	VendorDir string
 	OS        string
 	Arch      string
+	// GoARM is the 32-bit ARM variant of the host, or empty.
+	GoARM string
 }
 
 // BinPath is where a release fallback's binary is installed.
@@ -57,7 +59,7 @@ func InstallRelease(fb module.Fallback, ctx ReleaseContext, d Downloader) (Relea
 	if d == nil {
 		return ReleaseInstall{}, errors.New("no downloader configured")
 	}
-	asset, ok := fb.AssetFor(ctx.OS, ctx.Arch)
+	asset, ok := fb.AssetFor(ctx.OS, ctx.Arch, ctx.GoARM)
 	if !ok {
 		return ReleaseInstall{}, fmt.Errorf("no release asset for %s/%s", ctx.OS, ctx.Arch)
 	}
