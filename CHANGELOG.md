@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `[[packages.fallback]]` accepts an optional `requires` list (`"cmake"`,
+  `"cargo>=1.85"`). `omnishell apply` checks it before cloning and, when a tool
+  is missing or too old, degrades the module with a message naming what is
+  missing instead of failing minutes later with a raw build error. The built-in
+  cargo and cmake fallbacks declare their prerequisites, which the README lists
+  per module.
 - `[[packages.fallback]]` accepts an optional `ref` (tag or branch) that the
   `git` clone checks out. Without it the default branch is cloned, as before.
 - `apply` announces when a `git` build replaces a distro package that the

@@ -181,6 +181,31 @@ copy is backed up. Only `apply`, `remove`, and `uninstall` change your system (a
 loads after `completion`/`fzf` and before both of those. `tmux`, when enabled,
 loads before the prompt modules (`starship`, `omnishell-prompt`).
 
+### 🔨 Build prerequisites for the `git` fallback
+
+When no package is available, some modules are built from source. Before
+cloning anything, `omnishell apply` checks that the required tools are present
+(`<tool> --version`) and, if a minimum applies, recent enough. If something is
+missing, the module is reported as degraded with a message such as
+`fallback prerequisites missing: cargo >= 1.95 (found 1.75.0); cmake (not found)`.
+omnishell does not install build tools — install them yourself and re-run
+`omnishell apply`.
+
+| 🧱 | Module         | Needs                  |
+|----|----------------|------------------------|
+| 🦀 | `mise`         | `cargo` ≥ 1.95, `cmake` |
+| 🦀 | `starship`     | `cargo` ≥ 1.95         |
+| 🦀 | `atuin`        | `cargo` ≥ 1.95         |
+| 🦀 | `broot`        | `cargo` ≥ 1.85         |
+| 🦀 | `pay-respects` | `cargo` ≥ 1.85         |
+| ⚙️ | `welcome`      | `cmake`                |
+
+> [!TIP]
+> Distribution `cargo` packages are often too old. Install a current Rust
+> toolchain with [rustup](https://rustup.rs), and `cmake` from your package
+> manager. The versions above are the minimums the upstream projects declare
+> and can change with new releases.
+
 ---
 
 ## ✍️ Writing your own module

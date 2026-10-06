@@ -24,6 +24,7 @@ repo = "https://github.com/Canop/broot.git"
 dest = "{{.VendorDir}}/broot"
 ref  = "v1.61.0"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/broot", "--root", "{{.VendorDir}}"]
+requires = ["cargo>=1.85"]
 
 [options.cmd]
 type    = "string"

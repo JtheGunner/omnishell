@@ -24,6 +24,7 @@ repo = "https://github.com/fastfetch-cli/fastfetch.git"
 dest = "{{.VendorDir}}/fastfetch"
 ref  = "2.69.0"
 run  = ["sh", "-c", "cmake -B {{.VendorDir}}/fastfetch/build -S {{.VendorDir}}/fastfetch && cmake --build {{.VendorDir}}/fastfetch/build -j"]
+requires = ["cmake"]
 
 [options.only_ssh]
 type    = "bool"

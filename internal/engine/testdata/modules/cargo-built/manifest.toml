@@ -1,0 +1,18 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "cargo-built"
+name        = "Cargo Built"
+description = "Fixture: a module whose only install path is a cargo build"
+version     = "1.0.0"
+schema      = 1
+
+[[packages.fallback]]
+type     = "git"
+repo     = "https://example.com/cargo-built.git"
+dest     = "{{.VendorDir}}/cargo-built"
+run      = ["cargo", "install", "--path", "{{.VendorDir}}/cargo-built"]
+requires = ["cargo>=1.85", "cmake"]

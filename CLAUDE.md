@@ -107,9 +107,11 @@ files matters more than any single file:
    when a module has no package for the detected manager, none was found, or
    `Manager.Available` reports the repositories cannot provide the package
    (`ComputePlan` probes only when the module has a fallback; a failed probe
-   means "unknown" and keeps the package path). A fallback's optional `ref`
-   pins the clone to a tag or branch; every built-in fallback must set one
-   (`modules/builtin_test.go` enforces it).
+   means "unknown" and keeps the package path).
+   A fallback's `requires` (`"cargo>=1.85"`, `"cmake"`) is probed via the
+   `Runner` inside `InstallGitFallback`, before the clone — never in `ComputePlan`.
+   A fallback's optional `ref` pins the clone to a tag or branch; every
+   built-in fallback must set one (`modules/builtin_test.go` enforces it).
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 
