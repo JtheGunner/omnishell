@@ -31,10 +31,14 @@ type ModuleMeta struct {
 // Fallback is one [[packages.fallback]] entry. Run is an argv array (each
 // element is rendered as a template) so a VendorDir containing spaces does not
 // break the command.
+//
+// Ref optionally pins the clone to a tag or branch; empty clones the
+// repository's default branch.
 type Fallback struct {
 	Type string   `toml:"type"`
 	Repo string   `toml:"repo"`
 	Dest string   `toml:"dest"`
+	Ref  string   `toml:"ref"`
 	Run  []string `toml:"run"`
 }
 
@@ -135,6 +139,10 @@ func ParseManifest(data []byte) (Manifest, error) {
 	return m, nil
 }
 
+// fallbackRefRe keeps a ref from being read as a git option or shell syntax: it
+// must start with an alphanumeric character.
+var fallbackRefRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
+
 var validOptionTypes = map[string]bool{
 	"bool": true, "string": true, "int": true,
 	"enum": true, "list<string>": true, "list<enum>": true,
@@ -185,6 +193,11 @@ func ValidateManifest(m Manifest) error {
 		}
 		if requireSet[c] {
 			return e("conflicts", "id "+c+" is in both requires and conflicts")
+		}
+	}
+	for _, fb := range m.Packages.Fallback {
+		if fb.Ref != "" && !fallbackRefRe.MatchString(fb.Ref) {
+			return e("packages.fallback.ref", "must match "+fallbackRefRe.String()+": "+fb.Ref)
 		}
 	}
 	for key, opt := range m.Options {

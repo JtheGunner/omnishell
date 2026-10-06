@@ -440,3 +440,19 @@ func TestModernAliases(t *testing.T) {
 	assertGolden(t, "modern-aliases", "bash", renderModule(t, "modern-aliases", "bash", full))
 	assertGoldenNamed(t, "modern-aliases", "zsh-subset", renderModule(t, "modern-aliases", "zsh", subset))
 }
+
+// Every built-in git fallback must pin a ref so a fallback build is
+// reproducible; an unpinned clone would build whatever the default branch holds.
+func TestBuiltinFallbacksArePinned(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range reg.All() {
+		for _, fb := range m.Manifest.Packages.Fallback {
+			if fb.Ref == "" {
+				t.Errorf("module %s: git fallback %s has no ref", m.Manifest.Module.ID, fb.Repo)
+			}
+		}
+	}
+}

@@ -82,3 +82,27 @@ func TestInitOrRCDrift(t *testing.T) {
 		t.Fatal("expected drift when init hash differs from lock")
 	}
 }
+
+func TestFallbackNotice(t *testing.T) {
+	mk := func(ref string, unavailable ...string) ModulePlan {
+		return ModulePlan{
+			Manifest:            module.Manifest{Packages: module.Packages{Fallback: []module.Fallback{{Type: "git", Ref: ref}}}},
+			UnavailablePackages: unavailable,
+		}
+	}
+	cases := []struct {
+		name string
+		mp   ModulePlan
+		want string
+	}{
+		{"pinned", mk("v1.26.0", "starship"), "starship: not available via apt, building from git (ref v1.26.0)"},
+		{"unpinned", mk("", "starship"), "starship: not available via apt, building from git (unpinned)"},
+		{"several packages", mk("v1", "a", "b"), "a, b: not available via apt, building from git (ref v1)"},
+		{"no package was replaced", mk("v1"), ""},
+	}
+	for _, tc := range cases {
+		if got := fallbackNotice("apt", tc.mp); got != tc.want {
+			t.Errorf("%s: fallbackNotice = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

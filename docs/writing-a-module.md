@@ -78,6 +78,11 @@ apk    = ["direnv"]
 type = "git"                                    # only "git" in v1
 repo = "https://github.com/direnv/direnv.git"   # clone source
 dest = "{{.VendorDir}}/direnv"                  # clone target (templated)
+ref  = "v2.37.1"                                # optional tag or branch to clone;
+                                                #   built-in modules always pin a
+                                                #   release tag. Without it the
+                                                #   default branch is cloned and
+                                                #   apply says "(unpinned)".
 run  = "make -C {{.VendorDir}}/direnv install"  # optional build/install command
 
 # ─── option schema: allowed keys, types, defaults, validation ───

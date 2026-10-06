@@ -18,6 +18,7 @@ brew = ["pay-respects"]
 type = "git"
 repo = "https://github.com/iffse/pay-respects.git"
 dest = "{{.VendorDir}}/pay-respects"
+ref  = "v0.8.8"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/pay-respects", "--root", "{{.VendorDir}}"]
 
 [options.alias]

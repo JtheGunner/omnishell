@@ -624,14 +624,14 @@ func TestApplyFallsBackWhenPackageUnavailable(t *testing.T) {
 	if len(mgr.InstallCalls) != 0 {
 		t.Fatalf("unavailable package must not be installed: %+v", mgr.InstallCalls)
 	}
-	if len(runner.Calls) == 0 || !strings.HasPrefix(runner.Calls[0], "git clone") {
+	if len(runner.Calls) == 0 || !strings.Contains(runner.Calls[0], " clone ") {
 		t.Fatalf("fallback not attempted; runner calls = %v", runner.Calls)
 	}
 }
 
 func TestApplyNamesBothAttemptsWhenFallbackFails(t *testing.T) {
 	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, Unavailable: map[string]bool{"fzf": true}}
-	runner := &prefixFailRunner{prefix: "git clone", err: errors.New("network unreachable")}
+	runner := &substrFailRunner{substr: " clone ", err: errors.New("network unreachable")}
 	res, err := applyFzf(t, mgr, runner)
 	if !errors.Is(err, engine.ErrDegraded) {
 		t.Fatalf("err = %v, want ErrDegraded", err)
@@ -663,19 +663,39 @@ func TestApplyKeepsRealInstallErrorWithoutFallback(t *testing.T) {
 	}
 }
 
-// prefixFailRunner fails every command whose argv starts with prefix and
+// substrFailRunner fails every command whose argv contains substr and
 // succeeds for the rest. The clone destination depends on the sandbox HOME, so
 // an exact-argv MockRunner response cannot target it.
-type prefixFailRunner struct {
-	prefix string
+type substrFailRunner struct {
+	substr string
 	err    error
 }
 
-func (r *prefixFailRunner) Run(name string, args ...string) ([]byte, error) {
-	if strings.HasPrefix(strings.TrimSpace(name+" "+strings.Join(args, " ")), r.prefix) {
+func (r *substrFailRunner) Run(name string, args ...string) ([]byte, error) {
+	if strings.Contains(name+" "+strings.Join(args, " ")+" ", r.substr) {
 		return nil, r.err
 	}
 	return nil, nil
 }
 
-func (r *prefixFailRunner) Look(string) (string, error) { return "", errors.New("not found") }
+func (r *substrFailRunner) Look(string) (string, error) { return "", errors.New("not found") }
+
+func TestApplyAnnouncesFallbackReplacingPackage(t *testing.T) {
+	home := t.TempDir()
+	var out bytes.Buffer
+	mgr := &pkgmgr.MockManager{NameV: "apt", DetectV: true, Installed: map[string]bool{}, Unavailable: map[string]bool{"fzf": true}}
+	e := applyEngine(t, home, mgr, &out)
+	cfgPath := filepath.Join(home, ".config", "omnishell", "config.toml")
+	lockPath := filepath.Join(home, ".config", "omnishell", "state.lock.json")
+	writeConfig(t, cfgPath, "[omnishell]\nversion=1\nshells=[\"bash\"]\n[modules.fzf]\nenabled=true\n")
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Apply(cfg, cfgPath, lockPath, engine.ApplyOptions{Yes: true}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if want := "fzf: not available via apt, building from git (ref v0.1.0)"; !strings.Contains(out.String(), want) {
+		t.Fatalf("output lacks %q:\n%s", want, out.String())
+	}
+}

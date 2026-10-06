@@ -212,6 +212,10 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 		}
 
 		if fallback && mp.UsesFallback && len(mp.Manifest.Packages.Fallback) > 0 {
+			// UnavailablePackages is only set when a manager was detected.
+			if len(mp.UnavailablePackages) > 0 {
+				_, _ = fmt.Fprintln(e.Stdout, fallbackNotice(e.Manager.Name(), mp))
+			}
 			dest, err := pkgmgr.InstallGitFallback(mp.Manifest.Packages.Fallback[0], pkgmgr.FallbackContext{
 				VendorDir: e.vendorDir(),
 				Platform:  string(e.Platform.OS),
@@ -223,6 +227,21 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 			vendorPaths[id] = append(vendorPaths[id], dest)
 		}
 	}
+}
+
+// fallbackNotice tells the user a git build replaces a distro package, naming
+// the pinned ref or that the build is unpinned. It is empty when the fallback
+// replaces nothing (the manager never listed a package for the module).
+func fallbackNotice(manager string, mp ModulePlan) string {
+	if len(mp.UnavailablePackages) == 0 || len(mp.Manifest.Packages.Fallback) == 0 {
+		return ""
+	}
+	source := "unpinned"
+	if ref := mp.Manifest.Packages.Fallback[0].Ref; ref != "" {
+		source = "ref " + ref
+	}
+	return fmt.Sprintf("%s: not available via %s, building from git (%s)",
+		strings.Join(mp.UnavailablePackages, ", "), manager, source)
 }
 
 // fallbackFailure words the degraded reason for a failed git fallback. When the

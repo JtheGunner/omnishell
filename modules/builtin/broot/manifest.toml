@@ -22,6 +22,7 @@ pacman = ["broot"]
 type = "git"
 repo = "https://github.com/Canop/broot.git"
 dest = "{{.VendorDir}}/broot"
+ref  = "v1.61.0"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/broot", "--root", "{{.VendorDir}}"]
 
 [options.cmd]

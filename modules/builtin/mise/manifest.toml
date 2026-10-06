@@ -20,6 +20,7 @@ pacman = ["mise"]
 type = "git"
 repo = "https://github.com/jdx/mise.git"
 dest = "{{.VendorDir}}/mise"
+ref  = "v2026.10.3"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/mise", "--root", "{{.VendorDir}}"]
 
 [options.mode]
