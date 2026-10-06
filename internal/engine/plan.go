@@ -29,6 +29,11 @@ type PackagePlan struct {
 	Name             string
 	Manager          string
 	AlreadyInstalled bool
+	// Update marks a git fallback whose clone already exists but was built from
+	// another ref than the manifest pins; From is the recorded ref ("" when
+	// unknown), To the pinned one.
+	Update   bool
+	From, To string
 }
 
 // ModulePlan is the planned outcome for one module.
@@ -212,8 +217,9 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 		// A module with no compatible managed shell can never render its
 		// snippet, so installing its packages would only leave software on
 		// the system with nothing sourcing it — skip package planning too.
+		prev, inLock := lock.Modules[id]
 		if !noPackages && mp.DegradedReason == "" {
-			planPackages(&mp, e, mod, shells)
+			planPackages(&mp, e, mod, shells, prev)
 		}
 
 		// A planned-degraded module emits no sections and rebuildLock records
@@ -225,7 +231,6 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 			expectedShells = nil
 		}
 
-		prev, inLock := lock.Modules[id]
 		switch {
 		case !inLock:
 			mp.Action = ActionInstall
@@ -258,7 +263,7 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 	return p, nil
 }
 
-func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string) {
+func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, prev lockfile.ModuleState) {
 	mf := mp.Manifest
 	if !e.ManagerOK {
 		if len(mf.Packages.Brew)+len(mf.Packages.Apt)+len(mf.Packages.Dnf)+
@@ -288,14 +293,14 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string) 
 		}
 		if len(unavailable) > 0 {
 			mp.UnavailablePackages = unavailable
-			planFallback(mp, e)
+			planFallback(mp, e, prev)
 			return
 		}
 		mp.MissingPackages = append(mp.MissingPackages, missing...)
 		return
 	}
 	if len(mf.Packages.Fallback) > 0 {
-		planFallback(mp, e)
+		planFallback(mp, e, prev)
 		return
 	}
 	if mod.HasHook("check") {
@@ -303,18 +308,37 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string) 
 	}
 }
 
-// planFallback selects the module's git fallback, queueing it unless its
-// destination already exists.
-func planFallback(mp *ModulePlan, e Engine) {
+// planFallback selects the module's git fallback. A missing clone is queued as
+// a fresh install; an existing clone is queued as an update when the manifest
+// pins a ref and the clone was not recorded as built from it. The lockfile
+// supplies the recorded ref, so planning never probes the clone itself.
+func planFallback(mp *ModulePlan, e Engine, prev lockfile.ModuleState) {
 	fb := mp.Manifest.Packages.Fallback[0]
 	mp.UsesFallback = true
 	ok, _ := pkgmgr.FallbackSatisfied(fb, pkgmgr.FallbackContext{
 		VendorDir: e.Platform.ConfigDir + "/vendor",
 		Platform:  string(e.Platform.OS),
 	})
-	if !ok {
+	switch {
+	case !ok:
 		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{Name: fb.Repo, Manager: "git"})
+	case fb.Ref != "" && prev.FallbackRef != fb.Ref:
+		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{
+			Name: fb.Repo, Manager: "git", Update: true, From: prev.FallbackRef, To: fb.Ref,
+		})
 	}
+}
+
+// describePackage names a planned package for the plan output.
+func describePackage(pp PackagePlan) string {
+	if pp.Update {
+		from := pp.From
+		if from == "" {
+			from = "unrecorded"
+		}
+		return fmt.Sprintf("%s (git update %s → %s, rebuild)", pp.Name, from, pp.To)
+	}
+	return pp.Name + " (" + pp.Manager + ")"
 }
 
 func equalStringSet(a, b []string) bool {
@@ -356,7 +380,7 @@ func RenderPlan(p Plan) string {
 			if len(mp.MissingPackages) > 0 {
 				names := make([]string, len(mp.MissingPackages))
 				for i, pp := range mp.MissingPackages {
-					names[i] = pp.Name + " (" + pp.Manager + ")"
+					names[i] = describePackage(pp)
 				}
 				extra += "   packages: " + strings.Join(names, ", ")
 			}

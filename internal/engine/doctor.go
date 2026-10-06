@@ -160,13 +160,22 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 		if !ok {
 			continue
 		}
-		if len(mp.MissingPackages) > 0 {
-			names := make([]string, len(mp.MissingPackages))
-			for i, pp := range mp.MissingPackages {
-				names[i] = pp.Name
+		var missing []string
+		for _, pp := range mp.MissingPackages {
+			if pp.Update {
+				from := pp.From
+				if from == "" {
+					from = "unrecorded"
+				}
+				add(SeverityNotice, "fallback-outdated:"+id,
+					fmt.Sprintf("module %q: fallback clone was built from %s, the manifest pins %s (run apply to update)", id, from, pp.To))
+				continue
 			}
+			missing = append(missing, pp.Name)
+		}
+		if len(missing) > 0 {
 			add(SeverityDrift, "packages-missing:"+id,
-				fmt.Sprintf("module %q is missing packages: %s", id, strings.Join(names, ", ")))
+				fmt.Sprintf("module %q is missing packages: %s", id, strings.Join(missing, ", ")))
 		}
 		if mp.DegradedReason != "" {
 			add(SeverityDrift, "module-degraded:"+id,
