@@ -21,7 +21,9 @@ jobs:
       - name: Open or update the pull request
         id: cpr
         if: steps.tags.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v8
+        # Pinned to a commit SHA because this step runs with write access (and
+        # possibly a personal access token); Dependabot keeps the SHA current.
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           # A PR created with the default GITHUB_TOKEN does not trigger other
           # workflows, so ci would not run on it. Set FALLBACK_TAGS_TOKEN to a
