@@ -30,7 +30,10 @@ type ModuleState struct {
 	ShellsRendered []string       `json:"shells_rendered"`
 	Packages       []PackageState `json:"packages"`
 	VendorPaths    []string       `json:"vendor_paths"`
-	Status         string         `json:"status"`
+	// FallbackRef is the ref the module's git fallback clone was built from.
+	// Empty means unknown (a lockfile from before this field) or no pinned ref.
+	FallbackRef string `json:"fallback_ref,omitempty"`
+	Status      string `json:"status"`
 }
 
 // FileState records an init file's path and content hash.

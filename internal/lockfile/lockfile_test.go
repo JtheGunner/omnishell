@@ -1,7 +1,9 @@
 package lockfile_test
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/lockfile"
@@ -67,5 +69,42 @@ func TestInstalledPackagesFilters(t *testing.T) {
 	got := sample().InstalledPackages("fzf")
 	if len(got) != 1 || got[0].Name != "fzf" {
 		t.Fatalf("InstalledPackages = %+v, want just fzf", got)
+	}
+}
+
+func TestFallbackRefRoundTripsAndIsOptional(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.lock.json")
+	l := sample()
+	st := l.Modules["fzf"]
+	st.FallbackRef = "v0.74.4"
+	l.Modules["fzf"] = st
+	if err := l.Write(path); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := lockfile.Load(path)
+	if err != nil || !ok {
+		t.Fatalf("Load: ok=%v err=%v", ok, err)
+	}
+	if got.Modules["fzf"].FallbackRef != "v0.74.4" {
+		t.Fatalf("FallbackRef = %q, want v0.74.4", got.Modules["fzf"].FallbackRef)
+	}
+
+	// A lockfile written before this field existed must read as "unknown", and
+	// an empty value must not be written at all.
+	st.FallbackRef = ""
+	l.Modules["fzf"] = st
+	if err := l.Write(path); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "fallback_ref") {
+		t.Fatalf("an empty FallbackRef must be omitted:\n%s", raw)
+	}
+	got, _, err = lockfile.Load(path)
+	if err != nil || got.Modules["fzf"].FallbackRef != "" {
+		t.Fatalf("legacy lockfile: FallbackRef=%q err=%v", got.Modules["fzf"].FallbackRef, err)
 	}
 }
