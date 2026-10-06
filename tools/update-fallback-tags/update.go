@@ -177,13 +177,17 @@ func compatKey(nums []int) []int {
 }
 
 // sameMajor reports whether there is at least one change and every change stays
-// within its compatibility line (see compatKey). Auto-merge is only requested
-// in that case.
+// within its compatibility line (see compatKey) and none re-pins release
+// checksums, which only a human review can vouch for. Auto-merge is only
+// requested in that case.
 func sameMajor(changes []Change) bool {
 	if len(changes) == 0 {
 		return false
 	}
 	for _, c := range changes {
+		if c.Checksums > 0 {
+			return false // re-pinned checksums always need a human review
+		}
 		oldV, okOld := parseTag(c.Old)
 		newV, okNew := parseTag(c.New)
 		if !okOld || !okNew || compare(compatKey(oldV.nums), compatKey(newV.nums)) != 0 {

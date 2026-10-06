@@ -157,3 +157,16 @@ func TestSummaryMentionsRepinnedChecksums(t *testing.T) {
 		t.Fatalf("summary does not mention the checksums:\n%s", got)
 	}
 }
+
+// A pull request that re-pins checksums needs a human: the digests come from
+// the same host as the binaries, so review is the only check on them.
+func TestSameMajorIsFalseWhenChecksumsWereRepinned(t *testing.T) {
+	plain := []Change{{Module: "a", Old: "v1.2.0", New: "v1.3.0"}}
+	if !sameMajor(plain) {
+		t.Fatal("a same-major bump without checksums should still qualify for auto-merge")
+	}
+	repinned := []Change{{Module: "a", Old: "v1.2.0", New: "v1.3.0"}, {Module: "b", Old: "v2.0.0", New: "v2.1.0", Checksums: 2}}
+	if sameMajor(repinned) {
+		t.Fatal("auto-merge must not be requested when any change re-pins checksums")
+	}
+}
