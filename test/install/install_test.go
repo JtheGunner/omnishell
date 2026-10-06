@@ -47,7 +47,6 @@ type fixture struct {
 	fixtures   string
 	logFile    string
 	tarball    string
-	checksum   string
 	installDir string
 }
 
