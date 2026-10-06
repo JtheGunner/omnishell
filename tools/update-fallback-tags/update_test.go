@@ -72,7 +72,7 @@ func TestUpdateRewritesANewerTag(t *testing.T) {
 		"https://example.com/beta.git":  lsRemote("2.0.0"),
 	}}
 
-	res, err := Update(dir, r)
+	res, err := Update(dir, r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestUpdateRecordsAFailurePerModuleAndContinues(t *testing.T) {
 		fail: map[string]error{"https://example.com/alpha.git": errors.New("exit status 128")},
 		tags: map[string]string{"https://example.com/beta.git": lsRemote("v2.1.0")},
 	}
-	res, err := Update(dir, r)
+	res, err := Update(dir, r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestUpdateRecordsAFailurePerModuleAndContinues(t *testing.T) {
 func TestUpdateTreatsAnEmptyTagListAsNoChange(t *testing.T) {
 	dir := t.TempDir()
 	writeModule(t, dir, "alpha", "https://example.com/alpha.git", "v1.0.0")
-	res, err := Update(dir, &fakeRunner{})
+	res, err := Update(dir, &fakeRunner{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestUpdateIgnoresModulesWithoutFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := &fakeRunner{}
-	res, err := Update(dir, r)
+	res, err := Update(dir, r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestUpdateLeavesANonVersionRefAlone(t *testing.T) {
 	dir := t.TempDir()
 	writeModule(t, dir, "alpha", "https://example.com/alpha.git", "main")
 	r := &fakeRunner{tags: map[string]string{"https://example.com/alpha.git": lsRemote("v9.9.9")}}
-	res, err := Update(dir, r)
+	res, err := Update(dir, r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestUpdateReportsAFallbackWithoutRef(t *testing.T) {
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	res, err := Update(dir, &fakeRunner{})
+	res, err := Update(dir, &fakeRunner{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

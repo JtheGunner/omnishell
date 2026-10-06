@@ -85,8 +85,10 @@ func TestInitOrRCDrift(t *testing.T) {
 
 func TestFallbackNotice(t *testing.T) {
 	mk := func(ref string, unavailable ...string) ModulePlan {
+		fb := module.Fallback{Type: "git", Ref: ref}
 		return ModulePlan{
-			Manifest:            module.Manifest{Packages: module.Packages{Fallback: []module.Fallback{{Type: "git", Ref: ref}}}},
+			Manifest:            module.Manifest{Packages: module.Packages{Fallback: []module.Fallback{fb}}},
+			Fallback:            fb,
 			UnavailablePackages: unavailable,
 		}
 	}
@@ -104,5 +106,10 @@ func TestFallbackNotice(t *testing.T) {
 		if got := fallbackNotice("apt", tc.mp); got != tc.want {
 			t.Errorf("%s: fallbackNotice = %q, want %q", tc.name, got, tc.want)
 		}
+	}
+	rel := mk("v1", "mise")
+	rel.Fallback = module.Fallback{Type: "release", Ref: "v1"}
+	if got, want := fallbackNotice("apt", rel), "mise: not available via apt, installing the release binary (ref v1)"; got != want {
+		t.Errorf("release: fallbackNotice = %q, want %q", got, want)
 	}
 }

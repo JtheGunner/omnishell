@@ -14,6 +14,8 @@ jobs:
         with: { go-version-file: go.mod }
       - name: Look up newer tags
         id: tags
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           go run ./tools/update-fallback-tags \
             --summary "$RUNNER_TEMP/summary.md" \

@@ -108,3 +108,37 @@ func TestFallbackRefRoundTripsAndIsOptional(t *testing.T) {
 		t.Fatalf("legacy lockfile: FallbackRef=%q err=%v", got.Modules["fzf"].FallbackRef, err)
 	}
 }
+
+func TestFallbackKindAndSHA256RoundTrip(t *testing.T) {
+	l := sample()
+	st := l.Modules["fzf"]
+	st.FallbackRef, st.FallbackKind, st.FallbackSHA256 = "v1.2.3", "release", "abc123"
+	l.Modules["fzf"] = st
+	p := filepath.Join(t.TempDir(), "state.lock.json")
+	if err := l.Write(p); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := lockfile.Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := got.Modules["fzf"]
+	if m.FallbackKind != "release" || m.FallbackSHA256 != "abc123" || m.FallbackRef != "v1.2.3" {
+		t.Fatalf("round-trip mismatch: %+v", m)
+	}
+}
+
+func TestLockfileWithoutFallbackKindStillLoads(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "state.lock.json")
+	legacy := `{"schema":1,"modules":{"fzf":{"module_version":"1.0.0","enabled":true,"fallback_ref":"v1","status":"ok"}}}`
+	if err := os.WriteFile(p, []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := lockfile.Load(p)
+	if err != nil || !ok {
+		t.Fatalf("Load: ok=%v err=%v", ok, err)
+	}
+	if m := got.Modules["fzf"]; m.FallbackRef != "v1" || m.FallbackKind != "" || m.FallbackSHA256 != "" {
+		t.Fatalf("legacy entry = %+v", m)
+	}
+}

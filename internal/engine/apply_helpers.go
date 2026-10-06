@@ -183,7 +183,7 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 		var real []string
 		var fallback bool
 		for _, pp := range mp.MissingPackages {
-			if pp.Manager == "git" {
+			if pp.Manager == "git" || pp.Manager == "release" {
 				fallback = true
 				continue
 			}
@@ -212,8 +212,12 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 			}
 		}
 
-		if fallback && mp.UsesFallback && len(mp.Manifest.Packages.Fallback) > 0 {
-			fb := mp.Manifest.Packages.Fallback[0]
+		if fallback && mp.UsesFallback && mp.Fallback.Type != "" {
+			fb := mp.Fallback
+			if fb.Type == "release" {
+				e.installRelease(id, mp, fb, degraded, vendorPaths, outcome)
+				continue
+			}
 			ctx := pkgmgr.FallbackContext{VendorDir: e.vendorDir(), Platform: string(e.Platform.OS)}
 			if isFallbackUpdate(mp) {
 				_, _ = fmt.Fprintf(e.Stdout, "updating %s fallback to %s (rebuilding)\n", id, fb.Ref)
@@ -233,6 +237,7 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 				default:
 					vendorPaths[id] = append(vendorPaths[id], dest)
 					outcome.built[id] = fb.Ref
+					outcome.kind[id] = fallbackKindGit
 				}
 				continue
 			}
@@ -247,19 +252,100 @@ func (e Engine) installPackages(plan Plan, degraded map[string]string,
 			}
 			vendorPaths[id] = append(vendorPaths[id], dest)
 			outcome.built[id] = fb.Ref
+			outcome.kind[id] = fallbackKindGit
 		}
 	}
+}
+
+// installRelease downloads and installs a module's release binary, or adopts
+// a Cargo build that already is the pinned version, then removes the leftovers
+// of the old build. A failed install degrades the module and never falls
+// through to the Cargo build; a failed cleanup only warns.
+func (e Engine) installRelease(id string, mp ModulePlan, fb module.Fallback, degraded map[string]string,
+	vendorPaths map[string][]string, outcome *fallbackOutcome) {
+	if len(mp.UnavailablePackages) > 0 {
+		_, _ = fmt.Fprintln(e.Stdout, fallbackNotice(e.Manager.Name(), mp))
+	}
+	binPath := e.releaseContext().BinPath(fb)
+	if isReleaseAdopt(mp) {
+		_, _ = fmt.Fprintf(e.Stdout, "adopting the existing build of %s %s as its release binary\n", fb.Bin, fb.Ref)
+		outcome.sha[id] = ""
+	} else {
+		_, _ = fmt.Fprintf(e.Stdout, "installing %s %s from its release binary\n", fb.Bin, fb.Ref)
+		res, err := pkgmgr.InstallRelease(fb, e.releaseContext(), e.Downloader)
+		if err != nil {
+			degraded[id] = fallbackFailure(e.Manager, mp, err)
+			return
+		}
+		binPath = res.BinPath
+		outcome.sha[id] = res.SHA256
+	}
+	vendorPaths[id] = append(vendorPaths[id], binPath)
+	outcome.built[id] = fb.Ref
+	outcome.kind[id] = fallbackKindRelease
+	e.removeLeftovers(id, mp)
+	if other := e.shadowingBinary(fb); other != "" {
+		_, _ = fmt.Fprintln(e.Stdout, shadowMessage(id, fb, other, binPath))
+	}
+}
+
+// shadowingBinary returns the path of another copy of the release binary found
+// on PATH, or "" when the only copy is the one omnishell installed.
+func (e Engine) shadowingBinary(fb module.Fallback) string {
+	if e.Runner == nil {
+		return ""
+	}
+	found, err := e.Runner.Look(fb.Bin)
+	if err != nil || filepath.Clean(found) == filepath.Clean(e.releaseContext().BinPath(fb)) {
+		return ""
+	}
+	return found
+}
+
+func shadowMessage(id string, fb module.Fallback, other, ours string) string {
+	return fmt.Sprintf("%s: %s is also found at %s besides the omnishell copy at %s; whichever comes first in PATH wins",
+		id, fb.Bin, other, ours)
+}
+
+// removeLeftovers deletes the planned leftovers of an old Cargo build, logging
+// each one. A failure is reported and does not stop the others.
+func (e Engine) removeLeftovers(id string, mp ModulePlan) {
+	for _, note := range mp.CleanupNotes {
+		_, _ = fmt.Fprintf(e.Stdout, "%s: %s; leaving it as is\n", id, note)
+	}
+	for _, l := range mp.Cleanup {
+		_, _ = fmt.Fprintf(e.Stdout, "removing build leftover %s\n", l.Describe())
+		if err := pkgmgr.RemoveLeftover(l); err != nil {
+			_, _ = fmt.Fprintf(e.Stdout, "%s: could not remove %s: %v\n", id, l.Describe(), err)
+		}
+	}
+}
+
+// isReleaseAdopt reports whether the module's queued release fallback keeps an
+// existing Cargo build instead of downloading.
+func isReleaseAdopt(mp ModulePlan) bool {
+	for _, pp := range mp.MissingPackages {
+		if pp.Manager == "release" && pp.Adopt {
+			return true
+		}
+	}
+	return false
 }
 
 // fallbackOutcome records what installPackages did to each module's git
 // fallback clone, for rebuildLock.
 type fallbackOutcome struct {
-	built   map[string]string // module id -> ref the clone was (re)built from
+	built   map[string]string // module id -> ref the clone or binary was (re)installed from
 	skipped map[string]string // module id -> pinned ref an update was declined for
+	kind    map[string]string // module id -> "git" or "release", for the entries in built
+	sha     map[string]string // module id -> checksum of the installed release asset
 }
 
 func newFallbackOutcome() *fallbackOutcome {
-	return &fallbackOutcome{built: map[string]string{}, skipped: map[string]string{}}
+	return &fallbackOutcome{
+		built: map[string]string{}, skipped: map[string]string{},
+		kind: map[string]string{}, sha: map[string]string{},
+	}
 }
 
 // isFallbackUpdate reports whether the module's queued git fallback moves an
@@ -273,19 +359,23 @@ func isFallbackUpdate(mp ModulePlan) bool {
 	return false
 }
 
-// fallbackNotice tells the user a git build replaces a distro package, naming
-// the pinned ref or that the build is unpinned. It is empty when the fallback
+// fallbackNotice tells the user a fallback replaces a distro package, naming
+// the pinned ref or that the install is unpinned. It is empty when the fallback
 // replaces nothing (the manager never listed a package for the module).
 func fallbackNotice(manager string, mp ModulePlan) string {
-	if len(mp.UnavailablePackages) == 0 || len(mp.Manifest.Packages.Fallback) == 0 {
+	if len(mp.UnavailablePackages) == 0 || mp.Fallback.Type == "" {
 		return ""
 	}
 	source := "unpinned"
-	if ref := mp.Manifest.Packages.Fallback[0].Ref; ref != "" {
+	if ref := mp.Fallback.Ref; ref != "" {
 		source = "ref " + ref
 	}
-	return fmt.Sprintf("%s: not available via %s, building from git (%s)",
-		strings.Join(mp.UnavailablePackages, ", "), manager, source)
+	action := "building from git"
+	if mp.Fallback.Type == "release" {
+		action = "installing the release binary"
+	}
+	return fmt.Sprintf("%s: not available via %s, %s (%s)",
+		strings.Join(mp.UnavailablePackages, ", "), manager, action, source)
 }
 
 // fallbackFailure words the degraded reason for a failed git fallback. When the
@@ -594,18 +684,20 @@ func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
 		}
 
 		fallbackRef, skippedRef := prevMod.FallbackRef, prevMod.FallbackSkippedRef
+		fallbackKind, fallbackSHA := prevMod.FallbackKind, prevMod.FallbackSHA256
 		if ref, ok := outcome.built[id]; ok {
 			fallbackRef, skippedRef = ref, ""
+			fallbackKind, fallbackSHA = outcome.kind[id], outcome.sha[id]
 		}
 		if ref, ok := outcome.skipped[id]; ok {
 			skippedRef = ref
 		}
-		// Forget the recorded refs only when packages were actually planned and
-		// the module no longer uses a fallback. `apply --no-packages` (which is
-		// what doctor --fix runs) and a planner-degraded module plan no packages
-		// and must keep what an earlier apply recorded.
+		// Forget the recorded fallback state only when packages were actually
+		// planned and the module no longer uses a fallback. `apply --no-packages`
+		// (which is what doctor --fix runs) and a planner-degraded module plan no
+		// packages and must keep what an earlier apply recorded.
 		if mp.PackagesPlanned && !mp.UsesFallback {
-			fallbackRef, skippedRef = "", ""
+			fallbackRef, skippedRef, fallbackKind, fallbackSHA = "", "", "", ""
 		}
 
 		nl.Modules[id] = lockfile.ModuleState{
@@ -616,6 +708,8 @@ func (e Engine) rebuildLock(_ config.Config, plan Plan, prev lockfile.Lock,
 			Packages:           mergePackages(mp, plan, prevMod, installedNow[id]),
 			VendorPaths:        vps,
 			FallbackRef:        fallbackRef,
+			FallbackKind:       fallbackKind,
+			FallbackSHA256:     fallbackSHA,
 			FallbackSkippedRef: skippedRef,
 			Status:             status,
 		}

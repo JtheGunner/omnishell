@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,5 +106,223 @@ func TestRenderPlanNamesAFallbackUpdate(t *testing.T) {
 	}
 	if got := RenderPlan(plan("")); !strings.Contains(got, "git update unrecorded → v2, rebuild") {
 		t.Fatalf("plan text lacks the unrecorded wording:\n%s", got)
+	}
+}
+
+func releaseFallbackEntry(ref string) module.Fallback {
+	return module.Fallback{
+		Type: "release", Repo: "https://example.com/x", Ref: ref, Bin: "x",
+		Assets: []module.Asset{{OS: "linux", Arch: "amd64", URL: "https://example.com/{{.Ref}}/x", SHA256: strings.Repeat("a", 64)}},
+	}
+}
+
+func gitFallbackEntry(ref string) module.Fallback {
+	return module.Fallback{Type: "git", Repo: "https://example.com/x.git", Dest: "{{.VendorDir}}/x", Ref: ref}
+}
+
+func modulePlanWith(fbs ...module.Fallback) ModulePlan {
+	return ModulePlan{Manifest: module.Manifest{Packages: module.Packages{Fallback: fbs}}}
+}
+
+// engineWithBinary builds an engine whose vendor/bin/x exists when present.
+func engineWithBinary(t *testing.T, present bool, arch string) Engine {
+	t.Helper()
+	configDir := t.TempDir()
+	if present {
+		bin := filepath.Join(configDir, "vendor", "bin", "x")
+		if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(bin, []byte("x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return Engine{Platform: platform.Info{OS: platform.Linux, Arch: arch, ConfigDir: configDir}}
+}
+
+func TestSelectFallback(t *testing.T) {
+	amd64 := platform.Info{OS: platform.Linux, Arch: "amd64"}
+	riscv := platform.Info{OS: platform.Linux, Arch: "riscv64"}
+	cases := []struct {
+		name     string
+		fbs      []module.Fallback
+		info     platform.Info
+		wantType string
+		wantOK   bool
+	}{
+		{"release comes first and matches", []module.Fallback{releaseFallbackEntry("v1"), gitFallbackEntry("v1")}, amd64, "release", true},
+		{"unsupported architecture falls through to git", []module.Fallback{releaseFallbackEntry("v1"), gitFallbackEntry("v1")}, riscv, "git", true},
+		{"a git entry listed first wins", []module.Fallback{gitFallbackEntry("v1"), releaseFallbackEntry("v1")}, amd64, "git", true},
+		{"release only and no matching asset", []module.Fallback{releaseFallbackEntry("v1")}, riscv, "", false},
+		{"no fallbacks", nil, amd64, "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fb, ok := selectFallback(tc.fbs, tc.info)
+			if ok != tc.wantOK || fb.Type != tc.wantType {
+				t.Fatalf("selectFallback = %q, %v; want %q, %v", fb.Type, ok, tc.wantType, tc.wantOK)
+			}
+		})
+	}
+}
+
+func TestPlanRelease(t *testing.T) {
+	cases := []struct {
+		name       string
+		present    bool
+		prev       lockfile.ModuleState
+		wantMissed int
+		wantUpdate bool
+		wantFrom   string
+	}{
+		{"fresh install", false, lockfile.ModuleState{}, 1, false, ""},
+		{"settled", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2"}, 0, false, ""},
+		{"recorded but the binary is gone", false, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2"}, 1, false, ""},
+		{"a matching recorded checksum is settled", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2", FallbackSHA256: strings.Repeat("a", 64)}, 0, false, ""},
+		{"a checksum re-pinned for the same ref is installed again", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2", FallbackSHA256: strings.Repeat("b", 64)}, 1, true, "v2"},
+		{"older release is replaced", true, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v1"}, 1, true, "v1"},
+		{"a git build is replaced", true, lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v1"}, 1, true, "v1"},
+		{"a legacy lockfile entry counts as git", true, lockfile.ModuleState{FallbackRef: "v1"}, 1, true, "v1"},
+		{"a binary nobody recorded is replaced", true, lockfile.ModuleState{}, 1, true, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mp := modulePlanWith(releaseFallbackEntry("v2"), gitFallbackEntry("v2"))
+			planFallback(&mp, engineWithBinary(t, tc.present, "amd64"), tc.prev)
+			if !mp.UsesFallback || mp.Fallback.Type != "release" {
+				t.Fatalf("UsesFallback=%v Fallback=%+v, want the release entry", mp.UsesFallback, mp.Fallback)
+			}
+			if len(mp.MissingPackages) != tc.wantMissed {
+				t.Fatalf("MissingPackages = %+v, want %d", mp.MissingPackages, tc.wantMissed)
+			}
+			if tc.wantMissed == 0 {
+				return
+			}
+			pp := mp.MissingPackages[0]
+			if pp.Manager != "release" || pp.Name != "x" || pp.To != "v2" || pp.Update != tc.wantUpdate || pp.From != tc.wantFrom {
+				t.Fatalf("entry = %+v", pp)
+			}
+		})
+	}
+}
+
+func TestPlanFallbackFallsThroughToGitOnAnUnsupportedArchitecture(t *testing.T) {
+	mp := modulePlanWith(releaseFallbackEntry("v2"), gitFallbackEntry("v2"))
+	planFallback(&mp, engineWithBinary(t, false, "riscv64"), lockfile.ModuleState{})
+	if mp.Fallback.Type != "git" || len(mp.MissingPackages) != 1 || mp.MissingPackages[0].Manager != "git" {
+		t.Fatalf("Fallback=%+v Missing=%+v, want the git entry queued", mp.Fallback, mp.MissingPackages)
+	}
+}
+
+func TestPlanFallbackDegradesWhenNothingIsUsable(t *testing.T) {
+	mp := modulePlanWith(releaseFallbackEntry("v2"))
+	planFallback(&mp, engineWithBinary(t, false, "riscv64"), lockfile.ModuleState{})
+	if mp.UsesFallback || mp.DegradedReason == "" || len(mp.MissingPackages) != 0 {
+		t.Fatalf("UsesFallback=%v Reason=%q Missing=%+v", mp.UsesFallback, mp.DegradedReason, mp.MissingPackages)
+	}
+	if !strings.Contains(mp.DegradedReason, "linux/riscv64") {
+		t.Fatalf("reason %q does not name the platform", mp.DegradedReason)
+	}
+}
+
+type neverDownloader struct{ calls int }
+
+func (n *neverDownloader) Download(string, io.Writer, int64) error {
+	n.calls++
+	return nil
+}
+
+func TestPlanReleaseNeverRunsCommandsOrDownloads(t *testing.T) {
+	runner := &pkgmgr.MockRunner{}
+	dl := &neverDownloader{}
+	e := engineWithBinary(t, true, "amd64")
+	e.Runner, e.Downloader = runner, dl
+	mp := modulePlanWith(releaseFallbackEntry("v2"), gitFallbackEntry("v2"))
+	planFallback(&mp, e, lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v1"})
+	if len(runner.Calls) != 0 || dl.calls != 0 {
+		t.Fatalf("planning must be side-effect-free; commands=%v downloads=%d", runner.Calls, dl.calls)
+	}
+}
+
+func TestDescribeReleasePackages(t *testing.T) {
+	if got := describePackage(PackagePlan{Name: "x", Manager: "release", To: "v2"}); got != "x (release binary v2)" {
+		t.Fatalf("fresh = %q", got)
+	}
+	if got := describePackage(PackagePlan{Name: "x", Manager: "release", Update: true, From: "v1", To: "v2"}); got != "x (release update v1 → v2)" {
+		t.Fatalf("update = %q", got)
+	}
+	if got := describePackage(PackagePlan{Name: "x", Manager: "release", Update: true, To: "v2"}); got != "x (release update unrecorded → v2)" {
+		t.Fatalf("unrecorded = %q", got)
+	}
+}
+
+func TestPlanReleaseAdoptsAMatchingGitBuild(t *testing.T) {
+	mp := modulePlanWith(releaseFallbackEntry("v2"), gitFallbackEntry("v2"))
+	planFallback(&mp, engineWithBinary(t, true, "amd64"), lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v2"})
+	if len(mp.MissingPackages) != 1 {
+		t.Fatalf("MissingPackages = %+v, want one adopt entry", mp.MissingPackages)
+	}
+	pp := mp.MissingPackages[0]
+	if pp.Manager != "release" || !pp.Adopt || pp.Update || pp.From != "" || pp.To != "v2" {
+		t.Fatalf("entry = %+v, want an adopt entry without update", pp)
+	}
+}
+
+func TestPlanReleaseCleanup(t *testing.T) {
+	e := engineWithBinary(t, true, "amd64")
+	vendor := filepath.Join(e.Platform.ConfigDir, "vendor")
+	tree := filepath.Join(vendor, "x")
+	if err := os.MkdirAll(filepath.Join(tree, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitConfig := "[remote \"origin\"]\n\turl = https://example.com/x.git\n"
+	if err := os.WriteFile(filepath.Join(tree, ".git", "config"), []byte(gitConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tree, "Cargo.toml"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name        string
+		prev        lockfile.ModuleState
+		wantCleanup bool
+	}{
+		{"adopting a matching Cargo build cleans its source", lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v2"}, true},
+		{"replacing an older Cargo build cleans its source", lockfile.ModuleState{FallbackKind: "git", FallbackRef: "v1"}, true},
+		{"a settled release install has nothing to clean", lockfile.ModuleState{FallbackKind: "release", FallbackRef: "v2"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mp := modulePlanWith(releaseFallbackEntry("v2"), gitFallbackEntry("v2"))
+			planFallback(&mp, e, tc.prev)
+			if got := len(mp.Cleanup) > 0; got != tc.wantCleanup {
+				t.Fatalf("Cleanup = %+v, want cleanup=%v", mp.Cleanup, tc.wantCleanup)
+			}
+		})
+	}
+
+	// Planning lists the cleanup but removes nothing.
+	if _, err := os.Stat(filepath.Join(tree, "Cargo.toml")); err != nil {
+		t.Fatalf("planning deleted the source tree: %v", err)
+	}
+}
+
+func TestRenderPlanListsTheCleanup(t *testing.T) {
+	mp := modulePlanWith(releaseFallbackEntry("v2"))
+	mp.ID, mp.Action = "x", ActionUpdate
+	mp.MissingPackages = []PackagePlan{{Name: "x", Manager: "release", Adopt: true, To: "v2"}}
+	mp.Cleanup = []pkgmgr.Leftover{{Kind: pkgmgr.LeftoverTree, Path: "/v/x"}}
+	got := RenderPlan(Plan{Order: []string{"x"}, Modules: map[string]ModulePlan{"x": mp}, ManagedShells: []string{"bash"}})
+	for _, want := range []string{"adopt the Cargo build v2", "remove build leftover /v/x"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("plan lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestDescribeAdoptedPackage(t *testing.T) {
+	if got := describePackage(PackagePlan{Name: "x", Manager: "release", Adopt: true, To: "v2"}); got != "x (adopt the Cargo build v2)" {
+		t.Fatalf("adopt = %q", got)
 	}
 }

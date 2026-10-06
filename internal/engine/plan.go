@@ -34,6 +34,10 @@ type PackagePlan struct {
 	// unknown), To the pinned one.
 	Update   bool
 	From, To string
+	// Adopt marks a release fallback whose binary is a Cargo build of the
+	// pinned ref: it is kept as the release binary and only its build
+	// leftovers are cleaned up.
+	Adopt bool
 }
 
 // ModulePlan is the planned outcome for one module.
@@ -47,6 +51,14 @@ type ModulePlan struct {
 	OptionsHash     string
 	MissingPackages []PackagePlan
 	UsesFallback    bool
+	// Fallback is the fallback entry the plan selected; the zero value when the
+	// module uses none.
+	Fallback module.Fallback
+	// Cleanup lists the leftovers of an earlier Cargo build that Apply removes
+	// once the release binary is in place; CleanupNotes explain what was left
+	// alone. Both come from read-only checks, so planning stays side-effect-free.
+	Cleanup      []pkgmgr.Leftover
+	CleanupNotes []string
 	// PackagesPlanned is true once package planning ran to completion for the
 	// module. It is false under --no-packages and when the planner gave up
 	// early (no package manager, planned degradation); in those cases
@@ -315,19 +327,53 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, 
 	}
 }
 
-// planFallback selects the module's git fallback. A missing clone is queued as
-// a fresh install; an existing clone is queued as an update when the manifest
-// pins a ref and the clone was not recorded as built from it. The lockfile
-// supplies the recorded ref, so planning never probes the clone itself.
+const (
+	fallbackKindGit     = "git"
+	fallbackKindRelease = "release"
+)
+
+// selectFallback returns the first fallback entry usable on this host: a
+// release entry needs an asset for the host's OS and architecture, a git entry
+// is always usable.
+func selectFallback(fbs []module.Fallback, info platform.Info) (module.Fallback, bool) {
+	for _, fb := range fbs {
+		if fb.Type == "release" {
+			if _, ok := fb.AssetFor(string(info.OS), info.Arch); !ok {
+				continue
+			}
+		}
+		return fb, true
+	}
+	return module.Fallback{}, false
+}
+
+func (e Engine) releaseContext() pkgmgr.ReleaseContext {
+	return pkgmgr.ReleaseContext{VendorDir: e.vendorDir(), OS: string(e.Platform.OS), Arch: e.Platform.Arch}
+}
+
+// planFallback selects the module's fallback. A git fallback with a missing
+// clone is queued as a fresh install; an existing clone is queued as an update
+// when the manifest pins a ref and the clone was not recorded as built from it.
+// A release fallback is planned by planRelease. The lockfile supplies the
+// recorded ref and kind, so planning never probes anything but the filesystem.
 func planFallback(mp *ModulePlan, e Engine, prev lockfile.ModuleState) {
-	fb := mp.Manifest.Packages.Fallback[0]
+	fb, ok := selectFallback(mp.Manifest.Packages.Fallback, e.Platform)
+	if !ok {
+		mp.DegradedReason = fmt.Sprintf("no fallback is available for %s/%s", e.Platform.OS, e.Platform.Arch)
+		return
+	}
 	mp.UsesFallback = true
-	ok, _ := pkgmgr.FallbackSatisfied(fb, pkgmgr.FallbackContext{
+	mp.Fallback = fb
+	if fb.Type == "release" {
+		planRelease(mp, e, fb, prev)
+		return
+	}
+	satisfied, _ := pkgmgr.FallbackSatisfied(fb, pkgmgr.FallbackContext{
 		VendorDir: e.Platform.ConfigDir + "/vendor",
 		Platform:  string(e.Platform.OS),
 	})
 	switch {
-	case !ok:
+	case !satisfied:
 		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{Name: fb.Repo, Manager: "git"})
 	case fb.Ref != "" && prev.FallbackRef != fb.Ref && prev.FallbackSkippedRef != fb.Ref:
 		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{
@@ -336,8 +382,86 @@ func planFallback(mp *ModulePlan, e Engine, prev lockfile.ModuleState) {
 	}
 }
 
+// recordedChecksumHolds reports whether the checksum recorded for an installed
+// release binary is the one the manifest pins for this host. An empty record (a
+// Cargo build adopted as the release binary) holds, since there is nothing to
+// compare; a different one means the pin moved after the install, so the
+// binary is installed again from the pinned asset.
+func recordedChecksumHolds(fb module.Fallback, e Engine, prev lockfile.ModuleState) bool {
+	if prev.FallbackSHA256 == "" {
+		return true
+	}
+	asset, ok := fb.AssetFor(string(e.Platform.OS), e.Platform.Arch)
+	return ok && asset.SHA256 == prev.FallbackSHA256
+}
+
+// gitFallbackOf returns the module's git fallback entry, if it has one.
+func gitFallbackOf(fbs []module.Fallback) (module.Fallback, bool) {
+	for _, fb := range fbs {
+		if fb.Type == "git" {
+			return fb, true
+		}
+	}
+	return module.Fallback{}, false
+}
+
+// planRelease queues the release binary when it is missing or was installed
+// from another ref or another kind of fallback. A Cargo build recorded at the
+// pinned ref is adopted: its binary stays and only the build leftovers are
+// cleaned up. A lockfile entry that has a ref but no kind counts as git.
+func planRelease(mp *ModulePlan, e Engine, fb module.Fallback, prev lockfile.ModuleState) {
+	recordedKind := prev.FallbackKind
+	if recordedKind == "" && prev.FallbackRef != "" {
+		recordedKind = fallbackKindGit
+	}
+	pp := PackagePlan{Name: fb.Bin, Manager: "release", To: fb.Ref}
+	switch {
+	case !pkgmgr.ReleaseInstalled(fb, e.releaseContext()):
+		mp.MissingPackages = append(mp.MissingPackages, pp)
+	case recordedKind == fallbackKindRelease && prev.FallbackRef == fb.Ref && recordedChecksumHolds(fb, e, prev):
+		// Settled: this ref is installed from the asset the manifest pins.
+	case recordedKind == fallbackKindRelease:
+		pp.Update, pp.From = true, prev.FallbackRef
+		mp.MissingPackages = append(mp.MissingPackages, pp)
+	case recordedKind == fallbackKindGit && prev.FallbackRef == fb.Ref:
+		pp.Adopt = true
+		mp.MissingPackages = append(mp.MissingPackages, pp)
+		planCleanup(mp, e)
+	default:
+		pp.Update, pp.From = true, prev.FallbackRef
+		mp.MissingPackages = append(mp.MissingPackages, pp)
+		planCleanup(mp, e)
+	}
+}
+
+// planCleanup records what is left of an earlier Cargo build of the module's
+// git fallback.
+func planCleanup(mp *ModulePlan, e Engine) {
+	gitFB, ok := gitFallbackOf(mp.Manifest.Packages.Fallback)
+	if !ok {
+		return
+	}
+	mp.Cleanup, mp.CleanupNotes = pkgmgr.FindLeftovers(gitFB, pkgmgr.FallbackContext{
+		VendorDir: e.vendorDir(),
+		Platform:  string(e.Platform.OS),
+	})
+}
+
 // describePackage names a planned package for the plan output.
 func describePackage(pp PackagePlan) string {
+	if pp.Manager == "release" {
+		if pp.Adopt {
+			return fmt.Sprintf("%s (adopt the Cargo build %s)", pp.Name, pp.To)
+		}
+		if !pp.Update {
+			return fmt.Sprintf("%s (release binary %s)", pp.Name, pp.To)
+		}
+		from := pp.From
+		if from == "" {
+			from = "unrecorded"
+		}
+		return fmt.Sprintf("%s (release update %s → %s)", pp.Name, from, pp.To)
+	}
 	if pp.Update {
 		from := pp.From
 		if from == "" {
@@ -392,6 +516,9 @@ func RenderPlan(p Plan) string {
 				extra += "   packages: " + strings.Join(names, ", ")
 			}
 			_, _ = fmt.Fprintf(&b, "  %-8s %-20s %s\n", string(mp.Action), mp.ID, strings.TrimSpace(extra))
+			for _, l := range mp.Cleanup {
+				_, _ = fmt.Fprintf(&b, "  remove   %s: remove build leftover %s\n", mp.ID, l.Describe())
+			}
 		case ActionRemove:
 			_, _ = fmt.Fprintf(&b, "  %-8s %-20s %s\n", "remove", mp.ID, mp.Reason)
 		case ActionSkip:

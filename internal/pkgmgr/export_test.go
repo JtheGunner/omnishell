@@ -7,3 +7,6 @@ func SetRunningAsRootForTest(v bool) func() {
 	runningAsRoot = v
 	return func() { runningAsRoot = old }
 }
+
+// ExtractMember exposes extractMember to the external test package.
+var ExtractMember = extractMember

@@ -32,7 +32,9 @@ type ModuleMeta struct {
 // element is rendered as a template) so a VendorDir containing spaces does not
 // break the command. Requires lists tools the Run step needs ("cargo>=1.85",
 // "cmake"); they are checked before the clone. Ref optionally pins the clone
-// to a tag or branch; empty clones the repository's default branch.
+// to a tag or branch; empty clones the repository's default branch. A
+// type = "release" entry instead names the installed binary (Bin) and one
+// download per OS and architecture (Assets); see release.go.
 type Fallback struct {
 	Type     string   `toml:"type"`
 	Repo     string   `toml:"repo"`
@@ -40,6 +42,8 @@ type Fallback struct {
 	Ref      string   `toml:"ref"`
 	Run      []string `toml:"run"`
 	Requires []string `toml:"requires"`
+	Bin      string   `toml:"bin"`
+	Assets   []Asset  `toml:"assets"`
 }
 
 // Packages is the [packages] table.
@@ -193,6 +197,11 @@ func ValidateManifest(m Manifest) error {
 		}
 		if requireSet[c] {
 			return e("conflicts", "id "+c+" is in both requires and conflicts")
+		}
+	}
+	for i, fb := range m.Packages.Fallback {
+		if msg := fallbackProblem(fb); msg != "" {
+			return e(fmt.Sprintf("packages.fallback[%d]", i), msg)
 		}
 	}
 	for i, fb := range m.Packages.Fallback {

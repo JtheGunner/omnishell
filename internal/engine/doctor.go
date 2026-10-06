@@ -167,8 +167,12 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 				if from == "" {
 					from = "unrecorded"
 				}
+				what := "fallback clone was built from"
+				if pp.Manager == "release" {
+					what = "installed release binary is"
+				}
 				add(SeverityNotice, "fallback-outdated:"+id,
-					fmt.Sprintf("module %q: fallback clone was built from %s, the manifest pins %s (run apply to update)", id, from, pp.To))
+					fmt.Sprintf("module %q: %s %s, the manifest pins %s (run apply to update)", id, what, from, pp.To))
 				continue
 			}
 			missing = append(missing, pp.Name)
@@ -177,14 +181,20 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 			add(SeverityDrift, "packages-missing:"+id,
 				fmt.Sprintf("module %q is missing packages: %s", id, strings.Join(missing, ", ")))
 		}
-		if st := lock.Modules[id]; mp.UsesFallback && len(mp.Manifest.Packages.Fallback) > 0 &&
-			st.FallbackSkippedRef != "" && st.FallbackSkippedRef == mp.Manifest.Packages.Fallback[0].Ref {
+		if st := lock.Modules[id]; mp.UsesFallback && mp.Fallback.Type != "" &&
+			st.FallbackSkippedRef != "" && st.FallbackSkippedRef == mp.Fallback.Ref {
 			add(SeverityNotice, "fallback-modified:"+id,
 				fmt.Sprintf("module %q: the fallback clone was not updated to %s (it has local changes or is not a git clone); reset or remove it to update", id, st.FallbackSkippedRef))
 		}
 		if mp.DegradedReason != "" {
 			add(SeverityDrift, "module-degraded:"+id,
 				fmt.Sprintf("module %q is degraded: %s", id, mp.DegradedReason))
+		}
+		if st := lock.Modules[id]; mp.Fallback.Type == "release" && st.FallbackKind == "release" {
+			if other := e.shadowingBinary(mp.Fallback); other != "" {
+				add(SeverityNotice, "path-shadow:"+id,
+					shadowMessage(id, mp.Fallback, other, e.releaseContext().BinPath(mp.Fallback)))
+			}
 		}
 	}
 
