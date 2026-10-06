@@ -16,6 +16,7 @@ schema      = 1
 type = "git"
 repo = "https://github.com/Aloxaf/fzf-tab.git"
 dest = "{{.VendorDir}}/fzf-tab"
+ref  = "v1.3.0"
 
 [options.cd_preview]
 type    = "bool"

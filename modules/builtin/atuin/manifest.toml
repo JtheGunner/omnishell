@@ -20,6 +20,7 @@ pacman = ["atuin"]
 type = "git"
 repo = "https://github.com/atuinsh/atuin.git"
 dest = "{{.VendorDir}}/atuin"
+ref  = "v18.23.0"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/atuin/crates/atuin", "--root", "{{.VendorDir}}"]
 requires = ["cargo>=1.95"]
 

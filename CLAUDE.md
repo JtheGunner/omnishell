@@ -110,6 +110,8 @@ files matters more than any single file:
    means "unknown" and keeps the package path).
    A fallback's `requires` (`"cargo>=1.85"`, `"cmake"`) is probed via the
    `Runner` inside `InstallGitFallback`, before the clone — never in `ComputePlan`.
+   A fallback's optional `ref` pins the clone to a tag or branch; every
+   built-in fallback must set one (`modules/builtin_test.go` enforces it).
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 

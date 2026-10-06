@@ -87,3 +87,17 @@ func TestInstallGitFallbackRejectsUnknownType(t *testing.T) {
 		t.Fatal("want error for unsupported fallback type")
 	}
 }
+
+func TestInstallGitFallbackClonesPinnedRef(t *testing.T) {
+	vendor := t.TempDir()
+	r := &pkgmgr.MockRunner{}
+	fb := module.Fallback{Type: "git", Repo: "https://example.com/fzf.git", Dest: "{{.VendorDir}}/fzf", Ref: "v1.2.3"}
+	dest, err := pkgmgr.InstallGitFallback(fb, pkgmgr.FallbackContext{VendorDir: vendor}, r)
+	if err != nil {
+		t.Fatalf("InstallGitFallback: %v", err)
+	}
+	want := "git -c advice.detachedHead=false clone --depth 1 --branch v1.2.3 https://example.com/fzf.git " + dest
+	if len(r.Calls) != 1 || r.Calls[0] != want {
+		t.Fatalf("clone calls = %v, want [%q]", r.Calls, want)
+	}
+}

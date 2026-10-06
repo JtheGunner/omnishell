@@ -23,5 +23,6 @@ apk    = ["starship"]
 type = "git"
 repo = "https://github.com/starship/starship.git"
 dest = "{{.VendorDir}}/starship"
+ref  = "v1.26.0"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/starship", "--root", "{{.VendorDir}}"]
 requires = ["cargo>=1.95"]

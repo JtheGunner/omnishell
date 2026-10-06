@@ -1,6 +1,7 @@
 package module_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,6 +116,57 @@ func TestParseManifestRejectsUnknownKey(t *testing.T) {
 	_, err := module.ParseManifest([]byte("[module]\nid=\"x\"\nversion=\"1\"\nschema=1\nbogus=true\n"))
 	if err == nil {
 		t.Fatal("want error for unknown key")
+	}
+}
+
+const fallbackRefManifest = `
+platforms = ["linux"]
+shells    = ["bash"]
+
+[module]
+id      = "pinned"
+name    = "pinned"
+version = "1.0.0"
+schema  = 1
+
+[[packages.fallback]]
+type = "git"
+repo = "https://example.com/pinned.git"
+dest = "{{.VendorDir}}/pinned"
+ref  = %q
+`
+
+func manifestWithRef(t *testing.T, ref string) module.Manifest {
+	t.Helper()
+	m, err := module.ParseManifest([]byte(fmt.Sprintf(fallbackRefManifest, ref)))
+	if err != nil {
+		t.Fatalf("ParseManifest: %v", err)
+	}
+	return m
+}
+
+func TestParseManifestFallbackRef(t *testing.T) {
+	m := manifestWithRef(t, "v1.2.3")
+	if got := m.Packages.Fallback[0].Ref; got != "v1.2.3" {
+		t.Fatalf("Ref = %q, want v1.2.3", got)
+	}
+	if err := module.ValidateManifest(m); err != nil {
+		t.Fatalf("ValidateManifest: %v", err)
+	}
+}
+
+func TestValidateManifestAcceptsFallbackWithoutRef(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	if err := module.ValidateManifest(m); err != nil {
+		t.Fatalf("a fallback without ref must stay valid: %v", err)
+	}
+}
+
+func TestValidateManifestRejectsUnsafeFallbackRef(t *testing.T) {
+	for _, ref := range []string{"--upload-pack=evil", "-v1", "v1 2", "v1;rm", "$(x)"} {
+		if err := module.ValidateManifest(manifestWithRef(t, ref)); err == nil {
+			t.Errorf("ref %q must be rejected", ref)
+		}
 	}
 }
 
