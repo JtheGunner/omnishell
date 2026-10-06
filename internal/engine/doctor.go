@@ -190,6 +190,12 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 			add(SeverityDrift, "module-degraded:"+id,
 				fmt.Sprintf("module %q is degraded: %s", id, mp.DegradedReason))
 		}
+		if st := lock.Modules[id]; mp.Fallback.Type == "release" && st.FallbackKind == "release" {
+			if other := e.shadowingBinary(mp.Fallback); other != "" {
+				add(SeverityNotice, "path-shadow:"+id,
+					shadowMessage(id, mp.Fallback, other, e.releaseContext().BinPath(mp.Fallback)))
+			}
+		}
 	}
 
 	// 6. Orphan lock entries: a module recorded in the lock but gone from config.

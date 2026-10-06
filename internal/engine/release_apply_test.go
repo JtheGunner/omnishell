@@ -452,3 +452,46 @@ func TestDryRunPlansTheCleanupWithoutTouchingDisk(t *testing.T) {
 		t.Fatalf("a dry run downloaded: %v", s.dl.calls)
 	}
 }
+
+func TestApplyWarnsWhenAnotherCopyIsOnThePath(t *testing.T) {
+	s := newRelSandbox(t)
+	s.runner.LookOK = map[string]bool{"reltool": true} // MockRunner.Look resolves /usr/bin/reltool
+	res, err := s.apply(t)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := moduleResult(t, res, "reltool").Status; got != "applied" {
+		t.Fatalf("a PATH notice must not degrade the module; status = %q", got)
+	}
+	for _, want := range []string{"/usr/bin/reltool", s.binPath()} {
+		if !strings.Contains(s.out.String(), want) {
+			t.Fatalf("output does not name %q:\n%s", want, s.out.String())
+		}
+	}
+}
+
+func TestApplyStaysQuietWhenNoOtherCopyExists(t *testing.T) {
+	s := newRelSandbox(t)
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if strings.Contains(s.out.String(), "also found") {
+		t.Fatalf("unexpected PATH notice:\n%s", s.out.String())
+	}
+}
+
+func TestDoctorReportsACompetingCopyOnThePath(t *testing.T) {
+	s := newRelSandbox(t)
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	s.runner.LookOK = map[string]bool{"reltool": true}
+	codes := s.findings(t)
+	if codes["path-shadow:reltool"] != engine.SeverityNotice {
+		t.Fatalf("doctor lacks the path-shadow notice: %v", codes)
+	}
+	s.runner.LookOK = nil
+	if _, present := s.findings(t)["path-shadow:reltool"]; present {
+		t.Fatal("path-shadow reported although no other copy exists")
+	}
+}

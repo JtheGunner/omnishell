@@ -284,6 +284,27 @@ func (e Engine) installRelease(id string, mp ModulePlan, fb module.Fallback, deg
 	outcome.built[id] = fb.Ref
 	outcome.kind[id] = fallbackKindRelease
 	e.removeLeftovers(id, mp)
+	if other := e.shadowingBinary(fb); other != "" {
+		_, _ = fmt.Fprintln(e.Stdout, shadowMessage(id, fb, other, binPath))
+	}
+}
+
+// shadowingBinary returns the path of another copy of the release binary found
+// on PATH, or "" when the only copy is the one omnishell installed.
+func (e Engine) shadowingBinary(fb module.Fallback) string {
+	if e.Runner == nil {
+		return ""
+	}
+	found, err := e.Runner.Look(fb.Bin)
+	if err != nil || filepath.Clean(found) == filepath.Clean(e.releaseContext().BinPath(fb)) {
+		return ""
+	}
+	return found
+}
+
+func shadowMessage(id string, fb module.Fallback, other, ours string) string {
+	return fmt.Sprintf("%s: %s is also found at %s besides the omnishell copy at %s; whichever comes first in PATH wins",
+		id, fb.Bin, other, ours)
 }
 
 // removeLeftovers deletes the planned leftovers of an old Cargo build, logging
