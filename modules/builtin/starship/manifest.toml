@@ -24,3 +24,4 @@ type = "git"
 repo = "https://github.com/starship/starship.git"
 dest = "{{.VendorDir}}/starship"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/starship", "--root", "{{.VendorDir}}"]
+requires = ["cargo>=1.95"]

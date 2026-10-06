@@ -19,6 +19,7 @@ type = "git"
 repo = "https://github.com/iffse/pay-respects.git"
 dest = "{{.VendorDir}}/pay-respects"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/pay-respects", "--root", "{{.VendorDir}}"]
+requires = ["cargo>=1.85"]
 
 [options.alias]
 type    = "string"

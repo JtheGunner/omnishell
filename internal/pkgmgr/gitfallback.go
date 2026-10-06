@@ -50,7 +50,8 @@ func FallbackSatisfied(fb module.Fallback, ctx FallbackContext) (bool, string) {
 }
 
 // InstallGitFallback clones fb.Repo into the rendered fb.Dest and, if set, runs
-// fb.Run. A populated dest short-circuits without cloning. It returns the
+// fb.Run. A populated dest short-circuits without cloning; fb.Requires is
+// checked before anything is cloned. It returns the
 // resolved dest path as vendorPath.
 func InstallGitFallback(fb module.Fallback, ctx FallbackContext, r Runner) (string, error) {
 	if fb.Type != "git" {
@@ -62,6 +63,9 @@ func InstallGitFallback(fb module.Fallback, ctx FallbackContext, r Runner) (stri
 	}
 	if populatedDir(dest) {
 		return dest, nil
+	}
+	if err := CheckRequirements(fb.Requires, r); err != nil {
+		return "", err
 	}
 	if _, err := r.Run("git", "clone", "--depth", "1", fb.Repo, dest); err != nil {
 		return "", fmt.Errorf("git clone %s: %w", fb.Repo, err)

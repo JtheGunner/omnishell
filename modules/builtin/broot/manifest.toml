@@ -23,6 +23,7 @@ type = "git"
 repo = "https://github.com/Canop/broot.git"
 dest = "{{.VendorDir}}/broot"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/broot", "--root", "{{.VendorDir}}"]
+requires = ["cargo>=1.85"]
 
 [options.cmd]
 type    = "string"

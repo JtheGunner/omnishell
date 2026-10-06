@@ -4,6 +4,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `[[packages.fallback]]` accepts an optional `requires` list (`"cmake"`,
+  `"cargo>=1.85"`). `omnishell apply` checks it before cloning and, when a tool
+  is missing or too old, degrades the module with a message naming what is
+  missing instead of failing minutes later with a raw build error. The built-in
+  cargo and cmake fallbacks declare their prerequisites, which the README lists
+  per module.
+
 ### Fixed
 - A module whose package is listed for the active package manager but cannot
   be provided by its repositories (for example `starship` or `broot` on Ubuntu

@@ -21,6 +21,7 @@ type = "git"
 repo = "https://github.com/jdx/mise.git"
 dest = "{{.VendorDir}}/mise"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/mise", "--root", "{{.VendorDir}}"]
+requires = ["cargo>=1.95", "cmake"]
 
 [options.mode]
 type    = "enum"
