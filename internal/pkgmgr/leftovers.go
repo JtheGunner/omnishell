@@ -47,7 +47,13 @@ func (l Leftover) Describe() string {
 // unparsable metadata file) are left alone and described in skipped.
 func FindLeftovers(gitFB module.Fallback, ctx FallbackContext) (found []Leftover, skipped []string) {
 	dest, err := renderPath(gitFB.Dest, ctx)
-	if err != nil || dest == "" || filepath.Dir(dest) != filepath.Clean(ctx.VendorDir) {
+	if err != nil || dest == "" {
+		return nil, nil
+	}
+	// Resolve "." and ".." before judging the path: "<vendor>/.." has the
+	// vendor dir as its parent, yet names the vendor dir's own parent.
+	dest = filepath.Clean(dest)
+	if filepath.Dir(dest) != filepath.Clean(ctx.VendorDir) || dest == filepath.Clean(ctx.VendorDir) {
 		return nil, nil
 	}
 	if populatedDir(dest) && isCloneOf(dest, gitFB.Repo) {

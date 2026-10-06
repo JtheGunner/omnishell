@@ -418,6 +418,7 @@ func planRelease(mp *ModulePlan, e Engine, fb module.Fallback, prev lockfile.Mod
 	switch {
 	case !pkgmgr.ReleaseInstalled(fb, e.releaseContext()):
 		mp.MissingPackages = append(mp.MissingPackages, pp)
+		planCleanup(mp, e) // a Cargo build that never produced a binary still left its clone
 	case recordedKind == fallbackKindRelease && prev.FallbackRef == fb.Ref && recordedChecksumHolds(fb, e, prev):
 		// Settled: this ref is installed from the asset the manifest pins.
 	case recordedKind == fallbackKindRelease:

@@ -274,6 +274,14 @@ func (e Engine) installRelease(id string, mp ModulePlan, fb module.Fallback, deg
 		_, _ = fmt.Fprintf(e.Stdout, "installing %s %s from its release binary\n", fb.Bin, fb.Ref)
 		res, err := pkgmgr.InstallRelease(fb, e.releaseContext(), e.Downloader)
 		if err != nil {
+			// A failed replacement leaves the installed binary untouched, so
+			// the tool still works: keep the module (and its snippet) and let
+			// the next apply retry, as a failed git update does. Only a first
+			// install, with no binary to keep, degrades the module.
+			if isReleaseUpdate(mp) && pkgmgr.ReleaseInstalled(fb, e.releaseContext()) {
+				_, _ = fmt.Fprintf(e.Stdout, "%s: release update to %s failed: %v; keeping the installed version\n", id, fb.Ref, err)
+				return
+			}
 			degraded[id] = fallbackFailure(e.Manager, mp, err)
 			return
 		}
@@ -319,6 +327,17 @@ func (e Engine) removeLeftovers(id string, mp ModulePlan) {
 			_, _ = fmt.Fprintf(e.Stdout, "%s: could not remove %s: %v\n", id, l.Describe(), err)
 		}
 	}
+}
+
+// isReleaseUpdate reports whether the module's queued release fallback replaces
+// an existing binary instead of installing the first one.
+func isReleaseUpdate(mp ModulePlan) bool {
+	for _, pp := range mp.MissingPackages {
+		if pp.Manager == "release" && pp.Update {
+			return true
+		}
+	}
+	return false
 }
 
 // isReleaseAdopt reports whether the module's queued release fallback keeps an

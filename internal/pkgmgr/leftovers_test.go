@@ -126,13 +126,46 @@ func TestFindLeftoversLeavesANonCloneAlone(t *testing.T) {
 	}
 }
 
-func TestFindLeftoversIgnoresAPathOutsideTheVendorDir(t *testing.T) {
+// cloneAt makes dir look like a populated git clone of toolRepo.
+func cloneAt(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, ".git", "config"), "[remote \"origin\"]\n\turl = "+toolRepo+"\n")
+	writeFile(t, filepath.Join(dir, "precious"), "x")
+}
+
+func TestFindLeftoversIgnoresAClonePathOutsideTheVendorDir(t *testing.T) {
 	ctx := buildSandbox(t, toolRepo)
+	outside := filepath.Join(t.TempDir(), "elsewhere")
+	cloneAt(t, outside) // a real clone of the right repo, just not under vendor/
+	writeFile(t, filepath.Join(ctx.VendorDir, ".crates.toml"),
+		"[v1]\n\"tool 1.0.0 (path+file://"+outside+")\" = [\"tool\"]\n")
 	fb := gitFB()
-	fb.Dest = filepath.Join(t.TempDir(), "elsewhere")
+	fb.Dest = outside
 	found, _ := pkgmgr.FindLeftovers(fb, ctx)
 	if len(found) != 0 {
-		t.Fatalf("found = %+v for a dest outside the vendor dir", found)
+		t.Fatalf("found = %+v for a clone outside the vendor dir", found)
+	}
+}
+
+func TestFindLeftoversRejectsDotDotAndDotDests(t *testing.T) {
+	ctx := buildSandbox(t, toolRepo)
+	parent := filepath.Dir(ctx.VendorDir)
+	cloneAt(t, parent) // the vendor dir's parent happens to be a clone of the same repo
+	for _, dest := range []string{"{{.VendorDir}}/..", "{{.VendorDir}}/.", "{{.VendorDir}}/../", "{{.VendorDir}}"} {
+		fb := gitFB()
+		fb.Dest = dest
+		found, _ := pkgmgr.FindLeftovers(fb, ctx)
+		for _, l := range found {
+			if l.Kind == pkgmgr.LeftoverTree {
+				t.Errorf("dest %q listed %s for deletion", dest, l.Path)
+			}
+		}
+	}
+	if _, err := os.Stat(filepath.Join(parent, "precious")); err != nil {
+		t.Fatalf("FindLeftovers changed the parent directory: %v", err)
 	}
 }
 

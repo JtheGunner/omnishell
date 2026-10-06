@@ -22,11 +22,15 @@ const relPayload = "#!/bin/sh\necho reltool\n"
 
 type relDownloader struct {
 	body  []byte
+	err   error
 	calls []string
 }
 
 func (d *relDownloader) Download(url string, dst io.Writer, _ int64) error {
 	d.calls = append(d.calls, url)
+	if d.err != nil {
+		return d.err
+	}
 	_, err := dst.Write(d.body)
 	return err
 }
@@ -493,5 +497,93 @@ func TestDoctorReportsACompetingCopyOnThePath(t *testing.T) {
 	s.runner.LookOK = nil
 	if _, present := s.findings(t)["path-shadow:reltool"]; present {
 		t.Fatal("path-shadow reported although no other copy exists")
+	}
+}
+
+func (s relSandbox) initSnippet(t *testing.T) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(s.home, ".config", "omnishell", "init.bash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func TestFailedReleaseUpdateKeepsTheWorkingModule(t *testing.T) {
+	s := newRelSandbox(t)
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	// An older ref is recorded, so the next apply wants to replace the binary,
+	// but the download fails (no network, blocked CDN, rate limit).
+	lock, _, err := lockfile.Load(s.lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := lock.Modules["reltool"]
+	st.FallbackRef = "v0.9.0"
+	lock.Modules["reltool"] = st
+	if err := lock.Write(s.lockPath); err != nil {
+		t.Fatal(err)
+	}
+	s.dl.err = errors.New("network unreachable")
+
+	res, err := s.apply(t)
+	if err != nil {
+		t.Fatalf("a failed update of a working tool must not fail apply: %v", err)
+	}
+	if got := moduleResult(t, res, "reltool").Status; got == "degraded" {
+		t.Fatal("the module was degraded although its binary still works")
+	}
+	if !strings.Contains(s.initSnippet(t), "echo reltool") {
+		t.Fatalf("the module's shell snippet was dropped:\n%s", s.initSnippet(t))
+	}
+	if got, _ := os.ReadFile(s.binPath()); string(got) != relPayload {
+		t.Fatalf("the installed binary changed: %q", got)
+	}
+	if !strings.Contains(s.out.String(), "keeping the installed version") {
+		t.Fatalf("output does not say the old version is kept:\n%s", s.out.String())
+	}
+	if got := s.lockState(t).FallbackRef; got != "v0.9.0" {
+		t.Fatalf("recorded ref = %q, want it left at v0.9.0 so the next apply retries", got)
+	}
+}
+
+func TestFailedFirstReleaseInstallStillDegrades(t *testing.T) {
+	s := newRelSandbox(t)
+	s.dl.err = errors.New("network unreachable")
+	_, err := s.apply(t)
+	if !errors.Is(err, engine.ErrDegraded) {
+		t.Fatalf("err = %v, want ErrDegraded: there is no binary to keep", err)
+	}
+}
+
+func TestApplyCleansTheCloneWhenTheBinaryIsMissing(t *testing.T) {
+	s := newRelSandbox(t)
+	tree, _ := s.seedCargoBuild(t)
+	if err := os.Remove(s.binPath()); err != nil { // a Cargo build that never produced a binary
+		t.Fatal(err)
+	}
+	if _, err := s.apply(t); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got, _ := os.ReadFile(s.binPath()); string(got) != relPayload {
+		t.Fatalf("binary = %q, want the release binary", got)
+	}
+	if _, err := os.Stat(tree); !os.IsNotExist(err) {
+		t.Fatalf("the clone of the failed Cargo build was left behind (err %v)", err)
+	}
+}
+
+func TestDoctorDoesNotReportAnAdoptAsAMissingPackage(t *testing.T) {
+	s := newRelSandbox(t)
+	s.seedCargoBuild(t)
+	s.recordGitBuild(t, "v1.0.0")
+	codes := s.findings(t)
+	if _, bad := codes["packages-missing:reltool"]; bad {
+		t.Fatalf("a present Cargo build waiting to be adopted is not a missing package: %v", codes)
+	}
+	if codes["fallback-adopt:reltool"] != engine.SeverityNotice {
+		t.Fatalf("doctor lacks the fallback-adopt notice: %v", codes)
 	}
 }
