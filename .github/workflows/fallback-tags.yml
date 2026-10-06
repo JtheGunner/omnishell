@@ -51,6 +51,20 @@ jobs:
           if [ "$checks" -eq 0 ]; then
             echo "::warning::Auto-merge not enabled: main has no required status checks."
             echo "Auto-merge skipped: main has no required status checks." >> "$GITHUB_STEP_SUMMARY"
+            gh pr merge "$PR" --repo "$REPO" --disable-auto || true
             exit 0
           fi
           gh pr merge "$PR" --repo "$REPO" --auto --squash
+      # Auto-merge stays on a pull request once enabled, and the PR branch is
+      # reused across runs. If a later run no longer qualifies (a major bump, or
+      # the variable was switched off), take it back instead of letting the new
+      # content merge on the old approval.
+      - name: Disable auto-merge when the guard no longer holds
+        if: >-
+          steps.cpr.outputs.pull-request-number != '' &&
+          (vars.FALLBACK_TAGS_AUTOMERGE != 'true' || steps.tags.outputs.same_major != 'true')
+        env:
+          GH_TOKEN: ${{ secrets.FALLBACK_TAGS_TOKEN || github.token }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+          REPO: ${{ github.repository }}
+        run: gh pr merge "$PR" --repo "$REPO" --disable-auto || true
