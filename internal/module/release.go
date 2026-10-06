@@ -14,8 +14,11 @@ import (
 // downloaded file. Member names the file to extract from a .tar.gz or .zip
 // asset; it is empty for a raw binary download.
 type Asset struct {
-	OS     string `toml:"os"`
-	Arch   string `toml:"arch"`
+	OS   string `toml:"os"`
+	Arch string `toml:"arch"`
+	// GoARM narrows an arch = "arm" asset to one 32-bit ARM variant ("6" or
+	// "7"). An asset without it matches every variant.
+	GoARM  string `toml:"goarm"`
 	URL    string `toml:"url"`
 	SHA256 string `toml:"sha256"`
 	Member string `toml:"member"`
@@ -49,14 +52,25 @@ func (a Asset) RenderURL(ref string) (string, error) {
 	return b.String(), nil
 }
 
-// AssetFor returns the asset for an OS and architecture, if the fallback has one.
-func (f Fallback) AssetFor(osName, arch string) (Asset, bool) {
+// AssetFor returns the asset for an OS, architecture and 32-bit ARM variant, if
+// the fallback has one. An asset naming the host's goarm wins; otherwise an
+// asset without goarm matches. An asset naming a goarm never matches another
+// or an unknown variant.
+func (f Fallback) AssetFor(osName, arch, goarm string) (Asset, bool) {
+	var generic Asset
+	found := false
 	for _, a := range f.Assets {
-		if a.OS == osName && a.Arch == arch {
+		if a.OS != osName || a.Arch != arch {
+			continue
+		}
+		switch {
+		case a.GoARM != "" && a.GoARM == goarm:
 			return a, true
+		case a.GoARM == "" && !found:
+			generic, found = a, true
 		}
 	}
-	return Asset{}, false
+	return generic, found
 }
 
 // fallbackProblem returns why a fallback entry is invalid, or "" when it is
@@ -93,6 +107,9 @@ func releaseProblem(fb Fallback) string {
 			return fmt.Sprintf("assets[%d]: %s", i, msg)
 		}
 		key := a.OS + "/" + a.Arch
+		if a.GoARM != "" {
+			key += "/" + a.GoARM
+		}
 		if seen[key] {
 			return "duplicate asset for " + key
 		}
@@ -105,8 +122,12 @@ func assetProblem(a Asset) string {
 	switch {
 	case a.OS != "linux":
 		return "os must be linux"
-	case a.Arch != "amd64" && a.Arch != "arm64":
-		return "arch must be amd64 or arm64"
+	case a.Arch != "amd64" && a.Arch != "arm64" && a.Arch != "arm":
+		return "arch must be amd64, arm64 or arm"
+	case a.GoARM != "" && a.Arch != "arm":
+		return `goarm is only valid with arch = "arm"`
+	case a.GoARM != "" && a.GoARM != "6" && a.GoARM != "7":
+		return "goarm must be 6 or 7"
 	case !strings.HasPrefix(a.URL, "https://"):
 		return "url must start with https://"
 	case !sha256Re.MatchString(a.SHA256):

@@ -475,7 +475,7 @@ func TestBuiltinReleaseFallbacks(t *testing.T) {
 			continue
 		}
 		for _, arch := range []string{"amd64", "arm64"} {
-			if _, ok := fbs[0].AssetFor("linux", arch); !ok {
+			if _, ok := fbs[0].AssetFor("linux", arch, ""); !ok {
 				t.Errorf("module %s: release fallback has no linux/%s asset", id, arch)
 			}
 		}

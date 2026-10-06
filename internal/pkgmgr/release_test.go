@@ -339,3 +339,31 @@ func TestHTTPDownloaderReportsHTTPErrors(t *testing.T) {
 		t.Fatalf("err = %v, want the 404 reported", err)
 	}
 }
+
+func TestInstallReleasePicksTheAssetForTheHostVariant(t *testing.T) {
+	body := []byte("#!/bin/sh\necho tool\n")
+	sha := sumHex(body)
+	fb := module.Fallback{
+		Type: "release", Repo: "https://example.com/tool", Ref: "v1.2.3", Bin: "tool",
+		Assets: []module.Asset{
+			{OS: "linux", Arch: "arm", URL: "https://example.com/tool-any-arm", SHA256: sha},
+			{OS: "linux", Arch: "arm", GoARM: "7", URL: "https://example.com/tool-armv7", SHA256: sha},
+		},
+	}
+	cases := map[string]string{
+		"7": "https://example.com/tool-armv7",
+		"6": "https://example.com/tool-any-arm",
+		"":  "https://example.com/tool-any-arm",
+	}
+	for goarm, wantURL := range cases {
+		ctx := ctxIn(t)
+		ctx.Arch, ctx.GoARM = "arm", goarm
+		dl := &fakeDownloader{body: body}
+		if _, err := pkgmgr.InstallRelease(fb, ctx, dl); err != nil {
+			t.Fatalf("goarm %q: %v", goarm, err)
+		}
+		if len(dl.urls) != 1 || dl.urls[0] != wantURL {
+			t.Errorf("goarm %q: downloaded %v, want %s", goarm, dl.urls, wantURL)
+		}
+	}
+}

@@ -326,3 +326,35 @@ func TestDescribeAdoptedPackage(t *testing.T) {
 		t.Fatalf("adopt = %q", got)
 	}
 }
+
+func TestSelectFallbackHonoursGoARM(t *testing.T) {
+	release := module.Fallback{Type: "release", Assets: []module.Asset{
+		{OS: "linux", Arch: "arm", GoARM: "7"},
+	}}
+	git := module.Fallback{Type: "git"}
+	fbs := []module.Fallback{release, git}
+	cases := []struct {
+		name     string
+		info     platform.Info
+		wantType string
+	}{
+		{"armv7 takes the release asset", platform.Info{OS: platform.Linux, Arch: "arm", GoARM: "7"}, "release"},
+		{"armv6 builds from source", platform.Info{OS: platform.Linux, Arch: "arm", GoARM: "6"}, "git"},
+		{"unknown variant builds from source", platform.Info{OS: platform.Linux, Arch: "arm"}, "git"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fb, ok := selectFallback(fbs, c.info)
+			if !ok || fb.Type != c.wantType {
+				t.Fatalf("selectFallback = %q, %v, want %q", fb.Type, ok, c.wantType)
+			}
+		})
+	}
+}
+
+func TestReleaseContextCarriesGoARM(t *testing.T) {
+	e := Engine{Platform: platform.Info{OS: platform.Linux, Arch: "arm", GoARM: "6", ConfigDir: t.TempDir()}}
+	if got := e.releaseContext().GoARM; got != "6" {
+		t.Fatalf("releaseContext().GoARM = %q, want 6", got)
+	}
+}
