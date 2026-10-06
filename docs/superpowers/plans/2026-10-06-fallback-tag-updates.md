@@ -2023,3 +2023,15 @@ git commit -m "docs: describe the fallback clone refresh"
 - [ ] **Step 5: Phase 2 hand-off**
 
 Do not push on your own; push and open the PR through `/youtrack-task pr`. In the PR description, call out that the first `apply` after upgrading rebuilds every fallback-built tool once, and what a reviewer should run: `omnishell apply` against a sandbox `HOME` with a pre-existing unpinned clone, then a second `apply` (must be a no-op).
+
+---
+
+# Changes made during execution (review-driven)
+
+The final reviews changed Phase 2 after the tasks above were written. The spec carries the resulting behavior; this note records where the code differs from the task snippets.
+
+- A failed update no longer degrades the module (it keeps its snippet and the installed tool); it prints a line and leaves the recorded ref unchanged.
+- `ModulePlan.PackagesPlanned` (set once package planning completes) guards the clearing of recorded refs, so `apply --no-packages` (`doctor --fix`) and planner-degraded modules keep them.
+- `lockfile.ModuleState.FallbackSkippedRef` remembers a declined update; `planFallback` does not plan it again for the same pinned ref, and `doctor` reports `fallback-modified`.
+- `UpdateGitFallback` requires the destination to contain its own `.git` (`ErrNotAClone`) and fetches from `fb.Repo` instead of `origin`.
+- `installPackages` and `rebuildLock` take a `*fallbackOutcome` (built and skipped refs) instead of a `fallbackRefs` map.

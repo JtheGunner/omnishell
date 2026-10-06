@@ -115,7 +115,9 @@ files matters more than any single file:
    The lockfile records the ref a clone was built from (`fallback_ref`);
    `ComputePlan` compares it with the manifest's `ref` (no git probe) and plans
    an update, which `UpdateGitFallback` performs unless the clone has tracked
-   local changes.
+   local changes or is not a git clone (declined refs are recorded as
+   `fallback_skipped_ref`). A failed update never degrades the module, and
+   `--no-packages` keeps the recorded refs (`ModulePlan.PackagesPlanned`).
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 

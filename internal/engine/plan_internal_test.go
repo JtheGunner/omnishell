@@ -49,6 +49,8 @@ func TestPlanFallback(t *testing.T) {
 		{"pinned, recorded ref differs", true, "v2", lockfile.ModuleState{FallbackRef: "v1"}, 1, true},
 		{"pinned, nothing recorded", true, "v2", lockfile.ModuleState{}, 1, true},
 		{"no ref keeps a populated clone", true, "", lockfile.ModuleState{}, 0, false},
+		{"an update already declined for this ref is not planned again", true, "v2", lockfile.ModuleState{FallbackSkippedRef: "v2"}, 0, false},
+		{"a newer ref after a declined one is planned", true, "v3", lockfile.ModuleState{FallbackSkippedRef: "v2"}, 1, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

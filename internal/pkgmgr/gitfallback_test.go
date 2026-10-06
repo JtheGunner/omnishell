@@ -111,6 +111,9 @@ func populatedClone(t *testing.T) (vendor, dest string) {
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(dest, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(dest, "file"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +136,7 @@ func TestUpdateGitFallbackFetchesChecksOutAndRebuilds(t *testing.T) {
 	}
 	want := []string{
 		"git -C " + dest + " status --porcelain --untracked-files=no",
-		"git -C " + dest + " fetch --depth 1 origin v2",
+		"git -C " + dest + " fetch --depth 1 https://example.com/fzf.git v2",
 		"git -C " + dest + " -c advice.detachedHead=false checkout --detach FETCH_HEAD",
 		filepath.Join(dest, "install") + " --bin",
 	}
@@ -157,7 +160,7 @@ func TestUpdateGitFallbackLeavesAModifiedCloneAlone(t *testing.T) {
 
 func TestUpdateGitFallbackFetchFailureStopsBeforeTheBuild(t *testing.T) {
 	vendor, dest := populatedClone(t)
-	fetch := "git -C " + dest + " fetch --depth 1 origin v2"
+	fetch := "git -C " + dest + " fetch --depth 1 https://example.com/fzf.git v2"
 	r := &pkgmgr.MockRunner{Responses: map[string]pkgmgr.MockResponse{fetch: {Err: errors.New("network down")}}}
 	if _, err := pkgmgr.UpdateGitFallback(updateFallbackSpec(), pkgmgr.FallbackContext{VendorDir: vendor}, r); err == nil || !strings.Contains(err.Error(), "network down") {
 		t.Fatalf("err = %v, want the fetch error", err)
@@ -191,5 +194,24 @@ func TestUpdateGitFallbackRejectsBadInput(t *testing.T) {
 	fb.Ref = ""
 	if _, err := pkgmgr.UpdateGitFallback(fb, pkgmgr.FallbackContext{VendorDir: vendor}, &pkgmgr.MockRunner{}); err == nil {
 		t.Fatal("want an error without a ref")
+	}
+}
+
+func TestUpdateGitFallbackNeverRunsGitInADirectoryThatIsNotAClone(t *testing.T) {
+	vendor := t.TempDir()
+	dest := filepath.Join(vendor, "fzf")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dest, "file"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := &pkgmgr.MockRunner{}
+	got, err := pkgmgr.UpdateGitFallback(updateFallbackSpec(), pkgmgr.FallbackContext{VendorDir: vendor}, r)
+	if !errors.Is(err, pkgmgr.ErrNotAClone) || got != dest {
+		t.Fatalf("UpdateGitFallback = %q, %v; want %q, ErrNotAClone", got, err, dest)
+	}
+	if len(r.Calls) != 0 {
+		t.Fatalf("git must not run in a directory that is not a clone (it could reach an enclosing repository): %v", r.Calls)
 	}
 }

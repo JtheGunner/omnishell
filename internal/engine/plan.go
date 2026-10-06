@@ -47,6 +47,12 @@ type ModulePlan struct {
 	OptionsHash     string
 	MissingPackages []PackagePlan
 	UsesFallback    bool
+	// PackagesPlanned is true once package planning ran to completion for the
+	// module. It is false under --no-packages and when the planner gave up
+	// early (no package manager, planned degradation); in those cases
+	// UsesFallback says nothing about the module, so the lockfile must keep the
+	// refs it already recorded.
+	PackagesPlanned bool
 	// UnavailablePackages are the manager packages the repositories cannot
 	// provide; non-empty only when the plan switched to the module's fallback.
 	UnavailablePackages []string
@@ -272,6 +278,7 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, 
 		}
 		return
 	}
+	mp.PackagesPlanned = true
 	pkgs := mf.Packages.ForManager(e.Manager.Name())
 	if len(pkgs) > 0 {
 		var missing []PackagePlan
@@ -322,7 +329,7 @@ func planFallback(mp *ModulePlan, e Engine, prev lockfile.ModuleState) {
 	switch {
 	case !ok:
 		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{Name: fb.Repo, Manager: "git"})
-	case fb.Ref != "" && prev.FallbackRef != fb.Ref:
+	case fb.Ref != "" && prev.FallbackRef != fb.Ref && prev.FallbackSkippedRef != fb.Ref:
 		mp.MissingPackages = append(mp.MissingPackages, PackagePlan{
 			Name: fb.Repo, Manager: "git", Update: true, From: prev.FallbackRef, To: fb.Ref,
 		})

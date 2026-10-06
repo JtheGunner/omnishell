@@ -177,6 +177,11 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 			add(SeverityDrift, "packages-missing:"+id,
 				fmt.Sprintf("module %q is missing packages: %s", id, strings.Join(missing, ", ")))
 		}
+		if st := lock.Modules[id]; mp.UsesFallback && len(mp.Manifest.Packages.Fallback) > 0 &&
+			st.FallbackSkippedRef != "" && st.FallbackSkippedRef == mp.Manifest.Packages.Fallback[0].Ref {
+			add(SeverityNotice, "fallback-modified:"+id,
+				fmt.Sprintf("module %q: the fallback clone was not updated to %s (it has local changes or is not a git clone); reset or remove it to update", id, st.FallbackSkippedRef))
+		}
 		if mp.DegradedReason != "" {
 			add(SeverityDrift, "module-degraded:"+id,
 				fmt.Sprintf("module %q is degraded: %s", id, mp.DegradedReason))

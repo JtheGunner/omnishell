@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/JtheGunner/omnishell/internal/module"
@@ -51,8 +52,13 @@ func FallbackSatisfied(fb module.Fallback, ctx FallbackContext) (bool, string) {
 }
 
 // ErrCloneModified reports that an existing fallback clone has tracked local
-// changes; UpdateGitFallback leaves it untouched.
-var ErrCloneModified = errors.New("fallback clone has local changes")
+// changes; UpdateGitFallback leaves it untouched. The text completes the
+// sentence "not updating fallback clone <path>: ...".
+var ErrCloneModified = errors.New("it has local changes")
+
+// ErrNotAClone reports that the fallback destination exists but is not a git
+// clone of its own; running git there could reach an enclosing repository.
+var ErrNotAClone = errors.New("it is not a git clone")
 
 // InstallGitFallback clones fb.Repo into the rendered fb.Dest and, if set, runs
 // fb.Run (at fb.Ref when set). A populated dest short-circuits without
@@ -106,6 +112,11 @@ func UpdateGitFallback(fb module.Fallback, ctx FallbackContext, r Runner) (strin
 	if !populatedDir(dest) {
 		return "", fmt.Errorf("fallback clone %s does not exist", dest)
 	}
+	// Without its own .git, git would walk up to an enclosing repository (for
+	// example a dotfiles repo in ~/.config) and operate on that instead.
+	if _, err := os.Stat(filepath.Join(dest, ".git")); err != nil {
+		return dest, ErrNotAClone
+	}
 	if err := CheckRequirements(fb.Requires, r); err != nil {
 		return "", err
 	}
@@ -116,7 +127,9 @@ func UpdateGitFallback(fb module.Fallback, ctx FallbackContext, r Runner) (strin
 	if strings.TrimSpace(string(out)) != "" {
 		return dest, ErrCloneModified
 	}
-	if _, err := r.Run("git", "-C", dest, "fetch", "--depth", "1", "origin", fb.Ref); err != nil {
+	// Fetch from the repository the manifest names, not from whatever origin the
+	// clone happens to carry.
+	if _, err := r.Run("git", "-C", dest, "fetch", "--depth", "1", fb.Repo, fb.Ref); err != nil {
 		return "", fmt.Errorf("git fetch %s: %w", fb.Ref, err)
 	}
 	if _, err := r.Run("git", "-C", dest, "-c", "advice.detachedHead=false", "checkout", "--detach", "FETCH_HEAD"); err != nil {

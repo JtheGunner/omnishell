@@ -20,9 +20,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - The built-in modules pin their `git` fallback to a release tag, so a
   fallback build is reproducible. `apply` moves an existing clone in `vendor/`
-  to the pinned tag and rebuilds it (the plan lists the update first); a clone
-  with local changes is left alone. The first `apply` after upgrading rebuilds
-  each fallback-built tool once.
+  to the pinned tag and rebuilds it (the plan lists the update first). A clone
+  with local changes, or a directory that is not a git clone, is left alone and
+  not retried until the pinned tag changes; a failed update keeps the installed
+  tool and its shell integration. The first `apply` after upgrading rebuilds each
+  fallback-built tool once.
 
 ### Fixed
 - A module whose package is listed for the active package manager but cannot
