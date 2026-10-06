@@ -34,7 +34,8 @@ CI (`.github/workflows/ci.yml`) runs vet, race tests (with a coverage summary
 in the job output), lint, and `govulncheck` on every push/PR; a build job
 compiles on ubuntu+macos and runs `omnishell version`. `.github/dependabot.yml`
 opens grouped weekly `gomod` / `github-actions` update PRs.
-Releases are tagged (`vX.Y.Z`) and built via GoReleaser (`.goreleaser.yaml`),
+Releases are tagged (`vX.Y.Z`, on a commit that is on `main`: `release.yml`
+refuses any other tag) and built via GoReleaser (`.goreleaser.yaml`),
 which also pushes a formula to the `JtheGunner/homebrew-tap` repo (needs
 `HOMEBREW_TAP_GITHUB_TOKEN`). `install.sh` downloads the matching release
 tarball and verifies its checksum before extracting. The GoReleaser
