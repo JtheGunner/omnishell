@@ -459,3 +459,76 @@ func TestTUIDoesNotApplyWhenTheUIFailed(t *testing.T) {
 		t.Fatalf("apply must not run after a failed UI, asked %v", *asked)
 	}
 }
+
+func TestTUIBackendOptionsAndSetOptionRoundTripThroughConfigToml(t *testing.T) {
+	cfgPath := setTestInit(t)
+	b := backendFor(t)
+
+	before, err := b.Options("fzf")
+	if err != nil {
+		t.Fatalf("Options: %v", err)
+	}
+	if len(before) != 1 || before[0].Key != "ctrl_r" || before[0].Value != "true" || before[0].Set || !before[0].Editable {
+		t.Fatalf("options = %+v, want ctrl_r true, unset and editable", before)
+	}
+
+	if err := b.SetOption("fzf", "ctrl_r", "false"); err != nil {
+		t.Fatalf("SetOption: %v", err)
+	}
+	after, err := b.Options("fzf")
+	if err != nil {
+		t.Fatalf("Options after: %v", err)
+	}
+	if after[0].Value != "false" || !after[0].Set {
+		t.Fatalf("ctrl_r = %+v, want false and set", after[0])
+	}
+	src, err := os.ReadFile(cfgPath)
+	if err != nil || !strings.Contains(string(src), "ctrl_r = false") || !strings.Contains(string(src), "# Edit this file by hand") {
+		t.Fatalf("config.toml must hold the option and keep its comments (err=%v):\n%s", err, src)
+	}
+}
+
+func TestTUIBackendRejectedOptionIsAShortMessageAndWritesNothing(t *testing.T) {
+	cfgPath := setTestInit(t)
+	b := backendFor(t)
+	before, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+
+	err = b.SetOption("fzf", "ctrl_r", "maybe")
+
+	if err == nil || !strings.Contains(err.Error(), "invalid value for fzf.ctrl_r") {
+		t.Fatalf("err = %v, want the validation message", err)
+	}
+	if strings.Contains(err.Error(), cfgPath) {
+		t.Fatalf("message %q must not start with the config path", err)
+	}
+	after, err := os.ReadFile(cfgPath)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("config.toml must be untouched (err=%v)", err)
+	}
+}
+
+func TestTUIBackendOptionsMarksListOptionsAsNotEditable(t *testing.T) {
+	setTestInit(t)
+	b := backendFor(t)
+
+	opts, err := b.Options("modern-aliases")
+	if err != nil {
+		t.Fatalf("Options: %v", err)
+	}
+
+	if len(opts) != 1 || opts[0].Type != "list<enum>" || opts[0].Editable {
+		t.Fatalf("options = %+v, want one list option that is not editable", opts)
+	}
+}
+
+func TestTUIBackendOptionsOfAnUnknownModuleIsAnError(t *testing.T) {
+	setTestInit(t)
+	b := backendFor(t)
+
+	if _, err := b.Options("no-such-module"); err == nil || !strings.Contains(err.Error(), "unknown module") {
+		t.Fatalf("err = %v, want unknown module", err)
+	}
+}
