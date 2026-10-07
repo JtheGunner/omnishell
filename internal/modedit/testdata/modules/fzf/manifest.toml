@@ -1,0 +1,33 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "fzf"
+name        = "FZF Fuzzy Finder"
+description = "Ctrl+R history search"
+homepage    = "https://github.com/junegunn/fzf"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+apt  = ["fzf"]
+brew = ["fzf"]
+
+[options.ctrl_r]
+type    = "bool"
+default = true
+help    = "Bind Ctrl+R to the fzf history widget"
+
+[options.theme]
+type    = "enum"
+default = "dark"
+values  = ["dark", "light"]
+help    = "Colour theme"
+
+[options.prefix]
+type    = "string"
+default = "abc"
+pattern = "^[a-z]+$"
+help    = "Key prefix"

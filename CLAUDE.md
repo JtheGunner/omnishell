@@ -91,6 +91,9 @@ files matters more than any single file:
    `enable`/`disable`/`set` edits (`edit.go`), validating option values against
    a module's schema before writing. Every command except `apply`/`remove`/
    `uninstall` only touches this package.
+   The rules shared by `enable`/`disable`/`set`/`list` (unknown-id, shell
+   compatibility, option validation, the per-module view) live in
+   `internal/modedit`; the CLI commands are thin callers of it.
 
 6. **`internal/platform`** — detects OS (macos/linux) and which shells
    (zsh/bash) are present/managed on the current machine; feeds both

@@ -1,0 +1,11 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "plain"
+name        = "Plain"
+description = "A module that needs no external package"
+version     = "1.0.0"
+schema      = 1
