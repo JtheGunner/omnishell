@@ -479,6 +479,7 @@ func TestFilterTypingStartedWhileTheOptionsLoadDoesNotSurviveTheOptionsScreen(t 
 func TestAnOptionWriteResultForAnotherModuleOrScreenIsDropped(t *testing.T) {
 	m, _ := withOptions()
 	m = openFzfOptions(t, m)
+	browser := press(t, m, "esc") // keys are ignored while a write is pending, so leave first
 	m.pending = true
 	elsewhere := []modedit.OptionView{{Key: "other", Type: "bool", Value: "true", Editable: true}}
 
@@ -490,7 +491,6 @@ func TestAnOptionWriteResultForAnotherModuleOrScreenIsDropped(t *testing.T) {
 		t.Fatal("a dropped result must not enter the change count")
 	}
 
-	browser := press(t, m, "esc")
 	browser.pending = true
 	late := browser.applyOptionWritten(optionWrittenMsg{id: "fzf", rows: elsewhere})
 	if late.pending || late.screen != screenBrowser || len(late.options.rows) != 0 {
