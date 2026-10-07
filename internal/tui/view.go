@@ -44,6 +44,10 @@ func (m Model) render() string {
 			minWidth, minHeight, m.width, m.height)
 	}
 
+	if m.screen == screenPlan {
+		return m.renderPlan()
+	}
+
 	bodyHeight := m.height - headerLines - footerLines
 	rows := bodyHeight - boxChromeV
 	rightWidth := m.width - listWidth
@@ -79,7 +83,7 @@ func (m Model) renderFooter() string {
 	if m.pending {
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
 	}
-	help := "↑/↓ move · space toggle · / filter · esc clear filter · q quit"
+	help := "↑/↓ move · space toggle · a plan · / filter · esc clear filter · q quit"
 	if m.filtering {
 		help = "type to filter · enter keep · esc cancel · ctrl+c quit"
 	}

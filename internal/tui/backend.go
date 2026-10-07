@@ -19,4 +19,17 @@ type Backend interface {
 	// id. It must be cheap: the UI calls it after every write, whereas Modules
 	// can take seconds because it asks the package manager about every package.
 	Statuses() (map[string]modedit.Status, error)
+	// Plan computes what applying the current config would do. It must not
+	// change anything, and it may take seconds (it asks the package manager),
+	// so the UI calls it in a command and shows a waiting screen meanwhile.
+	Plan() (PlanPreview, error)
+}
+
+// PlanPreview is what the plan screen shows.
+type PlanPreview struct {
+	// Text is the plan, one item per line.
+	Text string
+	// NeedsApply is false when applying would do nothing, in which case the
+	// plan screen offers no way forward.
+	NeedsApply bool
 }

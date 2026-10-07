@@ -60,6 +60,14 @@ type fakeBackend struct {
 	toggleErr   error    // returned by Enable and Disable, before anything changes
 	calls       []string // "enable fzf", "disable fzf", in order
 	modulesRead int      // how often Modules was called
+	preview     PlanPreview
+	planErr     error // returned by Plan
+	planCalls   int   // how often Plan was called
+}
+
+func (f *fakeBackend) Plan() (PlanPreview, error) {
+	f.planCalls++
+	return f.preview, f.planErr
 }
 
 func (f *fakeBackend) Modules() ([]modedit.ModuleView, error) {

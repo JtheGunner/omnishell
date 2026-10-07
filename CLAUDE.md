@@ -151,17 +151,24 @@ files matters more than any single file:
 11. **`internal/tui`** — the Bubble Tea v2 module browser behind
    `omnishell tui` (`charm.land/bubbletea/v2`, `charm.land/lipgloss/v2`). It
    imports neither `cli` nor `engine`: everything comes through its `Backend`
-   interface, which `internal/cli/tui.go` implements over `modedit`. The command
-   refuses a non-terminal and a missing or malformed config before the screen is
-   taken over. `Update` stays free of I/O: toggling returns a `tea.Cmd` that
-   writes through `modedit.Enable`/`Disable` and then re-reads only the module
-   statuses (`Backend.Statuses`; `Modules` probes the package manager and takes
-   seconds), one write at a time. The `tui` command builds its engine with
-   `io.Discard` writers, because the runner copies package-manager output to
-   them and the UI owns the terminal. Any
-   text that comes from a backend or a manifest (module fields, error messages)
-   must go through `sanitize` before it is drawn. Rendering tests compare `View().Content` (styling stripped) with
-   golden files in `internal/tui/testdata`; regenerate them with
+   interface, which `internal/cli/tui.go` implements over `modedit` and the
+   engine. The command refuses a non-terminal and a missing or malformed config
+   before the screen is taken over.
+   `Update` stays free of I/O: toggling returns a `tea.Cmd` that writes through
+   `modedit.Enable`/`Disable` and then re-reads only the module statuses
+   (`Backend.Statuses`; `Modules` probes the package manager and takes seconds),
+   one write at a time. The plan screen (`a`) asks `Backend.Plan`, which is
+   `Engine.Preview`: the plan text plus apply's own "nothing to do" rule, so the
+   screen never promises a change apply would not make. `y` only sets
+   `Result.ApplyRequested`; once the UI has closed, `internal/cli/tui.go` runs
+   the real apply command (`handOffToApply`), so its prompt, sudo and exit codes
+   stay the gate. The UI's own engine is built with `io.Discard` writers,
+   because the runner copies package-manager output to them and the UI owns the
+   terminal.
+   Any text that comes from a backend or a manifest (module fields, plan text,
+   error messages) must go through `sanitize` before it is drawn. Rendering
+   tests compare `View().Content` (styling stripped) with golden files in
+   `internal/tui/testdata`; regenerate them with
    `go test ./internal/tui -run Golden -update` and review the diff by eye.
 
 ### Key invariants to preserve when touching engine/apply code
