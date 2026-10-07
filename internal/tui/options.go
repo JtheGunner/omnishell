@@ -71,6 +71,9 @@ func (m Model) openOptions() (tea.Model, tea.Cmd) {
 // applyOptions shows the options screen, or the reason it cannot be shown.
 func (m Model) applyOptions(msg optionsMsg) Model {
 	m.pending = false
+	if m.screen != screenBrowser {
+		return m // the user is somewhere else now; the answer is no longer wanted
+	}
 	if msg.err != nil {
 		m.status = sanitize(msg.err.Error())
 		return m
@@ -90,6 +93,9 @@ func (m Model) applyOptions(msg optionsMsg) Model {
 // leaves the editing mode.
 func (m Model) applyOptionWritten(msg optionWrittenMsg) Model {
 	m.pending = false
+	if m.screen != screenOptions || msg.id != m.options.id {
+		return m // the write finished, but this screen is not the one it was for
+	}
 	if msg.err != nil {
 		m.status = sanitize(msg.err.Error())
 		return m
