@@ -90,6 +90,11 @@ func (m Model) renderFooter() string {
 	return dimStyle.Inline(true).MaxWidth(m.width).Render(help)
 }
 
+// bodyRows is how many lines fit between the header and the footer.
+func (m Model) bodyRows() int {
+	return max(m.height-headerLines-footerLines, 1)
+}
+
 // changesText says how many modules differ from the state the browser started
 // with: "0 changes since start", "1 change since start".
 func changesText(n int) string {
