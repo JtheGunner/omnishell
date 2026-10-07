@@ -449,3 +449,63 @@ func TestTheStatusMessageClearsOnTheNextKeyOnTheOptionsScreen(t *testing.T) {
 		t.Fatalf("status = %q, want it cleared by the key press", m.status)
 	}
 }
+
+// The browser still takes keys while the options of a module are loading, so a
+// `/` pressed in that moment starts the filter. The options screen must not
+// carry that typing mode across: back in the browser, q must quit again.
+func TestFilterTypingStartedWhileTheOptionsLoadDoesNotSurviveTheOptionsScreen(t *testing.T) {
+	m, _ := withOptions()
+	m = press(t, m, "down") // fzf
+	loading, cmd := m.Update(key("o"))
+	typing := press(t, loading.(Model), "/")
+	if !typing.filtering {
+		t.Fatal("setup: the browser should still take / while the options load")
+	}
+
+	opened := settle(typing, cmd)
+	back := press(t, opened, "esc")
+
+	if back.screen != screenBrowser || back.filtering {
+		t.Fatalf("screen=%v filtering=%v, want the browser in browsing mode", back.screen, back.filtering)
+	}
+	if _, quit := back.Update(key("q")); quit == nil {
+		t.Fatal("q must quit from the browser again, not be typed into a filter")
+	}
+}
+
+// Results that arrive for a screen or module that is no longer the one shown
+// must not touch it. Today the pending flag makes that impossible; these tests
+// keep it impossible when a key is added to the browser later.
+func TestAnOptionWriteResultForAnotherModuleOrScreenIsDropped(t *testing.T) {
+	m, _ := withOptions()
+	m = openFzfOptions(t, m)
+	m.pending = true
+	elsewhere := []modedit.OptionView{{Key: "other", Type: "bool", Value: "true", Editable: true}}
+
+	other := m.applyOptionWritten(optionWrittenMsg{id: "some-other-module", rows: elsewhere})
+	if other.pending || len(other.options.rows) != 5 || other.options.id != "fzf" {
+		t.Fatalf("pending=%v rows=%d id=%q, want fzf's rows untouched and the wait over", other.pending, len(other.options.rows), other.options.id)
+	}
+	if _, ok := other.optionNow["some-other-module"]; ok {
+		t.Fatal("a dropped result must not enter the change count")
+	}
+
+	browser := press(t, m, "esc")
+	browser.pending = true
+	late := browser.applyOptionWritten(optionWrittenMsg{id: "fzf", rows: elsewhere})
+	if late.pending || late.screen != screenBrowser || len(late.options.rows) != 0 {
+		t.Fatalf("pending=%v screen=%v rows=%d, want the browser untouched", late.pending, late.screen, len(late.options.rows))
+	}
+}
+
+func TestAnOptionsLoadResultThatArrivesOnAnotherScreenIsDropped(t *testing.T) {
+	m, _ := withOptions()
+	m.screen = screenPlan
+	m.pending = true
+
+	got := m.applyOptions(optionsMsg{id: "fzf", rows: sampleOptions()})
+
+	if got.screen != screenPlan || got.pending || len(got.options.rows) != 0 {
+		t.Fatalf("screen=%v pending=%v rows=%d, want the plan screen untouched and the wait over", got.screen, got.pending, len(got.options.rows))
+	}
+}

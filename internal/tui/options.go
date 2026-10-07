@@ -78,6 +78,9 @@ func (m Model) applyOptions(msg optionsMsg) Model {
 	rows := sanitizeOptions(msg.rows)
 	m.options = optionsState{id: msg.id, rows: rows}
 	m.screen = screenOptions
+	// A / pressed while the options were loading started the filter; do not
+	// bring that typing mode back with the browser.
+	m.filtering = false
 	m.rememberOptions(msg.id, rows)
 	return m
 }
