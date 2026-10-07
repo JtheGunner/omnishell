@@ -32,6 +32,36 @@ func (ed Editor) Enable(id string) error { return ed.setEnabled(id, true) }
 // compatibility, so an incompatible module can always be switched off.
 func (ed Editor) Disable(id string) error { return ed.setEnabled(id, false) }
 
+// SetOption sets modules.<id>.options.<key> from the raw string form a user
+// types. It requires an existing config.toml, validates the module and key,
+// and parses raw against the option's schema before anything is written, so a
+// rejected value leaves the file untouched. It never changes enablement.
+func (ed Editor) SetOption(id, key, raw string) error {
+	if _, err := config.Load(ed.CfgPath); err != nil {
+		return err
+	}
+	mod, ok := ed.Engine.Registry.Get(id)
+	if !ok {
+		return config.Error{Path: ed.CfgPath, Msg: fmt.Sprintf("unknown module %q", id)}
+	}
+	schema, ok := mod.Manifest.Options[key]
+	if !ok {
+		return config.Error{
+			Path: ed.CfgPath,
+			Msg: fmt.Sprintf("unknown option %q for module %q (valid: %s)",
+				key, id, strings.Join(optionKeys(mod.Manifest.Options), ", ")),
+		}
+	}
+	typed, err := schema.ParseValue(raw)
+	if err != nil {
+		return config.Error{
+			Path: ed.CfgPath,
+			Msg:  fmt.Sprintf("invalid value for %s.%s: %v", id, key, err),
+		}
+	}
+	return config.SetOption(ed.CfgPath, id, key, typed)
+}
+
 // setEnabled requires an existing config.toml (a missing one wraps
 // config.ErrNotFound), validates the module id, and flips modules.<id>.enabled.
 func (ed Editor) setEnabled(id string, enabled bool) error {
