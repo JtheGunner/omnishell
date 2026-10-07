@@ -27,8 +27,9 @@ type Model struct {
 }
 
 // New returns a browser over views, which must already be sorted for display.
+// Module text is cleaned of control characters first (see sanitize.go).
 func New(views []modedit.ModuleView) Model {
-	m := Model{views: views}
+	m := Model{views: sanitizeViews(views)}
 	m.applyFilter()
 	return m
 }
