@@ -17,17 +17,21 @@ const (
 // Model is the Bubble Tea model of the module browser. All state changes go
 // through Update, which returns a new Model.
 type Model struct {
-	backend   Backend
-	views     []modedit.ModuleView
-	visible   []int // indexes into views that match the filter, in order
-	cursor    int   // position within visible
-	filter    string
-	filtering bool                      // true while the user is typing into the filter
-	status    string                    // the last error to show, cleared by the next key press
-	pending   bool                      // true from pressing space until the write has finished
-	initial   map[string]modedit.Status // each module's state when the browser started
-	width     int                       // 0 until the first tea.WindowSizeMsg
-	height    int
+	backend        Backend
+	views          []modedit.ModuleView
+	visible        []int // indexes into views that match the filter, in order
+	cursor         int   // position within visible
+	filter         string
+	filtering      bool                      // true while the user is typing into the filter
+	status         string                    // the last error to show, cleared by the next key press
+	pending        bool                      // true from pressing space until the write has finished
+	initial        map[string]modedit.Status // each module's state when the browser started
+	screen         screen
+	plan           planState
+	planSeq        int  // counts plan requests, so a stale answer can be told from the current one
+	applyRequested bool // set when the user confirmed on the plan screen
+	width          int  // 0 until the first tea.WindowSizeMsg
+	height         int
 }
 
 // New returns a browser over views, which must already be sorted for display,
@@ -51,10 +55,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		// A taller terminal shows more lines, so the old position may now be
+		// past the last useful one.
+		m.plan.offset = min(m.plan.offset, m.maxPlanOffset())
 	case toggledMsg:
 		return m.applyToggled(msg), nil
+	case planMsg:
+		return m.applyPlan(msg), nil
 	case tea.KeyPressMsg:
 		m.status = ""
+		if m.screen == screenPlan {
+			return m.updatePlan(msg)
+		}
 		if m.filtering {
 			return m.updateFiltering(msg)
 		}
@@ -73,6 +85,8 @@ func (m Model) updateBrowsing(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.move(1)
 	case "space":
 		return m.toggle()
+	case "a":
+		return m.openPlan()
 	case "/":
 		m.filtering = true
 	case "esc":
