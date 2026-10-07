@@ -21,6 +21,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   output. `list --json` was not valid JSON on hosts where the package manager
   writes to stdout. `apply`, `doctor --fix`, `remove` and `uninstall` still show
   installation and hook output.
+- `omnishell set` no longer writes a `config.toml` that no command can load
+  when a value contains a BEL or vertical-tab character: control characters are
+  now written as `\u00XX`, the escape TOML defines, instead of Go's `\a`, `\v`
+  and `\x..`. Values that were not valid UTF-8 used to come back as different
+  characters; they are now rejected with exit code 2 and the file is left
+  untouched. Values that worked before are written exactly as before.
 
 ## [0.6.0] - 2026-10-07
 

@@ -32,7 +32,7 @@ func SetEnabled(path, moduleID string, enabled bool) error {
 func SetOption(path, moduleID, key string, value any) error {
 	lit, err := tomlLiteral(value)
 	if err != nil {
-		return err
+		return Error{Path: path, Msg: fmt.Sprintf("invalid value for %s.%s: %v", moduleID, key, err)}
 	}
 	return editTable(path, moduleID, "options", key, lit)
 }
@@ -46,11 +46,15 @@ func tomlLiteral(value any) (string, error) {
 	case int64:
 		return strconv.FormatInt(v, 10), nil
 	case string:
-		return strconv.Quote(v), nil
+		return quoteTOML(v)
 	case []string:
 		quoted := make([]string, len(v))
 		for i, s := range v {
-			quoted[i] = strconv.Quote(s)
+			q, err := quoteTOML(s)
+			if err != nil {
+				return "", err
+			}
+			quoted[i] = q
 		}
 		return "[" + strings.Join(quoted, ", ") + "]", nil
 	default:
