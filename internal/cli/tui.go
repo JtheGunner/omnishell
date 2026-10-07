@@ -23,7 +23,7 @@ var (
 
 // SetTUIForTest swaps the terminal check and the UI runner. Passing nil for
 // either restores the real implementation.
-func SetTUIForTest(isTerminal func(in io.Reader, out io.Writer) bool, run func(b tui.Backend, in io.Reader, out io.Writer) error) {
+func SetTUIForTest(isTerminal func(in io.Reader, out io.Writer) bool, run func(b tui.Backend, in io.Reader, out io.Writer) (tui.Result, error)) {
 	tuiIsTerminal = defaultTUIIsTerminal
 	if isTerminal != nil {
 		tuiIsTerminal = isTerminal
@@ -97,7 +97,8 @@ Shows every known module with its description, homepage, package status,
 platforms and shells. Move with the arrow keys, press space to enable or disable
 the selected module, type / to filter, q to quit. Space writes config.toml at
 once, exactly like 'omnishell enable' and 'disable'; it never touches your
-shells. Run 'omnishell apply' afterwards to apply the changes.
+shells. Press a to preview the plan; confirming it closes the UI and runs
+'omnishell apply', which still asks before it changes anything.
 
 Needs an interactive terminal; in scripts use 'omnishell list'.`,
 		Args: cobra.NoArgs,
@@ -125,7 +126,23 @@ Needs an interactive terminal; in scripts use 'omnishell list'.`,
 				cfgPath:  cfgPath,
 				lockPath: lockPath,
 			}
-			return tuiRun(backend, in, out)
+			result, err := tuiRun(backend, in, out)
+			if err != nil || !result.ApplyRequested {
+				return err
+			}
+			return handOffToApply(cmd)
 		},
 	}
+}
+
+// handOffToApply runs `omnishell apply` the way the user would have typed it,
+// now that the UI has given the terminal back: its plan, its confirmation
+// prompt, sudo, hooks and exit codes are exactly those of the real command.
+// The UI's plan screen is a preview, not a confirmation.
+func handOffToApply(cmd *cobra.Command) error {
+	apply := newApplyCmd() // every flag at its default
+	apply.SetIn(cmd.InOrStdin())
+	apply.SetOut(cmd.OutOrStdout())
+	apply.SetErr(cmd.ErrOrStderr())
+	return runApply(apply, false)
 }

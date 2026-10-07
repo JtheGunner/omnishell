@@ -12,7 +12,7 @@ func TestRunReturnsTheBackendErrorWithoutTouchingTheTerminal(t *testing.T) {
 	boom := errors.New("boom")
 	var out bytes.Buffer
 
-	err := Run(&fakeBackend{modulesErr: boom}, strings.NewReader(""), &out)
+	_, err := Run(&fakeBackend{modulesErr: boom}, strings.NewReader(""), &out)
 
 	if !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want boom", err)
@@ -24,16 +24,38 @@ func TestRunReturnsTheBackendErrorWithoutTouchingTheTerminal(t *testing.T) {
 
 // A real program loop, fed a q on its input, must start and quit cleanly.
 func TestRunQuitsWhenTheUserPressesQ(t *testing.T) {
-	done := make(chan error, 1)
+	type outcome struct {
+		result Result
+		err    error
+	}
+	done := make(chan outcome, 1)
 	var out bytes.Buffer
-	go func() { done <- Run(&fakeBackend{views: sampleViews()}, strings.NewReader("q"), &out) }()
+	go func() {
+		result, err := Run(&fakeBackend{views: sampleViews()}, strings.NewReader("q"), &out)
+		done <- outcome{result, err}
+	}()
 
 	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run: %v", err)
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("Run: %v", got.err)
+		}
+		if got.result.ApplyRequested {
+			t.Fatal("quitting with q must not request an apply")
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("Run did not return after q")
+	}
+}
+
+func TestResultOfReadsTheUsersDecisionOffTheFinalModel(t *testing.T) {
+	if (resultOf(Model{applyRequested: true})) != (Result{ApplyRequested: true}) {
+		t.Fatal("a confirmed plan screen must request an apply")
+	}
+	if resultOf(Model{}) != (Result{}) {
+		t.Fatal("a model that never confirmed must not request an apply")
+	}
+	if resultOf(nil) != (Result{}) {
+		t.Fatal("a missing model must not request an apply")
 	}
 }

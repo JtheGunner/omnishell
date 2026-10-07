@@ -2,9 +2,11 @@ package cli_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -25,9 +27,9 @@ func tuiSpy(t *testing.T, isTerminal bool) **tui.Backend {
 	var got *tui.Backend
 	cli.SetTUIForTest(
 		func(io.Reader, io.Writer) bool { return isTerminal },
-		func(b tui.Backend, _ io.Reader, _ io.Writer) error {
+		func(b tui.Backend, _ io.Reader, _ io.Writer) (tui.Result, error) {
 			got = &b
-			return nil
+			return tui.Result{}, nil
 		},
 	)
 	t.Cleanup(func() { cli.SetTUIForTest(nil, nil) })
@@ -37,7 +39,7 @@ func tuiSpy(t *testing.T, isTerminal bool) **tui.Backend {
 func TestTUIRefusesWithoutAnInteractiveTerminal(t *testing.T) {
 	setTestInit(t)
 	var started bool
-	cli.SetTUIForTest(nil, func(tui.Backend, io.Reader, io.Writer) error { started = true; return nil })
+	cli.SetTUIForTest(nil, func(tui.Backend, io.Reader, io.Writer) (tui.Result, error) { started = true; return tui.Result{}, nil })
 	t.Cleanup(func() { cli.SetTUIForTest(nil, nil) })
 
 	var out, errb bytes.Buffer
@@ -312,5 +314,148 @@ func TestTUIBackendPlanReportsAMalformedLockfile(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "lockfile") {
 		t.Fatalf("err = %v, want a lockfile error", err)
+	}
+}
+
+// handoffRun makes the fake UI report the given result, as the real one does
+// when the user leaves the plan screen.
+func handoffRun(t *testing.T, result tui.Result, runErr error) {
+	t.Helper()
+	cli.SetTUIForTest(
+		func(io.Reader, io.Writer) bool { return true },
+		func(tui.Backend, io.Reader, io.Writer) (tui.Result, error) { return result, runErr },
+	)
+	t.Cleanup(func() { cli.SetTUIForTest(nil, nil) })
+}
+
+// askedQuestions replaces the confirmation prompt with one that records the
+// questions and answers with answer.
+func askedQuestions(t *testing.T, answer bool) *[]string {
+	t.Helper()
+	var asked []string
+	cli.SetPromptForTest(func(question string) bool {
+		asked = append(asked, question)
+		return answer
+	})
+	t.Cleanup(func() { cli.SetPromptForTest(nil) })
+	return &asked
+}
+
+// zshHostWithCompletion is a host with zsh, initialised and with the completion
+// module enabled, ready for a first apply. It returns the init file's path.
+func zshHostWithCompletion(t *testing.T) string {
+	t.Helper()
+	home, _ := setupModuleCLITest(t)
+	cli.SetLookPathForTest(zshPresentLookPath)
+	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
+	var out, errb bytes.Buffer
+	for _, args := range [][]string{{"init"}, {"enable", "completion"}} {
+		if code := cli.Execute(args, &out, &errb); code != 0 {
+			t.Fatalf("%v exit %d: %s", args, code, errb.String())
+		}
+	}
+	return filepath.Join(home, ".config", "omnishell", "init.zsh")
+}
+
+func TestTUIDoesNotApplyUnlessTheUserConfirmedThePlan(t *testing.T) {
+	initFile := zshHostWithCompletion(t)
+	handoffRun(t, tui.Result{}, nil)
+	asked := askedQuestions(t, true)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("exit = %d (stderr: %s)", code, errb.String())
+	}
+
+	if len(*asked) != 0 {
+		t.Fatalf("apply must not run, but it asked %v", *asked)
+	}
+	if _, err := os.Stat(initFile); !os.IsNotExist(err) {
+		t.Fatalf("init.zsh must not exist (err=%v)", err)
+	}
+}
+
+// The plan screen is a preview. The prompt of the real apply stays the gate: a
+// "no" there must change nothing, and the exit code is apply's own.
+func TestTUIHandsOverToApplyWhichStillAsksBeforeChangingAnything(t *testing.T) {
+	initFile := zshHostWithCompletion(t)
+	handoffRun(t, tui.Result{ApplyRequested: true}, nil)
+	asked := askedQuestions(t, false)
+
+	var out, errb bytes.Buffer
+	code := cli.Execute([]string{"tui"}, &out, &errb)
+
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1 (apply was declined); stderr: %s", code, errb.String())
+	}
+	if !reflect.DeepEqual(*asked, []string{"Proceed?"}) {
+		t.Fatalf("apply must ask once before it changes anything, asked %v", *asked)
+	}
+	if !strings.Contains(errb.String(), "aborted") {
+		t.Fatalf("stderr = %q, want apply's own 'aborted'", errb.String())
+	}
+	if !strings.Contains(out.String(), "Plan (") {
+		t.Fatalf("apply shows its plan before it asks; stdout:\n%s", out.String())
+	}
+	if _, err := os.Stat(initFile); !os.IsNotExist(err) {
+		t.Fatalf("a declined apply must write nothing (err=%v)", err)
+	}
+}
+
+func TestTUIHandoffRunsTheRealApplyWhenTheUserSaysYes(t *testing.T) {
+	initFile := zshHostWithCompletion(t)
+	handoffRun(t, tui.Result{ApplyRequested: true}, nil)
+	askedQuestions(t, true)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("exit = %d (stderr: %s)", code, errb.String())
+	}
+
+	body, err := os.ReadFile(initFile)
+	if err != nil || !strings.Contains(string(body), "# >>> omnishell:completion") {
+		t.Fatalf("apply did not write the completion section (err=%v):\n%s", err, body)
+	}
+}
+
+func TestTUIHandoffStreamsInstallOutputLikeApplyDoes(t *testing.T) {
+	zshHostWithCompletion(t)
+	handoffRun(t, tui.Result{ApplyRequested: true}, nil)
+	askedQuestions(t, false)
+	cli.SetRunnerForTest(nil)
+	var runnerWriters []io.Writer
+	cli.SetRunnerFactoryForTest(func(stdout, _ io.Writer) pkgmgr.Runner {
+		runnerWriters = append(runnerWriters, stdout)
+		return &pkgmgr.MockRunner{}
+	})
+	t.Cleanup(func() { cli.SetRunnerFactoryForTest(nil) })
+
+	var out, errb bytes.Buffer
+	cli.Execute([]string{"tui"}, &out, &errb)
+
+	if len(runnerWriters) < 2 {
+		t.Fatalf("want an engine for the UI and one for apply, got %d", len(runnerWriters))
+	}
+	if runnerWriters[0] != io.Discard {
+		t.Fatal("the UI's engine must stay quiet")
+	}
+	if last := runnerWriters[len(runnerWriters)-1]; last == io.Discard {
+		t.Fatal("the apply that follows the UI must stream installs and hooks to the terminal")
+	}
+}
+
+func TestTUIDoesNotApplyWhenTheUIFailed(t *testing.T) {
+	zshHostWithCompletion(t)
+	handoffRun(t, tui.Result{ApplyRequested: true}, errors.New("terminal went away"))
+	asked := askedQuestions(t, true)
+
+	var out, errb bytes.Buffer
+	code := cli.Execute([]string{"tui"}, &out, &errb)
+
+	if code != 1 || !strings.Contains(errb.String(), "terminal went away") {
+		t.Fatalf("exit=%d stderr=%q, want the UI's error", code, errb.String())
+	}
+	if len(*asked) != 0 {
+		t.Fatalf("apply must not run after a failed UI, asked %v", *asked)
 	}
 }
