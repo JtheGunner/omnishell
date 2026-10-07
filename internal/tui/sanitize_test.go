@@ -27,18 +27,18 @@ func hostileViews() []modedit.ModuleView {
 // Module text comes from manifests that users write or copy from strangers, so
 // it must never reach the terminal as a control sequence.
 func TestViewNeutralisesControlSequencesInModuleText(t *testing.T) {
-	out := sized(New(hostileViews()), 100, 30).View().Content
+	out := sized(newTestModel(hostileViews()), 100, 30).View().Content
 
 	for _, bad := range []string{"\x1b]", "\x1b[2J", "\x1b[31m", "\x1b[1;1H", "\x07", "\r", "\u202e"} {
 		if strings.Contains(out, bad) {
 			t.Fatalf("the view contains %q straight from the manifest:\n%q", bad, out)
 		}
 	}
-	assertFits(t, plain(sized(New(hostileViews()), 100, 30)), 100, 30)
+	assertFits(t, plain(sized(newTestModel(hostileViews()), 100, 30)), 100, 30)
 }
 
 func TestFilterSeesTheNeutralisedText(t *testing.T) {
-	m := press(t, New(hostileViews()), "/", "p", "w", "n", "e", "d")
+	m := press(t, newTestModel(hostileViews()), "/", "p", "w", "n", "e", "d")
 
 	if len(m.visible) != 1 {
 		t.Fatalf("visible = %v, want the module whose id contains pwned", visibleIDs(m))
@@ -49,7 +49,7 @@ func TestNewDoesNotMutateTheCallersViews(t *testing.T) {
 	views := hostileViews()
 	want := views[0].ID
 
-	_ = New(views)
+	_ = newTestModel(views)
 
 	if views[0].ID != want || views[0].Platforms[0] != "linux\x1b[2J" {
 		t.Fatalf("New must copy: caller's view changed to %+v", views[0])

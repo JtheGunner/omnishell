@@ -1,0 +1,11 @@
+platforms = ["macos"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "macosonly"
+name        = "macOS-only fixture"
+description = "A module that only supports macOS"
+version     = "1.0.0"
+schema      = 1

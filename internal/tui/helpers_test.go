@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,7 +35,8 @@ func sampleViews() []modedit.ModuleView {
 			ID: "zshonly", Name: "Zsh only", Description: "A module for zsh alone",
 			Status: modedit.StatusDisabled, Packages: modedit.PackagesNA,
 			Platforms: []string{"linux"}, Shells: []string{"zsh"},
-			Origin: modedit.OriginUser,
+			Origin:      modedit.OriginUser,
+			Unavailable: "needs zsh, but your managed shells are bash",
 		},
 	}
 }
@@ -49,6 +51,77 @@ func manyViews(n int) []modedit.ModuleView {
 	return views
 }
 
+// fakeBackend is an in-memory Backend that records every write. Enable and
+// Disable flip the stored status, as the real config.toml would.
+type fakeBackend struct {
+	views       []modedit.ModuleView
+	modulesErr  error    // returned by Modules
+	statusesErr error    // returned by Statuses
+	toggleErr   error    // returned by Enable and Disable, before anything changes
+	calls       []string // "enable fzf", "disable fzf", in order
+	modulesRead int      // how often Modules was called
+}
+
+func (f *fakeBackend) Modules() ([]modedit.ModuleView, error) {
+	f.modulesRead++
+	return f.views, f.modulesErr
+}
+
+func (f *fakeBackend) Statuses() (map[string]modedit.Status, error) {
+	if f.statusesErr != nil {
+		return nil, f.statusesErr
+	}
+	out := make(map[string]modedit.Status, len(f.views))
+	for _, v := range f.views {
+		out[v.ID] = v.Status
+	}
+	return out, nil
+}
+func (f *fakeBackend) Enable(id string) error  { return f.write(id, "enable", modedit.StatusEnabled) }
+func (f *fakeBackend) Disable(id string) error { return f.write(id, "disable", modedit.StatusDisabled) }
+
+func (f *fakeBackend) write(id, verb string, status modedit.Status) error {
+	f.calls = append(f.calls, verb+" "+id)
+	if f.toggleErr != nil {
+		return f.toggleErr
+	}
+	for i := range f.views {
+		if f.views[i].ID == id {
+			f.views[i].Status = status
+		}
+	}
+	return nil
+}
+
+// newBackedModel returns a model over views together with the fake backend it
+// writes through; the backend gets its own copy of views.
+func newBackedModel(views []modedit.ModuleView) (Model, *fakeBackend) {
+	b := &fakeBackend{views: slices.Clone(views)}
+	return New(b, views), b
+}
+
+// newTestModel is newBackedModel for tests that never look at the backend.
+func newTestModel(views []modedit.ModuleView) Model {
+	m, _ := newBackedModel(views)
+	return m
+}
+
+// settle runs cmd the way the Bubble Tea runtime would and feeds the message it
+// produces back into m.
+func settle(m Model, cmd tea.Cmd) Model {
+	if cmd == nil {
+		return m
+	}
+	next, _ := m.Update(cmd())
+	return next.(Model)
+}
+
+// space presses the space bar and lets the resulting write finish.
+func space(m Model) Model {
+	next, cmd := m.Update(key("space"))
+	return settle(next.(Model), cmd)
+}
+
 // key builds the key press a terminal would deliver for a key name such as
 // "up", "esc", "ctrl+c", or a single typed character.
 func key(name string) tea.KeyPressMsg {
@@ -61,6 +134,8 @@ func key(name string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	case "enter":
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	case "backspace":
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "ctrl+c":

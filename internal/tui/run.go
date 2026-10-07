@@ -16,7 +16,7 @@ func Run(b Backend, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if _, err := tea.NewProgram(New(views), tea.WithInput(in), tea.WithOutput(out)).Run(); err != nil {
+	if _, err := tea.NewProgram(New(b, views), tea.WithInput(in), tea.WithOutput(out)).Run(); err != nil {
 		return fmt.Errorf("run terminal UI: %w", err)
 	}
 	return nil

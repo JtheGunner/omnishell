@@ -11,4 +11,12 @@ import "github.com/JtheGunner/omnishell/internal/modedit"
 type Backend interface {
 	// Modules returns one view per known module, sorted by ID.
 	Modules() ([]modedit.ModuleView, error)
+	// Enable and Disable write the module's state to config.toml. The error
+	// text is shown to the user as it is, so it should read as a sentence.
+	Enable(id string) error
+	Disable(id string) error
+	// Statuses returns every module's current state in config.toml, keyed by
+	// id. It must be cheap: the UI calls it after every write, whereas Modules
+	// can take seconds because it asks the package manager about every package.
+	Statuses() (map[string]modedit.Status, error)
 }

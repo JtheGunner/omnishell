@@ -10,6 +10,9 @@ import (
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/cli"
+	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/modedit"
+	"github.com/JtheGunner/omnishell/internal/pkgmgr"
 	"github.com/JtheGunner/omnishell/internal/tui"
 )
 
@@ -120,5 +123,149 @@ func TestTUIRejectsArguments(t *testing.T) {
 	var out, errb bytes.Buffer
 	if code := cli.Execute([]string{"tui", "extra"}, &out, &errb); code == 0 {
 		t.Fatal("tui takes no arguments")
+	}
+}
+
+// backendFor starts `omnishell tui` against a fake UI and returns the backend
+// the command handed over, with the module registry already built.
+func backendFor(t *testing.T) tui.Backend {
+	t.Helper()
+	got := tuiSpy(t, true)
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("exit = %d (stderr: %s)", code, errb.String())
+	}
+	if *got == nil {
+		t.Fatal("the UI was not started")
+	}
+	return **got
+}
+
+func TestTUIBackendTogglesWriteConfigTomlAndKeepItsComments(t *testing.T) {
+	cfgPath := setTestInit(t)
+	cli.SetLookPathForTest(bashPresentLookPath)
+	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
+	b := backendFor(t)
+
+	if err := b.Enable("fzf"); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+	c, err := config.Load(cfgPath)
+	if err != nil || !c.Modules["fzf"].Enabled {
+		t.Fatalf("fzf should be enabled: %+v err=%v", c.Modules, err)
+	}
+
+	if err := b.Disable("fzf"); err != nil {
+		t.Fatalf("Disable: %v", err)
+	}
+	c, err = config.Load(cfgPath)
+	if err != nil || c.Modules["fzf"].Enabled {
+		t.Fatalf("fzf should be disabled: %+v err=%v", c.Modules, err)
+	}
+
+	src, err := os.ReadFile(cfgPath)
+	if err != nil || !strings.Contains(string(src), "# Edit this file by hand") {
+		t.Fatalf("the header comment must survive toggling (err=%v):\n%s", err, src)
+	}
+}
+
+func TestTUIBackendRejectionIsAShortMessageWithoutTheConfigPath(t *testing.T) {
+	cfgPath := setTestInit(t)
+	cli.SetLookPathForTest(bashPresentLookPath) // zsh is absent, so zshonly cannot run
+	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
+	b := backendFor(t)
+	before, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+
+	err = b.Enable("zshonly")
+
+	if err == nil {
+		t.Fatal("enabling a zsh-only module on a bash-only host must be rejected")
+	}
+	if !strings.Contains(err.Error(), `module "zshonly" only supports zsh`) {
+		t.Fatalf("message = %q, want the reason", err)
+	}
+	if strings.Contains(err.Error(), cfgPath) {
+		t.Fatalf("message %q must not start with the config path", err)
+	}
+	after, err := os.ReadFile(cfgPath)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("config.toml must be untouched after a rejection (err=%v)", err)
+	}
+}
+
+func TestTUIBackendReportsModulesThatCannotRunOnThisHost(t *testing.T) {
+	setTestInit(t)
+	cli.SetLookPathForTest(bashPresentLookPath)
+	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
+	b := backendFor(t)
+
+	views, err := b.Modules()
+	if err != nil {
+		t.Fatalf("Modules: %v", err)
+	}
+	reasons := map[string]string{}
+	for _, v := range views {
+		reasons[v.ID] = v.Unavailable
+	}
+	if !strings.Contains(reasons["zshonly"], "needs zsh") {
+		t.Fatalf("zshonly reason = %q, want it to explain the missing zsh", reasons["zshonly"])
+	}
+	if reasons["fzf"] != "" {
+		t.Fatalf("fzf reason = %q, want none", reasons["fzf"])
+	}
+}
+
+func TestTUIBackendUnknownModuleIsAnError(t *testing.T) {
+	setTestInit(t)
+	b := backendFor(t)
+
+	if err := b.Enable("no-such-module"); err == nil || !strings.Contains(err.Error(), "unknown module") {
+		t.Fatalf("err = %v, want unknown module", err)
+	}
+}
+
+// The Bubble Tea program owns the terminal while the UI runs. Whatever a
+// package manager prints while the UI probes it (brew and dpkg-query both
+// write to stdout) must therefore never reach that terminal.
+func TestTUIKeepsPackageManagerOutputOffTheScreen(t *testing.T) {
+	setTestInit(t)
+	cli.SetRunnerForTest(nil) // let the factory below build the runner
+	var gotOut, gotErr io.Writer
+	cli.SetRunnerFactoryForTest(func(stdout, stderr io.Writer) pkgmgr.Runner {
+		gotOut, gotErr = stdout, stderr
+		return &pkgmgr.MockRunner{}
+	})
+	t.Cleanup(func() { cli.SetRunnerFactoryForTest(nil) })
+	tuiSpy(t, true)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("exit = %d (stderr: %s)", code, errb.String())
+	}
+
+	if gotOut != io.Discard || gotErr != io.Discard {
+		t.Fatalf("the runner must write to io.Discard, got stdout=%T stderr=%T", gotOut, gotErr)
+	}
+}
+
+func TestTUIBackendStatusesFollowTheConfigAfterAToggle(t *testing.T) {
+	setTestInit(t)
+	cli.SetLookPathForTest(bashPresentLookPath)
+	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
+	b := backendFor(t)
+
+	if err := b.Enable("fzf"); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+	statuses, err := b.Statuses()
+	if err != nil {
+		t.Fatalf("Statuses: %v", err)
+	}
+
+	if statuses["fzf"] != modedit.StatusEnabled || statuses["zshonly"] != modedit.StatusDisabled {
+		t.Fatalf("statuses fzf=%q zshonly=%q, want enabled and disabled", statuses["fzf"], statuses["zshonly"])
 	}
 }

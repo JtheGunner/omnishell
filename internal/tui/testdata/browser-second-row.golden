@@ -1,4 +1,4 @@
-omnishell  3 modules                                                            
+omnishell  3 modules · 0 changes since start                                    
 ╭────────────────────────────╮╭────────────────────────────────────────────────╮
 │   [x] completion           ││ FZF Fuzzy Finder                               │
 │ ▸ [ ] fzf                  ││ fzf · builtin                                  │
@@ -17,4 +17,4 @@ omnishell  3 modules
 │                            ││                                                │
 │                            ││                                                │
 ╰────────────────────────────╯╰────────────────────────────────────────────────╯
-↑/↓ move · / filter · esc clear filter · q quit                                 
+↑/↓ move · space toggle · / filter · esc clear filter · q quit                  

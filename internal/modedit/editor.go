@@ -88,15 +88,23 @@ func (ed Editor) setEnabled(id string, enabled bool) error {
 // any managed shell") with no way to notice besides `doctor`/`list`.
 func (ed Editor) checkShellCompatible(cfg config.Config, mod module.Module) error {
 	managed := engine.ManagedShells(cfg, ed.Engine.Platform)
-	for _, sh := range managed {
-		if contains(mod.Manifest.Shells, sh) {
-			return nil
-		}
+	if sharesAny(mod.Manifest.Shells, managed) {
+		return nil
 	}
 	return config.Error{Path: ed.CfgPath, Msg: fmt.Sprintf(
 		"module %q only supports %s, but none of your managed shells (%s) do — install one of those shells first",
 		mod.Manifest.Module.ID, strings.Join(mod.Manifest.Shells, ", "), joinOrNone(managed),
 	)}
+}
+
+// sharesAny reports whether a and b have at least one element in common.
+func sharesAny(a, b []string) bool {
+	for _, v := range b {
+		if contains(a, v) {
+			return true
+		}
+	}
+	return false
 }
 
 func contains(ss []string, v string) bool {

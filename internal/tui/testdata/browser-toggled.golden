@@ -1,11 +1,11 @@
-omnishell  3 modules · 0 changes since start  filter: fz (1 shown)              
+omnishell  3 modules · 1 change since start                                     
 ╭────────────────────────────╮╭────────────────────────────────────────────────╮
-│ ▸ [ ] fzf                  ││ FZF Fuzzy Finder                               │
-│                            ││ fzf · builtin                                  │
-│                            ││                                                │
+│   [x] completion           ││ FZF Fuzzy Finder                               │
+│ ▸ [x] fzf                  ││ fzf · builtin                                  │
+│   [ ] zshonly              ││                                                │
 │                            ││ Ctrl+R history search                          │
 │                            ││                                                │
-│                            ││ Status:    disabled                            │
+│                            ││ Status:    enabled                             │
 │                            ││ Packages:  missing                             │
 │                            ││ Platforms: macos, linux                        │
 │                            ││ Shells:    zsh, bash                           │

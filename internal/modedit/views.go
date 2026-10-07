@@ -2,9 +2,12 @@ package modedit
 
 import (
 	"errors"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/engine"
 	"github.com/JtheGunner/omnishell/internal/module"
 )
 
@@ -54,6 +57,9 @@ type ModuleView struct {
 	Shells      []string
 	Origin      Origin
 	OptionCount int
+	// Unavailable says why the module cannot run on this host (an unsupported
+	// OS, or none of the managed shells can run it). Empty means it can.
+	Unavailable string
 }
 
 // Views returns one ModuleView per registry module, sorted by ID. A missing
@@ -75,14 +81,6 @@ func (ed Editor) Views() ([]ModuleView, error) {
 		mf := m.Manifest
 		id := mf.Module.ID
 
-		status := StatusUnknown
-		if !cfgMissing {
-			status = StatusDisabled
-			if mc, ok := cfg.Modules[id]; ok && mc.Enabled {
-				status = StatusEnabled
-			}
-		}
-
 		origin := OriginBuiltin
 		if m.Source == module.SourceUser {
 			origin = OriginUser
@@ -96,16 +94,46 @@ func (ed Editor) Views() ([]ModuleView, error) {
 			Name:        mf.Module.Name,
 			Description: mf.Module.Description,
 			Homepage:    mf.Module.Homepage,
-			Status:      status,
+			Status:      statusOf(cfg, cfgMissing, id),
 			Packages:    ed.packageState(mf),
 			Platforms:   mf.Platforms,
 			Shells:      mf.Shells,
 			Origin:      origin,
 			OptionCount: len(mf.Options),
+			Unavailable: ed.unavailableReason(cfg, mf),
 		})
 	}
 	sort.Slice(views, func(i, j int) bool { return views[i].ID < views[j].ID })
 	return views, nil
+}
+
+// Statuses returns every registry module's state in config.toml, keyed by id.
+// It reads only the config: unlike Views it never asks the package manager, so
+// it is cheap enough to call after every change. A missing config.toml gives
+// StatusUnknown for every module; any other config error is returned.
+func (ed Editor) Statuses() (map[string]Status, error) {
+	cfg, cfgMissing, err := ed.loadConfigAllowMissing()
+	if err != nil {
+		return nil, err
+	}
+	all := ed.Engine.Registry.All()
+	out := make(map[string]Status, len(all))
+	for _, m := range all {
+		id := m.Manifest.Module.ID
+		out[id] = statusOf(cfg, cfgMissing, id)
+	}
+	return out, nil
+}
+
+// statusOf is a module's state in cfg; cfgMissing means there is no config yet.
+func statusOf(cfg config.Config, cfgMissing bool, id string) Status {
+	if cfgMissing {
+		return StatusUnknown
+	}
+	if mc, ok := cfg.Modules[id]; ok && mc.Enabled {
+		return StatusEnabled
+	}
+	return StatusDisabled
 }
 
 // loadConfigAllowMissing loads config.toml, treating a missing file as "no
@@ -141,4 +169,20 @@ func (ed Editor) packageState(mf module.Manifest) PackageState {
 		}
 	}
 	return PackagesOK
+}
+
+// unavailableReason explains why a module cannot run on this host, or returns
+// "" when it can. The OS is checked first, as apply does (it skips a module
+// that does not support the OS), then the managed shells, as Enable does.
+func (ed Editor) unavailableReason(cfg config.Config, mf module.Manifest) string {
+	osName := string(ed.Engine.Platform.OS)
+	if !contains(mf.Platforms, osName) {
+		return fmt.Sprintf("not supported on %s (module supports %s)", osName, strings.Join(mf.Platforms, ", "))
+	}
+	managed := engine.ManagedShells(cfg, ed.Engine.Platform)
+	if !sharesAny(mf.Shells, managed) {
+		return fmt.Sprintf("needs %s, but your managed shells are %s",
+			strings.Join(mf.Shells, " or "), joinOrNone(managed))
+	}
+	return ""
 }

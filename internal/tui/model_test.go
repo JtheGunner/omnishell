@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewShowsEveryModuleWithCursorOnTheFirst(t *testing.T) {
-	m := New(sampleViews())
+	m := newTestModel(sampleViews())
 
 	if got, want := visibleIDs(m), []string{"completion", "fzf", "zshonly"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("visible = %v, want %v", got, want)
@@ -19,7 +19,7 @@ func TestNewShowsEveryModuleWithCursorOnTheFirst(t *testing.T) {
 }
 
 func TestCursorMovesWithArrowsAndVimKeysAndStopsAtBothEnds(t *testing.T) {
-	m := New(sampleViews())
+	m := newTestModel(sampleViews())
 
 	m = press(t, m, "up")
 	if m.cursor != 0 {
@@ -41,7 +41,7 @@ func TestCursorMovesWithArrowsAndVimKeysAndStopsAtBothEnds(t *testing.T) {
 
 func TestQuitKeys(t *testing.T) {
 	for _, name := range []string{"q", "ctrl+c"} {
-		_, cmd := New(sampleViews()).Update(key(name))
+		_, cmd := newTestModel(sampleViews()).Update(key(name))
 		if cmd == nil {
 			t.Fatalf("%s: no command returned", name)
 		}
@@ -52,7 +52,7 @@ func TestQuitKeys(t *testing.T) {
 }
 
 func TestFilterNarrowsByIDOrDescriptionIgnoringCase(t *testing.T) {
-	m := New(sampleViews())
+	m := newTestModel(sampleViews())
 
 	m = press(t, m, "/", "F", "Z")
 	if got, want := visibleIDs(m), []string{"fzf"}; !reflect.DeepEqual(got, want) {
@@ -66,7 +66,7 @@ func TestFilterNarrowsByIDOrDescriptionIgnoringCase(t *testing.T) {
 }
 
 func TestFilterBackspaceWidensAndEmptyBackspaceIsHarmless(t *testing.T) {
-	m := press(t, New(sampleViews()), "/", "f", "z")
+	m := press(t, newTestModel(sampleViews()), "/", "f", "z")
 	m = press(t, m, "backspace", "backspace", "backspace")
 
 	if len(m.visible) != 3 || m.filter != "" || !m.filtering {
@@ -75,7 +75,7 @@ func TestFilterBackspaceWidensAndEmptyBackspaceIsHarmless(t *testing.T) {
 }
 
 func TestFilterBackspaceRemovesAWholeMultiByteCharacter(t *testing.T) {
-	m := press(t, New(sampleViews()), "/", "ä")
+	m := press(t, newTestModel(sampleViews()), "/", "ä")
 	if m.filter != "ä" {
 		t.Fatalf("filter = %q, want ä", m.filter)
 	}
@@ -87,7 +87,7 @@ func TestFilterBackspaceRemovesAWholeMultiByteCharacter(t *testing.T) {
 }
 
 func TestQDoesNotQuitWhileTypingAFilter(t *testing.T) {
-	m := New(sampleViews())
+	m := newTestModel(sampleViews())
 	m = press(t, m, "/")
 
 	next, cmd := m.Update(key("q"))
@@ -100,7 +100,7 @@ func TestQDoesNotQuitWhileTypingAFilter(t *testing.T) {
 }
 
 func TestCtrlCQuitsWhileTypingAFilter(t *testing.T) {
-	m := press(t, New(sampleViews()), "/", "f")
+	m := press(t, newTestModel(sampleViews()), "/", "f")
 
 	_, cmd := m.Update(key("ctrl+c"))
 	if cmd == nil {
@@ -112,7 +112,7 @@ func TestCtrlCQuitsWhileTypingAFilter(t *testing.T) {
 }
 
 func TestEnterKeepsTheFilterAndLeavesTypingMode(t *testing.T) {
-	m := press(t, New(sampleViews()), "/", "f", "z", "enter")
+	m := press(t, newTestModel(sampleViews()), "/", "f", "z", "enter")
 
 	if m.filtering || m.filter != "fz" || len(m.visible) != 1 {
 		t.Fatalf("filtering=%v filter=%q visible=%d, want false, fz, 1", m.filtering, m.filter, len(m.visible))
@@ -124,7 +124,7 @@ func TestEnterKeepsTheFilterAndLeavesTypingMode(t *testing.T) {
 }
 
 func TestEscCancelsTypingAndEscClearsAKeptFilter(t *testing.T) {
-	m := press(t, New(sampleViews()), "/", "f", "z", "esc")
+	m := press(t, newTestModel(sampleViews()), "/", "f", "z", "esc")
 	if m.filtering || m.filter != "" || len(m.visible) != 3 {
 		t.Fatalf("esc while typing: filtering=%v filter=%q visible=%d, want false, empty, 3", m.filtering, m.filter, len(m.visible))
 	}
@@ -136,7 +136,7 @@ func TestEscCancelsTypingAndEscClearsAKeptFilter(t *testing.T) {
 }
 
 func TestFilteringMovesTheCursorBackToTheTopOfTheNewList(t *testing.T) {
-	m := press(t, New(sampleViews()), "down", "down")
+	m := press(t, newTestModel(sampleViews()), "down", "down")
 	if m.cursor != 2 {
 		t.Fatalf("setup: cursor = %d, want 2", m.cursor)
 	}
@@ -148,13 +148,13 @@ func TestFilteringMovesTheCursorBackToTheTopOfTheNewList(t *testing.T) {
 }
 
 func TestEmptyAndUnmatchedListsAreSafe(t *testing.T) {
-	m := New(nil)
+	m := newTestModel(nil)
 	m = press(t, m, "down", "up", "j", "k", "/", "x", "esc")
 	if _, ok := m.selected(); ok {
 		t.Fatal("an empty list has no selection")
 	}
 
-	m = press(t, New(sampleViews()), "/", "n", "o", "p", "e", "x")
+	m = press(t, newTestModel(sampleViews()), "/", "n", "o", "p", "e", "x")
 	if len(m.visible) != 0 {
 		t.Fatalf("visible = %v, want none", visibleIDs(m))
 	}
@@ -165,7 +165,7 @@ func TestEmptyAndUnmatchedListsAreSafe(t *testing.T) {
 }
 
 func TestWindowSizeIsRecorded(t *testing.T) {
-	m := sized(New(sampleViews()), 100, 30)
+	m := sized(newTestModel(sampleViews()), 100, 30)
 
 	if m.width != 100 || m.height != 30 {
 		t.Fatalf("size = %dx%d, want 100x30", m.width, m.height)
@@ -173,7 +173,7 @@ func TestWindowSizeIsRecorded(t *testing.T) {
 }
 
 func TestViewRequestsTheAlternateScreen(t *testing.T) {
-	if !New(sampleViews()).View().AltScreen {
+	if !newTestModel(sampleViews()).View().AltScreen {
 		t.Fatal("the browser must run on the alternate screen")
 	}
 }

@@ -44,6 +44,23 @@ var runnerOverride pkgmgr.Runner
 // override used by buildEngine.
 func SetRunnerForTest(r pkgmgr.Runner) { runnerOverride = r }
 
+// runnerFactory builds the real command runner from the writers a command hands
+// to buildEngine. Tests swap it to see which writers that was.
+var runnerFactory = func(stdout, stderr io.Writer) pkgmgr.Runner {
+	return pkgmgr.ExecRunner{Stdout: stdout, Stderr: stderr}
+}
+
+// SetRunnerFactoryForTest swaps the real runner's constructor. Passing nil
+// restores the real one. A runner set with SetRunnerForTest still wins.
+func SetRunnerFactoryForTest(fn func(stdout, stderr io.Writer) pkgmgr.Runner) {
+	runnerFactory = func(stdout, stderr io.Writer) pkgmgr.Runner {
+		return pkgmgr.ExecRunner{Stdout: stdout, Stderr: stderr}
+	}
+	if fn != nil {
+		runnerFactory = fn
+	}
+}
+
 // defaultReloadInteractive reports whether stdin is a terminal, so
 // `apply --reload` only re-execs the shell in an interactive session.
 func defaultReloadInteractive() bool {
@@ -185,7 +202,7 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 	if runnerOverride != nil {
 		runner = runnerOverride
 	} else {
-		runner = pkgmgr.ExecRunner{Stdout: stdout, Stderr: stderr}
+		runner = runnerFactory(stdout, stderr)
 	}
 	manager, ok := pkgmgr.DetectManager(runtime.GOOS, runner)
 
