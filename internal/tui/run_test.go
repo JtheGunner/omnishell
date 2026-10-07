@@ -3,9 +3,12 @@ package tui
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestRunReturnsTheBackendErrorWithoutTouchingTheTerminal(t *testing.T) {
@@ -57,5 +60,26 @@ func TestResultOfReadsTheUsersDecisionOffTheFinalModel(t *testing.T) {
 	}
 	if resultOf(nil) != (Result{}) {
 		t.Fatal("a missing model must not request an apply")
+	}
+}
+
+// SIGINT from outside (kill -INT) ends the program with tea.ErrInterrupted;
+// that is the user leaving, not a failure to report.
+func TestAnInterruptEndsTheUIWithoutAnError(t *testing.T) {
+	for _, err := range []error{tea.ErrInterrupted, fmt.Errorf("wrapped: %w", tea.ErrInterrupted)} {
+		result, got := finish(Model{applyRequested: true}, err)
+		if got != nil {
+			t.Fatalf("finish(%v) = %v, want no error", err, got)
+		}
+		if result.ApplyRequested {
+			t.Fatal("an interrupt must never request an apply, even if the plan was confirmed")
+		}
+	}
+}
+
+func TestOtherRunErrorsStillSurface(t *testing.T) {
+	boom := errors.New("boom")
+	if _, got := finish(nil, boom); !errors.Is(got, boom) {
+		t.Fatalf("finish = %v, want the error to be wrapped and returned", got)
 	}
 }

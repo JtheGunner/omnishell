@@ -52,6 +52,9 @@ type Result struct {
 	InitFilesWritten []string
 	BackupDir        string
 	Changed          bool
+	// NothingToDo is true when apply took its idempotent no-op path: no planned
+	// changes and init and rc files that still match the lockfile.
+	NothingToDo bool
 }
 
 // Apply brings the system to the desired state described by cfg. It loads the
@@ -89,6 +92,7 @@ func (e Engine) Apply(cfg config.Config, cfgPath, lockPath string, opts ApplyOpt
 			res.Modules = summarise(plan, pd)
 			return res, ErrDegraded
 		}
+		res.NothingToDo = true
 		return res, nil
 	}
 

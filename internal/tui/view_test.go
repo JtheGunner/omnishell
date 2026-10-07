@@ -13,7 +13,7 @@ func TestViewIsEmptyUntilTheTerminalSizeIsKnown(t *testing.T) {
 }
 
 func TestViewShowsATooSmallMessageBelowTheMinimumSize(t *testing.T) {
-	cases := []struct{ w, h int }{{79, 20}, {80, 19}, {10, 5}}
+	cases := []struct{ w, h int }{{79, 20}, {80, 19}, {80, 5}}
 	for _, c := range cases {
 		out := plain(sized(newTestModel(sampleViews()), c.w, c.h))
 		if !strings.Contains(out, "Terminal too small: need at least 80x20") {
@@ -288,4 +288,33 @@ func TestViewGoldenFiles(t *testing.T) {
 	for name, m := range cases {
 		assertGolden(t, name, plain(m))
 	}
+}
+
+// A detail line that wraps continues under its value, not under its label.
+func TestDetailFieldsWrapWithAHangingIndent(t *testing.T) {
+	views := sampleViews()
+	views[2].Unavailable = "not supported on linux (module supports macos); you can enable it, but apply skips it"
+	m := sized(newTestModel(views), 80, 20)
+	m = press(t, m, "down", "down")
+
+	lines := strings.Split(plain(m), "\n")
+	var host int
+	for i, line := range lines {
+		if strings.Contains(line, "Host:") {
+			host = i
+		}
+	}
+	if host == 0 {
+		t.Fatalf("no Host line:\n%s", plain(m))
+	}
+	first := lines[host]
+	next := lines[host+1]
+	column := strings.Index(first, "not supported")
+	if column < 0 || !strings.HasPrefix(next[strings.Index(first, "Host:")-0:], strings.Repeat(" ", column-strings.Index(first, "Host:"))) {
+		t.Fatalf("the second line must start under the value:\n%s\n%s", first, next)
+	}
+	if strings.TrimSpace(next[column:]) == "" || strings.TrimSpace(next[strings.Index(first, "Host:"):column]) != "" {
+		t.Fatalf("the continuation must carry text under the value, nothing under the label:\n%s\n%s", first, next)
+	}
+	assertFits(t, plain(m), 80, 20)
 }

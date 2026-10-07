@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -52,11 +53,13 @@ func (m Model) renderOptionsHeader() string {
 func (m Model) renderOptionsFooter() string {
 	switch {
 	case m.status != "":
-		return statusStyle.Render(ansi.Truncate("! "+m.status, m.width, "…"))
+		return m.renderStatus()
 	case m.pending:
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
+	case m.options.stale:
+		return dimStyle.Inline(true).MaxWidth(m.width).Render("values may be out of date · r re-read · esc back · q quit")
 	case m.options.editing:
-		return dimStyle.Inline(true).MaxWidth(m.width).Render("type a value · enter save · esc cancel · ctrl+c quit")
+		return dimStyle.Inline(true).MaxWidth(m.width).Render("type a value · ←/→ move · enter save · esc cancel · ctrl+c quit")
 	}
 	return dimStyle.Inline(true).MaxWidth(m.width).
 		Render("↑/↓ move · space toggle · ←/→ change · enter edit · esc back · q quit")
@@ -68,10 +71,7 @@ func (m Model) optionTable(n int) []string {
 	if len(rows) == 0 {
 		return []string{dimStyle.Render("No options")}
 	}
-	start := 0
-	if m.options.cursor >= n {
-		start = m.options.cursor - n + 1
-	}
+	start := m.optionTableStart(n)
 	end := min(start+n, len(rows))
 
 	lines := make([]string, 0, end-start)
@@ -95,12 +95,38 @@ func (m Model) optionTable(n int) []string {
 	return lines
 }
 
+// optionTableStart is the index of the first option line shown when n lines fit,
+// scrolled so the cursor is visible.
+func (m Model) optionTableStart(n int) int {
+	if m.options.cursor >= n {
+		return m.options.cursor - n + 1
+	}
+	return 0
+}
+
+// optionCursor is where the terminal cursor belongs while a value is typed, or
+// nil when it is not.
+func (m Model) optionCursor() *tea.Cursor {
+	if !m.options.editing || m.pending {
+		return nil
+	}
+	tableRows := max(m.bodyRows()-optionDetailLines, 1)
+	_, col := editCell(m.options.input, m.options.pos)
+	x := 2 + keyColumn + col // the marker, the key column, then the cell
+	y := headerLines + m.options.cursor - m.optionTableStart(tableRows)
+	if x >= m.width {
+		return nil
+	}
+	return tea.NewCursor(x, y)
+}
+
 // optionValueCell is what the value column shows for one option: the text being
 // typed for the row under edit, otherwise the value with a note where it is not
 // a plain, explicitly set value.
 func (m Model) optionValueCell(pos int, row modedit.OptionView) string {
 	if m.options.editing && pos == m.options.cursor {
-		return editCell(m.options.input)
+		cell, _ := editCell(m.options.input, m.options.pos)
+		return cell
 	}
 	return row.Value + valueNote(row)
 }
@@ -117,21 +143,13 @@ func valueNote(row modedit.OptionView) string {
 	return ""
 }
 
-// editCell draws the text being typed between brackets. A long input is cut on
-// the left, so the end of it and the cursor stay inside the value column.
-func editCell(input string) string {
-	const room = valueColumn - 1 - 3 // the column keeps one cell free; "[", "_" and "]" take three
-	if w := ansi.StringWidth(input); w > room {
-		// TruncateLeft keeps a wide character that is cut in the middle, so the
-		// result can be one cell too wide: cut a little more until it fits.
-		for n := w - (room - 1); ; n++ {
-			if cut := ansi.TruncateLeft(input, n, "…"); ansi.StringWidth(cut) <= room {
-				input = cut
-				break
-			}
-		}
-	}
-	return "[" + input + "_]"
+// editCell draws the text being typed between brackets. A long input is cut so
+// the cursor stays inside the value column; the second result is the cursor's
+// column within the cell.
+func editCell(input string, pos int) (string, int) {
+	const room = valueColumn - 1 - 2 // the column keeps one cell free; "[" and "]" take two
+	text, col := editWindow(input, pos, room)
+	return "[" + text + "]", col + 1
 }
 
 // pad cuts s to width cells (with an ellipsis) or pads it with spaces.

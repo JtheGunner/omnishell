@@ -1,20 +1,20 @@
-omnishell  plan preview                                                         
-Could not compute the plan: module "fzf": option ctrl_r: "yes please" is not a  
-bool                                                                            
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-esc back · q quit                                                               
+omnishell  plan preview                                                       
+Could not compute the plan: module "fzf": option ctrl_r: "yes please" is not a
+bool                                                                          
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+↑/↓ scroll · esc back · q quit                                                

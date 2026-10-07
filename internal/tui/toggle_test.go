@@ -270,3 +270,36 @@ func statusOfID(m Model, id string) modedit.Status {
 	}
 	return ""
 }
+
+// The write succeeded, only the re-read failed: config.toml has changed, so the
+// checkbox must show that and not the state from before the write.
+func TestFailedRefreshAfterASuccessfulWriteStillShowsTheNewState(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+	b.statusesErr = errors.New("cannot re-read config")
+
+	m = space(m) // completion was enabled: now disabled
+
+	if got := m.views[0].Status; got != modedit.StatusDisabled {
+		t.Fatalf("status = %q, want the checkbox to show what was written", got)
+	}
+	if m.changes() != 1 {
+		t.Fatalf("changes = %d, want the written change counted", m.changes())
+	}
+	b.statusesErr = nil
+	m = press(t, m, "down")
+	m = space(m) // fzf: now enabled
+	if m.views[0].Status != modedit.StatusDisabled || m.views[1].Status != modedit.StatusEnabled {
+		t.Fatalf("after a later refresh the states are %q and %q", m.views[0].Status, m.views[1].Status)
+	}
+}
+
+func TestAWriteThatFailedLeavesTheCheckboxAsItWas(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+	b.toggleErr = errors.New("read-only")
+
+	m = space(m)
+
+	if m.views[0].Status != modedit.StatusEnabled || m.changes() != 0 {
+		t.Fatalf("a rejected write must change nothing: status=%q changes=%d", m.views[0].Status, m.changes())
+	}
+}

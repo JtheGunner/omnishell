@@ -26,18 +26,50 @@ func (m Model) renderPlan() string {
 	)
 }
 
-// planBody returns at most rows lines: a waiting note, the error, or the
-// visible window of the plan.
+// planBody returns at most rows lines: the visible window of what planDisplay
+// shows.
 func (m Model) planBody(rows int) []string {
+	lines := m.planDisplay()
+	start := min(m.plan.offset, len(lines))
+	end := min(start+rows, len(lines))
+	return append([]string(nil), lines[start:end]...)
+}
+
+// planDisplay is everything the plan screen has to show, wrapped to the
+// terminal width: a waiting note, the error, or the plan. Long lines wrap
+// instead of being cut, and the error scrolls like the plan does.
+func (m Model) planDisplay() []string {
 	switch {
 	case m.plan.loading:
 		return []string{dimStyle.Render("computing plan…")}
 	case m.plan.err != "":
-		wrapped := lipgloss.NewStyle().Width(m.width).Render("Could not compute the plan: " + m.plan.err)
-		return clip(strings.Split(wrapped, "\n"), rows)
+		return strings.Split(ansi.Wrap("Could not compute the plan: "+m.plan.err, max(m.width, 1), ""), "\n")
 	}
-	end := min(m.plan.offset+rows, len(m.plan.lines))
-	return append([]string(nil), m.plan.lines[m.plan.offset:end]...)
+	var out []string
+	for _, line := range m.plan.lines {
+		out = append(out, wrapIndented(line, max(m.width, 1))...)
+	}
+	return out
+}
+
+// wrapIndented wraps line to width cells. A line that starts with spaces keeps
+// them, and its continuation lines are indented two cells further.
+func wrapIndented(line string, width int) []string {
+	trimmed := strings.TrimLeft(line, " ")
+	indent := len(line) - len(trimmed)
+	if ansi.StringWidth(line) <= width || indent >= width-10 {
+		return strings.Split(ansi.Wrap(line, width, ""), "\n")
+	}
+	avail := width - indent - 2
+	parts := strings.Split(ansi.Wrap(trimmed, avail, ""), "\n")
+	for i, part := range parts {
+		if i == 0 {
+			parts[i] = strings.Repeat(" ", indent) + part
+		} else {
+			parts[i] = strings.Repeat(" ", indent+2) + part
+		}
+	}
+	return parts
 }
 
 func clip(lines []string, n int) []string {
@@ -49,9 +81,9 @@ func clip(lines []string, n int) []string {
 
 func (m Model) renderPlanHeader(rows int) string {
 	line := titleStyle.Render("omnishell") + dimStyle.Render("  plan preview")
-	if len(m.plan.lines) > rows {
-		last := min(m.plan.offset+rows, len(m.plan.lines))
-		line += dimStyle.Render(fmt.Sprintf("  lines %d-%d of %d", m.plan.offset+1, last, len(m.plan.lines)))
+	if all := len(m.planDisplay()); all > rows {
+		last := min(m.plan.offset+rows, all)
+		line += dimStyle.Render(fmt.Sprintf("  lines %d-%d of %d", m.plan.offset+1, last, all))
 	}
 	return lipgloss.NewStyle().Inline(true).MaxWidth(m.width).Render(line)
 }
@@ -62,9 +94,9 @@ func (m Model) renderPlanFooter() string {
 	case m.plan.loading:
 		help = "esc back · q quit"
 	case m.plan.err != "":
-		help = "esc back · q quit"
+		help = "↑/↓ scroll · esc back · q quit"
 	case m.plan.canApply():
-		help = "↑/↓ scroll · y/enter continue to apply · esc back · q quit"
+		help = "↑/↓ scroll · y/enter continue to apply (apply asks again) · esc back · q quit"
 	}
 	return dimStyle.Inline(true).MaxWidth(m.width).Render(help)
 }

@@ -51,13 +51,19 @@ func planCmd(b Backend, seq int) tea.Cmd {
 }
 
 // openPlan switches to the plan screen and starts computing the plan. It does
-// nothing while a toggle is being written: the plan would describe a config
-// that is about to change.
+// nothing while a toggle is being written (the plan would describe a config
+// that is about to change) or while an earlier computation is still running
+// (it cannot be cancelled and queries the package manager).
 func (m Model) openPlan() (tea.Model, tea.Cmd) {
 	if m.pending {
 		return m, nil
 	}
+	if m.planRunning {
+		m.status = "the previous plan is still being computed"
+		return m, nil
+	}
 	m.screen = screenPlan
+	m.planRunning = true
 	m.planSeq++
 	m.plan = planState{loading: true}
 	return m, planCmd(m.backend, m.planSeq)
@@ -66,6 +72,7 @@ func (m Model) openPlan() (tea.Model, tea.Cmd) {
 // applyPlan stores a computed plan, unless the user has left the plan screen
 // (or asked for a newer plan) since it was requested.
 func (m Model) applyPlan(msg planMsg) Model {
+	m.planRunning = false
 	if m.screen != screenPlan || msg.seq != m.planSeq {
 		return m
 	}
@@ -96,7 +103,7 @@ func (m Model) updatePlan(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.planSeq++ // whatever is still being computed is no longer wanted
 		m.plan = planState{}
 	case "y", "enter":
-		if m.plan.canApply() {
+		if m.plan.canApply() && m.planVisible() {
 			m.applyRequested = true
 			return m, tea.Quit
 		}
@@ -116,11 +123,18 @@ func (m Model) updatePlan(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// planVisible reports whether the plan is on screen: a terminal below the
+// minimum size shows only the too-small notice, and confirming something that
+// cannot be seen would be blind.
+func (m Model) planVisible() bool {
+	return m.width >= minWidth && m.height >= minHeight
+}
+
 // planRows is how many plan lines fit on the screen.
 func (m Model) planRows() int { return m.bodyRows() }
 
 func (m Model) maxPlanOffset() int {
-	return max(len(m.plan.lines)-m.planRows(), 0)
+	return max(len(m.planDisplay())-m.planRows(), 0)
 }
 
 // scrollPlan moves the visible window by delta lines, stopping at both ends.

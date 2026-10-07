@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/JtheGunner/omnishell/internal/cli"
 	"github.com/JtheGunner/omnishell/internal/config"
@@ -530,5 +531,44 @@ func TestTUIBackendOptionsOfAnUnknownModuleIsAnError(t *testing.T) {
 
 	if _, err := b.Options("no-such-module"); err == nil || !strings.Contains(err.Error(), "unknown module") {
 		t.Fatalf("err = %v, want unknown module", err)
+	}
+}
+
+// The plan said there was something to apply, but the config changed in
+// between and apply finds nothing to do: that must be said, not left silent.
+func TestTUIHandoffSaysWhenApplyFindsNothingToDo(t *testing.T) {
+	zshHostWithCompletion(t)
+	handoffRun(t, tui.Result{ApplyRequested: true}, nil)
+	askedQuestions(t, true)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("first run: exit = %d (stderr: %s)", code, errb.String())
+	}
+	if strings.Contains(out.String(), "Nothing to apply") {
+		t.Fatalf("the first apply had work to do, but said otherwise:\n%s", out.String())
+	}
+
+	out.Reset()
+	errb.Reset()
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("second run: exit = %d (stderr: %s)", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "Nothing to apply: no module or package changes are planned.") {
+		t.Fatalf("a hand-off that finds nothing to do must say so; stdout:\n%s", out.String())
+	}
+}
+
+// A help line longer than a classic 80-column terminal wraps in the middle of a
+// word.
+func TestTUIHelpFitsAnEightyColumnTerminal(t *testing.T) {
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui", "--help"}, &out, &errb); code != 0 {
+		t.Fatalf("exit = %d (stderr: %s)", code, errb.String())
+	}
+	for _, line := range strings.Split(out.String(), "\n") {
+		if n := utf8.RuneCountInString(line); n > 80 {
+			t.Errorf("help line is %d characters wide: %q", n, line)
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -24,8 +25,17 @@ func Run(b Backend, in io.Reader, out io.Writer) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	final, err := tea.NewProgram(New(b, views), tea.WithInput(in), tea.WithOutput(out)).Run()
-	if err != nil {
+	return finish(tea.NewProgram(New(b, views), tea.WithInput(in), tea.WithOutput(out)).Run())
+}
+
+// finish turns what the program ended with into Run's result. An interrupt
+// (SIGINT from outside) is the user leaving: it ends quietly and never leads on
+// to apply.
+func finish(final tea.Model, err error) (Result, error) {
+	switch {
+	case errors.Is(err, tea.ErrInterrupted):
+		return Result{}, nil
+	case err != nil:
 		return Result{}, fmt.Errorf("run terminal UI: %w", err)
 	}
 	return resultOf(final), nil

@@ -129,7 +129,7 @@ func TestOptionsEditShowsTheTypedTextInPlaceOfTheValue(t *testing.T) {
 	if !strings.Contains(out, "[abcx_]") {
 		t.Fatalf("the input cell is missing:\n%s", out)
 	}
-	if !strings.Contains(out, "type a value · enter save · esc cancel") {
+	if !strings.Contains(out, "type a value · ←/→ move · enter save · esc cancel") {
 		t.Fatalf("the editing footer is missing:\n%s", out)
 	}
 }

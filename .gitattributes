@@ -1,0 +1,3 @@
+# The TUI golden files compare rendered screens, whose lines end in spaces.
+# Keep editors and `git diff --check` from treating them as errors.
+internal/tui/testdata/*.golden -whitespace

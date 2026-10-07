@@ -2,8 +2,6 @@ package tui
 
 import (
 	"slices"
-	"strings"
-	"unicode"
 
 	"github.com/JtheGunner/omnishell/internal/modedit"
 )
@@ -14,21 +12,10 @@ import (
 // module's text read as another's. Everything shown is therefore cleaned once,
 // when the model is built.
 
-// sanitize replaces control characters (ESC, BEL, CR, newline, tab, C1) and
-// bidi override characters with a space, so nothing in s can act as a
-// terminal command or reorder the text around it.
-func sanitize(s string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || isBidiControl(r) {
-			return ' '
-		}
-		return r
-	}, s)
-}
-
-func isBidiControl(r rune) bool {
-	return (r >= 0x202A && r <= 0x202E) || (r >= 0x2066 && r <= 0x2069)
-}
+// sanitize is modedit.Clean: it replaces control characters and bidi override
+// characters with a space, so nothing in s can act as a terminal command or
+// reorder the text around it.
+func sanitize(s string) string { return modedit.Clean(s) }
 
 // sanitizeViews returns a cleaned copy of views; the caller's slice and the
 // slices inside it are left alone.
@@ -39,6 +26,7 @@ func sanitizeViews(views []modedit.ModuleView) []modedit.ModuleView {
 		v.Name = sanitize(v.Name)
 		v.Description = sanitize(v.Description)
 		v.Homepage = sanitize(v.Homepage)
+		v.Unavailable = sanitize(v.Unavailable)
 		v.Platforms = sanitizeAll(v.Platforms)
 		v.Shells = sanitizeAll(v.Shells)
 		out[i] = v

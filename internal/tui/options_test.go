@@ -509,3 +509,91 @@ func TestAnOptionsLoadResultThatArrivesOnAnotherScreenIsDropped(t *testing.T) {
 		t.Fatalf("screen=%v pending=%v rows=%d, want the plan screen untouched and the wait over", got.screen, got.pending, len(got.options.rows))
 	}
 }
+
+// If the options cannot be re-read after a successful write, the rows are older
+// than the file: a bool toggled from them would write what is already there.
+func TestAfterAFailedRereadTheValueKeysAreLockedUntilAReadSucceeds(t *testing.T) {
+	m, b := withOptions()
+	m = openFzfOptions(t, m) // the cursor is on ctrl_r (bool, true)
+	b.optionsErr = errors.New("cannot re-read")
+	m = settleKey(t, m, "space")
+	if len(b.optionCalls) != 1 || !m.options.stale {
+		t.Fatalf("calls=%v stale=%v, want one write and the screen marked as out of date", b.optionCalls, m.options.stale)
+	}
+
+	m = press(t, m, "space", "left", "right", "enter")
+	if len(b.optionCalls) != 1 || m.options.editing {
+		t.Fatalf("calls=%v editing=%v: the value keys must do nothing while the rows are out of date", b.optionCalls, m.options.editing)
+	}
+	m = press(t, m, "down", "up") // moving is harmless
+	if m.options.cursor != 0 {
+		t.Fatalf("cursor = %d, want movement to keep working", m.options.cursor)
+	}
+	if out := plain(m); !strings.Contains(out, "out of date") || !strings.Contains(out, "r re-read") {
+		t.Fatalf("the footer must say what is wrong and how to fix it:\n%s", out)
+	}
+
+	m = settleKey(t, m, "r") // still failing
+	if !m.options.stale || m.pending {
+		t.Fatalf("stale=%v pending=%v, want it to stay locked while the read fails", m.options.stale, m.pending)
+	}
+
+	b.optionsErr = nil
+	m = settleKey(t, m, "r")
+	if m.options.stale {
+		t.Fatal("a successful re-read must unlock the screen")
+	}
+	if got := optionRow(t, m, "ctrl_r").Value; got != "true" && got != "false" {
+		t.Fatalf("value = %q", got)
+	}
+	m = settleKey(t, m, "space")
+	if len(b.optionCalls) != 2 {
+		t.Fatalf("calls = %v, want the toggle to work again after the re-read", b.optionCalls)
+	}
+}
+
+func TestAWriteThatFailsDoesNotMarkTheScreenAsOutOfDate(t *testing.T) {
+	m, b := withOptions()
+	b.setOptionErr = errors.New("nope")
+	m = settleKey(t, openFzfOptions(t, m), "space")
+
+	if m.options.stale {
+		t.Fatal("the rows are still what the file holds after a rejected write")
+	}
+}
+
+func TestLeavingTheOptionsScreenForgetsTheOutOfDateMark(t *testing.T) {
+	m, b := withOptions()
+	m = openFzfOptions(t, m)
+	b.optionsErr = errors.New("cannot re-read")
+	m = settleKey(t, m, "space")
+	b.optionsErr = nil
+
+	m = press(t, m, "esc")
+	m = openFzfOptions(t, m)
+	if m.options.stale {
+		t.Fatal("a freshly opened screen has just been read")
+	}
+}
+
+// The write went through, only the re-read failed: config.toml has the new
+// value, so the header must count it even though the rows are out of date.
+func TestAFailedRereadStillCountsTheWrittenOptionAsAChange(t *testing.T) {
+	m, b := withOptions()
+	m = openFzfOptions(t, m)
+	b.optionsErr = errors.New("cannot re-read")
+	m = settleKey(t, m, "space") // ctrl_r: true -> false
+
+	if m.changes() != 1 {
+		t.Fatalf("changes = %d, want the written option counted", m.changes())
+	}
+	if got := optionRow(t, m, "ctrl_r").Value; got != "false" {
+		t.Fatalf("ctrl_r shows %q, want what was written", got)
+	}
+
+	b.optionsErr = nil
+	m = settleKey(t, m, "r")
+	if m.changes() != 1 {
+		t.Fatalf("changes = %d after the re-read, want it unchanged", m.changes())
+	}
+}

@@ -32,6 +32,7 @@ var (
 func (m Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
+	v.Cursor = m.textCursor()
 	return v
 }
 
@@ -40,8 +41,8 @@ func (m Model) render() string {
 	case m.width == 0 || m.height == 0:
 		return "" // the size is unknown until the first tea.WindowSizeMsg
 	case m.width < minWidth || m.height < minHeight:
-		return fmt.Sprintf("Terminal too small: need at least %dx%d, have %dx%d",
-			minWidth, minHeight, m.width, m.height)
+		return ansi.Truncate(fmt.Sprintf("Terminal too small: need at least %dx%d, have %dx%d",
+			minWidth, minHeight, m.width, m.height), m.width, "…")
 	}
 
 	switch m.screen {
@@ -51,7 +52,7 @@ func (m Model) render() string {
 		return m.renderOptions()
 	}
 
-	bodyHeight := m.height - headerLines - footerLines
+	bodyHeight := m.bodyRows()
 	rows := bodyHeight - boxChromeV
 	rightWidth := m.width - listWidth
 
@@ -68,20 +69,50 @@ func (m Model) render() string {
 }
 
 func (m Model) renderHeader() string {
-	line := titleStyle.Render("omnishell") +
-		dimStyle.Render(fmt.Sprintf("  %d modules · %s", len(m.views), changesText(m.changes())))
+	line := m.headerBase()
+	filter := sanitize(m.filter)
 	switch {
 	case m.filtering:
-		line += "  filter: " + m.filter + "_"
+		line += "  filter: " + filter
+		if m.filterPos >= len([]rune(filter)) {
+			line += "_" // the cursor is behind the text
+		}
 	case m.filter != "":
-		line += fmt.Sprintf("  filter: %s (%d shown)", m.filter, len(m.visible))
+		line += fmt.Sprintf("  filter: %s (%d shown)", filter, len(m.visible))
 	}
 	return lipgloss.NewStyle().Inline(true).MaxWidth(m.width).Render(line)
 }
 
+// headerBase is the start of the browser's header line, before the filter.
+func (m Model) headerBase() string {
+	return titleStyle.Render("omnishell") +
+		dimStyle.Render(fmt.Sprintf("  %d modules · %s", len(m.views), changesText(m.changes())))
+}
+
+// textCursor is where the terminal cursor belongs: in the filter or in the
+// option value being typed, and nowhere else (nil hides it).
+func (m Model) textCursor() *tea.Cursor {
+	if m.width < minWidth || m.height < minHeight {
+		return nil
+	}
+	switch {
+	case m.screen == screenOptions:
+		return m.optionCursor()
+	case m.screen == screenBrowser && m.filtering:
+		runes := []rune(sanitize(m.filter))
+		before := string(runes[:min(m.filterPos, len(runes))])
+		x := ansi.StringWidth(m.headerBase() + "  filter: " + before)
+		if x >= m.width {
+			return nil
+		}
+		return tea.NewCursor(x, 0)
+	}
+	return nil
+}
+
 func (m Model) renderFooter() string {
 	if m.status != "" {
-		return statusStyle.Render(ansi.Truncate("! "+m.status, m.width, "…"))
+		return m.renderStatus()
 	}
 	if m.pending {
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
@@ -95,7 +126,44 @@ func (m Model) renderFooter() string {
 
 // bodyRows is how many lines fit between the header and the footer.
 func (m Model) bodyRows() int {
-	return max(m.height-headerLines-footerLines, 1)
+	return max(m.height-headerLines-m.footerHeight(), 1)
+}
+
+// maxStatusLines is how many lines an error message may take in the footer.
+const maxStatusLines = 3
+
+// statusLines is the status message, wrapped to the terminal width so a long
+// reason stays readable; one that still does not fit in maxStatusLines ends
+// with an ellipsis. It is nil when there is no message.
+func (m Model) statusLines() []string {
+	if m.status == "" {
+		return nil
+	}
+	lines := strings.Split(ansi.Wrap("! "+m.status, max(m.width, 1), ""), "\n")
+	if len(lines) > maxStatusLines {
+		lines = lines[:maxStatusLines]
+		last := strings.TrimRight(lines[maxStatusLines-1], " ")
+		lines[maxStatusLines-1] = ansi.Truncate(last, max(m.width-1, 1), "") + "…"
+	}
+	return lines
+}
+
+// footerHeight is how many lines the footer takes: one, or more while a long
+// message is shown.
+func (m Model) footerHeight() int {
+	if m.screen == screenPlan {
+		return footerLines // the plan screen has no status line
+	}
+	return max(len(m.statusLines()), footerLines)
+}
+
+// renderStatus draws the wrapped status message.
+func (m Model) renderStatus() string {
+	lines := m.statusLines()
+	for i, line := range lines {
+		lines[i] = statusStyle.Render(line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // changesText says how many modules differ from the state the browser started
@@ -160,27 +228,32 @@ func (m Model) renderDetail(rows, width int) string {
 		"",
 		v.Description,
 		"",
-		field("Status", string(v.Status)),
-		field("Packages", string(v.Packages)),
-		field("Platforms", strings.Join(v.Platforms, ", ")),
-		field("Shells", strings.Join(v.Shells, ", ")),
+		field("Status", string(v.Status), width),
+		field("Packages", string(v.Packages), width),
+		field("Platforms", strings.Join(v.Platforms, ", "), width),
+		field("Shells", strings.Join(v.Shells, ", "), width),
 	}
 	if v.Unavailable != "" {
-		lines = append(lines, field("Host", v.Unavailable))
+		lines = append(lines, field("Host", v.Unavailable, width))
 	}
 	lines = append(lines,
-		field("Options", fmt.Sprint(v.OptionCount)),
-		field("Homepage", homepage),
+		field("Options", fmt.Sprint(v.OptionCount), width),
+		field("Homepage", homepage, width),
 	)
 	text := strings.Join(lines, "\n")
 
 	return lipgloss.NewStyle().Width(width).MaxHeight(rows).Render(text)
 }
 
-// field renders one "Label:  value" line of the detail pane.
-func field(label, value string) string {
-	return fmt.Sprintf("%-10s %s", label+":", value)
+// field renders one "Label:  value" entry of the detail pane, wrapped to width
+// with the continuation lines under the value rather than under the label.
+func field(label, value string, width int) string {
+	return strings.Join(wrapValue(fmt.Sprintf("%-10s ", label+":"), value, width, maxFieldLines), "\n")
 }
+
+// maxFieldLines is a safety cap on how many lines one detail field may take;
+// the pane clips to its own height anyway.
+const maxFieldLines = 12
 
 func statusBox(s modedit.Status) string {
 	switch s {

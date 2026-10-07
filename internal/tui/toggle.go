@@ -11,6 +11,9 @@ import (
 // toggledMsg reports the outcome of flipping one module: either the error that
 // stopped it, or every module's state as config.toml now has it.
 type toggledMsg struct {
+	id       string // the module that was flipped
+	enable   bool   // what it was flipped to
+	written  bool   // true once config.toml holds the new state, even if err is set
 	statuses map[string]modedit.Status
 	err      error
 }
@@ -41,10 +44,10 @@ func toggleCmd(b Backend, id string, enable bool) tea.Cmd {
 			err = b.Disable(id)
 		}
 		if err != nil {
-			return toggledMsg{err: err}
+			return toggledMsg{id: id, enable: enable, err: err}
 		}
 		statuses, err := b.Statuses()
-		return toggledMsg{statuses: statuses, err: err}
+		return toggledMsg{id: id, enable: enable, written: true, statuses: statuses, err: err}
 	}
 }
 
@@ -54,11 +57,24 @@ func toggleCmd(b Backend, id string, enable bool) tea.Cmd {
 // depend on the status.
 func (m Model) applyToggled(msg toggledMsg) Model {
 	m.pending = false
+	m.views = slices.Clone(m.views)
 	if msg.err != nil {
 		m.status = sanitize(msg.err.Error())
+		if msg.written {
+			// The write went through and only the re-read failed: show what
+			// config.toml now holds rather than the state from before.
+			next := modedit.StatusDisabled
+			if msg.enable {
+				next = modedit.StatusEnabled
+			}
+			for i, v := range m.views {
+				if v.ID == msg.id {
+					m.views[i].Status = next
+				}
+			}
+		}
 		return m
 	}
-	m.views = slices.Clone(m.views)
 	for i, v := range m.views {
 		if status, ok := msg.statuses[v.ID]; ok {
 			m.views[i].Status = status

@@ -10,7 +10,7 @@ omnishell  3 modules · 0 changes since start
 │                            ││ Platforms: linux                               │
 │                            ││ Shells:    zsh                                 │
 │                            ││ Host:      needs zsh, but your managed shells  │
-│                            ││ are bash                                       │
+│                            ││            are bash                            │
 │                            ││ Options:   0                                   │
 │                            ││ Homepage:  —                                   │
 │                            ││                                                │

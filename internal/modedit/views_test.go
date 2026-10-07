@@ -224,7 +224,7 @@ func TestViewsExplainAModuleThatNeedsAnotherOS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Views: %v", err)
 	}
-	want := "not supported on linux (module supports macos)"
+	want := "not supported on linux (module supports macos); you can enable it, but apply skips it"
 	if got := viewByID(t, views, "macosonly").Unavailable; got != want {
 		t.Fatalf("Unavailable = %q, want %q", got, want)
 	}

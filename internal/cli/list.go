@@ -49,14 +49,16 @@ PACKAGES is one of:
 
 			rows := make([]listRow, 0, len(views))
 			for _, v := range views {
+				// Manifest text can come from a stranger's module: it must not
+				// reach the terminal as a control sequence.
 				rows = append(rows, listRow{
-					Module:      v.ID,
+					Module:      modedit.Clean(v.ID),
 					Status:      string(v.Status),
-					Description: v.Description,
-					Homepage:    v.Homepage,
+					Description: modedit.Clean(v.Description),
+					Homepage:    modedit.Clean(v.Homepage),
 					Packages:    string(v.Packages),
-					Platforms:   strings.Join(v.Platforms, ","),
-					Shells:      strings.Join(v.Shells, ","),
+					Platforms:   modedit.Clean(strings.Join(v.Platforms, ",")),
+					Shells:      modedit.Clean(strings.Join(v.Shells, ",")),
 					Src:         string(v.Origin),
 				})
 			}

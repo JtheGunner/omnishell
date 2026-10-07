@@ -99,6 +99,9 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	}
 
 	printApplySummary(out, res)
+	if res.NothingToDo {
+		_, _ = fmt.Fprintln(out, "Nothing to apply: no module or package changes are planned.")
+	}
 
 	// --reload re-execs the login shell, but only after a fully successful,
 	// non-dry-run apply and only in an interactive session.
