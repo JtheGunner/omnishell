@@ -37,7 +37,7 @@ PACKAGES is one of:
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
-			e, cfgPath, _, err := buildEngine(out, cmd.ErrOrStderr())
+			e, cfgPath, _, err := buildQueryEngine(out, cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

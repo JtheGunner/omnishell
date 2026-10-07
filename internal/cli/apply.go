@@ -46,7 +46,17 @@ func runApply(cmd *cobra.Command, forceDryRun bool) error {
 	out := cmd.OutOrStdout()
 	errOut := cmd.ErrOrStderr()
 
-	e, cfgPath, lockPath, err := buildEngine(out, errOut)
+	// A dry run only asks the package manager questions, so what it prints is
+	// dropped; a real apply streams installs and hooks to the user.
+	dryRun := forceDryRun
+	if !forceDryRun {
+		dryRun, _ = cmd.Flags().GetBool("dry-run")
+	}
+	build := buildEngine
+	if dryRun {
+		build = buildQueryEngine
+	}
+	e, cfgPath, lockPath, err := build(out, errOut)
 	if err != nil {
 		return err
 	}
