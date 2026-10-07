@@ -31,6 +31,8 @@ type optionsMsg struct {
 // stopped it, or the module's options re-read after the write.
 type optionWrittenMsg struct {
 	id      string
+	key     string // the option that was written
+	raw     string // the value that was written, as typed or chosen
 	rows    []modedit.OptionView
 	written bool // true once config.toml holds the new value, even if err is set
 	err     error
@@ -52,7 +54,7 @@ func optionWriteCmd(b Backend, id, key, raw string) tea.Cmd {
 			return optionWrittenMsg{id: id, err: err}
 		}
 		rows, err := b.Options(id)
-		return optionWrittenMsg{id: id, rows: rows, written: true, err: err}
+		return optionWrittenMsg{id: id, key: key, raw: raw, rows: rows, written: true, err: err}
 	}
 }
 
@@ -116,6 +118,17 @@ func (m Model) applyOptionWritten(msg optionWrittenMsg) Model {
 			m.options.stale = true
 			m.options.editing = false
 			m.options.input, m.options.pos = "", 0
+			if msg.key != "" {
+				// Show and count what was written, as far as it is known.
+				rows := slices.Clone(m.options.rows)
+				for i := range rows {
+					if rows[i].Key == msg.key {
+						rows[i].Value, rows[i].Set = sanitize(msg.raw), true
+					}
+				}
+				m.options.rows = rows
+				m.rememberOptions(msg.id, rows)
+			}
 		}
 		return m
 	}

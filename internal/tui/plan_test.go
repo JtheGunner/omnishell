@@ -162,6 +162,9 @@ func TestAIsIgnoredWhileAnEarlierPlanIsStillBeingComputed(t *testing.T) {
 	if againCmd != nil || again.(Model).screen != screenBrowser {
 		t.Fatal("a must be ignored while the earlier plan is still being computed")
 	}
+	if !strings.Contains(again.(Model).status, "still being computed") {
+		t.Fatalf("status = %q, want a note so the key does not look dead", again.(Model).status)
+	}
 
 	afterOld := settle(again.(Model), firstCmd) // the old answer arrives and is dropped
 	if afterOld.screen != screenBrowser {

@@ -575,3 +575,25 @@ func TestLeavingTheOptionsScreenForgetsTheOutOfDateMark(t *testing.T) {
 		t.Fatal("a freshly opened screen has just been read")
 	}
 }
+
+// The write went through, only the re-read failed: config.toml has the new
+// value, so the header must count it even though the rows are out of date.
+func TestAFailedRereadStillCountsTheWrittenOptionAsAChange(t *testing.T) {
+	m, b := withOptions()
+	m = openFzfOptions(t, m)
+	b.optionsErr = errors.New("cannot re-read")
+	m = settleKey(t, m, "space") // ctrl_r: true -> false
+
+	if m.changes() != 1 {
+		t.Fatalf("changes = %d, want the written option counted", m.changes())
+	}
+	if got := optionRow(t, m, "ctrl_r").Value; got != "false" {
+		t.Fatalf("ctrl_r shows %q, want what was written", got)
+	}
+
+	b.optionsErr = nil
+	m = settleKey(t, m, "r")
+	if m.changes() != 1 {
+		t.Fatalf("changes = %d after the re-read, want it unchanged", m.changes())
+	}
+}

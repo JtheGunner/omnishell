@@ -55,7 +55,11 @@ func planCmd(b Backend, seq int) tea.Cmd {
 // that is about to change) or while an earlier computation is still running
 // (it cannot be cancelled and queries the package manager).
 func (m Model) openPlan() (tea.Model, tea.Cmd) {
-	if m.pending || m.planRunning {
+	if m.pending {
+		return m, nil
+	}
+	if m.planRunning {
+		m.status = "the previous plan is still being computed"
 		return m, nil
 	}
 	m.screen = screenPlan
