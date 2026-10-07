@@ -117,3 +117,53 @@ func findRow(table, id string) string {
 	}
 	return ""
 }
+
+// A module manifest can come from a stranger; `list` writes its text to a
+// terminal, so control sequences in it must not survive.
+func TestListNeutralisesControlSequencesInManifestText(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	configDir := filepath.Join(home, ".config", "omnishell")
+	installFixtureModules(t, configDir)
+
+	manifest := filepath.Join(configDir, "modules", "completion", "manifest.toml")
+	data, err := os.ReadFile(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostile := strings.Replace(string(data), `description = "compinit"`,
+		`description = "compinit\u001b[2J\u0007\u202eevil"`, 1)
+	hostile = strings.Replace(hostile, `version     = "1.0.0"`,
+		"version     = \"1.0.0\"\nhomepage    = \"https://example.com/\\u001b]0;pwned\\u0007\"", 1)
+	if hostile == string(data) {
+		t.Fatal("the fixture manifest changed shape; adapt the test")
+	}
+	if err := os.WriteFile(manifest, []byte(hostile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cli.SetLookPathForTest(func(string) (string, error) { return "", os.ErrNotExist })
+	defer cli.SetLookPathForTest(nil)
+	cli.SetRunnerForTest(&pkgmgr.MockRunner{})
+	defer cli.SetRunnerForTest(nil)
+	var initOut, initErr bytes.Buffer
+	if code := cli.Execute([]string{"init"}, &initOut, &initErr); code != 0 {
+		t.Fatalf("init exit %d: %s", code, initErr.String())
+	}
+
+	for _, args := range [][]string{{"list"}, {"list", "--json"}} {
+		var out, errOut bytes.Buffer
+		if code := cli.Execute(args, &out, &errOut); code != 0 {
+			t.Fatalf("%v exit %d: %s", args, code, errOut.String())
+		}
+		for _, bad := range []string{"\x1b", "\x07", "\u202e"} {
+			if strings.Contains(out.String(), bad) {
+				t.Fatalf("%v output contains %q:\n%q", args, bad, out.String())
+			}
+		}
+		if !strings.Contains(out.String(), "compinit") {
+			t.Fatalf("%v lost the description:\n%s", args, out.String())
+		}
+	}
+}

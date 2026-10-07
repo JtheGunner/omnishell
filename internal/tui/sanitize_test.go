@@ -18,6 +18,7 @@ func hostileViews() []modedit.ModuleView {
 		Homepage:    "https://example.com/\x1b[1;1H",
 		Platforms:   []string{"linux\x1b[2J"},
 		Shells:      []string{"zsh\x07"},
+		Unavailable: "needs zsh\x1b[2J\x07",
 		Status:      modedit.StatusDisabled,
 		Packages:    modedit.PackagesNA,
 		Origin:      modedit.OriginUser,
@@ -53,5 +54,28 @@ func TestNewDoesNotMutateTheCallersViews(t *testing.T) {
 
 	if views[0].ID != want || views[0].Platforms[0] != "linux\x1b[2J" {
 		t.Fatalf("New must copy: caller's view changed to %+v", views[0])
+	}
+}
+
+func TestHostFieldIsNeutralised(t *testing.T) {
+	m := sized(newTestModel(hostileViews()), 100, 30)
+	out := m.View().Content
+
+	for _, bad := range []string{"\x1b[2J", "\x07"} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("the Host line carries %q from the host check:\n%q", bad, out)
+		}
+	}
+	if m.views[0].Unavailable != "needs zsh [2J " {
+		t.Fatalf("Unavailable = %q, want it cleaned when the model is built", m.views[0].Unavailable)
+	}
+}
+
+func TestFilterHeaderIsNeutralised(t *testing.T) {
+	m := sized(newTestModel(sampleViews()), 100, 30)
+	m.filter, m.filtering = "a\x1b[2Jb", true // as if set by a path that skipped the key handler
+
+	if out := m.View().Content; strings.Contains(out, "\x1b[2J") {
+		t.Fatalf("the filter text reached the header raw:\n%q", out)
 	}
 }
