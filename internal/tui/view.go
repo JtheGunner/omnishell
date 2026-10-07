@@ -32,6 +32,7 @@ var (
 func (m Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
+	v.Cursor = m.textCursor()
 	return v
 }
 
@@ -68,15 +69,45 @@ func (m Model) render() string {
 }
 
 func (m Model) renderHeader() string {
-	line := titleStyle.Render("omnishell") +
-		dimStyle.Render(fmt.Sprintf("  %d modules · %s", len(m.views), changesText(m.changes())))
+	line := m.headerBase()
+	filter := sanitize(m.filter)
 	switch {
 	case m.filtering:
-		line += "  filter: " + m.filter + "_"
+		line += "  filter: " + filter
+		if m.filterPos >= len([]rune(filter)) {
+			line += "_" // the cursor is behind the text
+		}
 	case m.filter != "":
-		line += fmt.Sprintf("  filter: %s (%d shown)", m.filter, len(m.visible))
+		line += fmt.Sprintf("  filter: %s (%d shown)", filter, len(m.visible))
 	}
 	return lipgloss.NewStyle().Inline(true).MaxWidth(m.width).Render(line)
+}
+
+// headerBase is the start of the browser's header line, before the filter.
+func (m Model) headerBase() string {
+	return titleStyle.Render("omnishell") +
+		dimStyle.Render(fmt.Sprintf("  %d modules · %s", len(m.views), changesText(m.changes())))
+}
+
+// textCursor is where the terminal cursor belongs: in the filter or in the
+// option value being typed, and nowhere else (nil hides it).
+func (m Model) textCursor() *tea.Cursor {
+	if m.width < minWidth || m.height < minHeight {
+		return nil
+	}
+	switch {
+	case m.screen == screenOptions:
+		return m.optionCursor()
+	case m.screen == screenBrowser && m.filtering:
+		runes := []rune(sanitize(m.filter))
+		before := string(runes[:min(m.filterPos, len(runes))])
+		x := ansi.StringWidth(m.headerBase() + "  filter: " + before)
+		if x >= m.width {
+			return nil
+		}
+		return tea.NewCursor(x, 0)
+	}
+	return nil
 }
 
 func (m Model) renderFooter() string {

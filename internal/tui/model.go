@@ -22,6 +22,7 @@ type Model struct {
 	visible   []int // indexes into views that match the filter, in order
 	cursor    int   // position within visible
 	filter    string
+	filterPos int                       // the cursor within filter, as a rune index
 	filtering bool                      // true while the user is typing into the filter
 	status    string                    // the last error to show, cleared by the next key press
 	pending   bool                      // true from pressing space until the write has finished
@@ -71,6 +72,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyOptions(msg), nil
 	case optionWrittenMsg:
 		return m.applyOptionWritten(msg), nil
+	case tea.PasteMsg:
+		return m.applyPaste(msg.Content), nil
 	case tea.KeyPressMsg:
 		m.status = ""
 		switch m.screen {
@@ -103,9 +106,10 @@ func (m Model) updateBrowsing(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.openOptions()
 	case "/":
 		m.filtering = true
+		m.filterPos = len([]rune(m.filter))
 	case "esc":
 		if m.filter != "" {
-			m.filter = ""
+			m.filter, m.filterPos = "", 0
 			m.applyFilter()
 		}
 	}
@@ -120,20 +124,31 @@ func (m Model) updateFiltering(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.filtering = false
 	case "esc":
 		m.filtering = false
-		m.filter = ""
+		m.filter, m.filterPos = "", 0
 		m.applyFilter()
-	case "backspace":
-		if runes := []rune(m.filter); len(runes) > 0 {
-			m.filter = string(runes[:len(runes)-1])
-			m.applyFilter()
-		}
 	default:
-		if msg.Text != "" {
-			m.filter += msg.Text
-			m.applyFilter()
+		if text, pos, ok := editText(m.filter, m.filterPos, msg); ok {
+			changed := text != m.filter
+			m.filter, m.filterPos = text, pos
+			if changed {
+				m.applyFilter()
+			}
 		}
 	}
 	return m, nil
+}
+
+// applyPaste puts pasted text into the text field that has the keyboard, and
+// ignores it everywhere else.
+func (m Model) applyPaste(content string) Model {
+	switch {
+	case m.screen == screenOptions:
+		return m.pasteOption(content)
+	case m.screen == screenBrowser && m.filtering:
+		m.filter, m.filterPos = pasteText(m.filter, m.filterPos, content)
+		m.applyFilter()
+	}
+	return m
 }
 
 // move shifts the cursor by delta, staying put at either end of the list.

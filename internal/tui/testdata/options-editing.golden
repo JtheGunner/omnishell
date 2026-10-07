@@ -17,4 +17,4 @@ Note:    this module is not enabled; its options apply once it is
                                                                               
                                                                               
                                                                               
-type a value · enter save · esc cancel · ctrl+c quit                          
+type a value · ←/→ move · enter save · esc cancel · ctrl+c quit               

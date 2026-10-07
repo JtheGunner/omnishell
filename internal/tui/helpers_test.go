@@ -201,6 +201,20 @@ func key(name string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	case "backspace":
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
+	case "left":
+		return tea.KeyPressMsg{Code: tea.KeyLeft}
+	case "right":
+		return tea.KeyPressMsg{Code: tea.KeyRight}
+	case "home":
+		return tea.KeyPressMsg{Code: tea.KeyHome}
+	case "end":
+		return tea.KeyPressMsg{Code: tea.KeyEnd}
+	case "delete":
+		return tea.KeyPressMsg{Code: tea.KeyDelete}
+	case "ctrl+a":
+		return tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}
+	case "ctrl+e":
+		return tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl}
 	case "ctrl+c":
 		return tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	default:
@@ -217,6 +231,12 @@ func press(t *testing.T, m Model, names ...string) Model {
 		m = next.(Model)
 	}
 	return m
+}
+
+// paste delivers text the way a terminal with bracketed paste does.
+func paste(m Model, text string) Model {
+	next, _ := m.Update(tea.PasteMsg{Content: text})
+	return next.(Model)
 }
 
 // sized returns m after a terminal of w x h cells has been reported.

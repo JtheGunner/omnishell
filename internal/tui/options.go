@@ -16,6 +16,7 @@ type optionsState struct {
 	cursor  int
 	editing bool   // true while the user types a new value
 	input   string // the value typed so far
+	pos     int    // the cursor within input, as a rune index
 }
 
 // optionsMsg carries the options of a module back to Update after `o`.
@@ -104,7 +105,7 @@ func (m Model) applyOptionWritten(msg optionWrittenMsg) Model {
 	m.options.rows = rows
 	m.options.cursor = min(m.options.cursor, max(len(rows)-1, 0))
 	m.options.editing = false
-	m.options.input = ""
+	m.options.input, m.options.pos = "", 0
 	m.rememberOptions(msg.id, rows)
 	return m
 }
@@ -204,6 +205,7 @@ func (m Model) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if row, ok := m.selectedOption(); ok && row.Editable && (row.Type == "string" || row.Type == "int") {
 			m.options.editing = true
 			m.options.input = row.Value
+			m.options.pos = len([]rune(row.Value))
 		}
 	}
 	return m, nil
@@ -216,21 +218,24 @@ func (m Model) updateOptionInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.options.editing = false
-		m.options.input = ""
+		m.options.input, m.options.pos = "", 0
 	case "enter":
 		if row, ok := m.selectedOption(); ok {
 			return m.writeOption(row.Key, m.options.input)
 		}
-	case "backspace":
-		if runes := []rune(m.options.input); len(runes) > 0 {
-			m.options.input = string(runes[:len(runes)-1])
-		}
 	default:
-		if msg.Text != "" {
-			m.options.input += sanitize(msg.Text)
-		}
+		m.options.input, m.options.pos, _ = editText(m.options.input, m.options.pos, msg)
 	}
 	return m, nil
+}
+
+// pasteOption inserts pasted text into the value being typed.
+func (m Model) pasteOption(content string) Model {
+	if m.pending || !m.options.editing {
+		return m
+	}
+	m.options.input, m.options.pos = pasteText(m.options.input, m.options.pos, content)
+	return m
 }
 
 // cycleEnum moves an enum option to the next (delta 1) or previous (delta -1)
