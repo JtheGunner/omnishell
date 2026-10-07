@@ -157,7 +157,13 @@ files matters more than any single file:
    `Update` stays free of I/O: toggling returns a `tea.Cmd` that writes through
    `modedit.Enable`/`Disable` and then re-reads only the module statuses
    (`Backend.Statuses`; `Modules` probes the package manager and takes seconds),
-   one write at a time. The plan screen (`a`) asks `Backend.Plan`, which is
+   one write at a time. The options screen (`o`) reads `Backend.Options`
+   (config.toml and the manifest only, so it is cheap) and writes through
+   `Backend.SetOption`, which is `modedit.SetOption`: bool and enum options
+   change on one key press, string and int options are typed and validated on
+   enter (a rejected value keeps the typed text), list options are shown but not
+   editable. The header's change count includes options whose value differs from
+   the first value the screen showed. The plan screen (`a`) asks `Backend.Plan`, which is
    `Engine.Preview`: the plan text plus apply's own "nothing to do" rule, so the
    screen never promises a change apply would not make. `y` only sets
    `Result.ApplyRequested`; once the UI has closed, `internal/cli/tui.go` runs

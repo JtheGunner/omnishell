@@ -44,8 +44,11 @@ func (m Model) render() string {
 			minWidth, minHeight, m.width, m.height)
 	}
 
-	if m.screen == screenPlan {
+	switch m.screen {
+	case screenPlan:
 		return m.renderPlan()
+	case screenOptions:
+		return m.renderOptions()
 	}
 
 	bodyHeight := m.height - headerLines - footerLines
@@ -83,11 +86,16 @@ func (m Model) renderFooter() string {
 	if m.pending {
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
 	}
-	help := "↑/↓ move · space toggle · a plan · / filter · esc clear filter · q quit"
+	help := "↑/↓ move · space toggle · o options · a plan · / filter · esc clear · q quit"
 	if m.filtering {
 		help = "type to filter · enter keep · esc cancel · ctrl+c quit"
 	}
 	return dimStyle.Inline(true).MaxWidth(m.width).Render(help)
+}
+
+// bodyRows is how many lines fit between the header and the footer.
+func (m Model) bodyRows() int {
+	return max(m.height-headerLines-footerLines, 1)
 }
 
 // changesText says how many modules differ from the state the browser started

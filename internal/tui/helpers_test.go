@@ -63,6 +63,61 @@ type fakeBackend struct {
 	preview     PlanPreview
 	planErr     error // returned by Plan
 	planCalls   int   // how often Plan was called
+
+	optionRows   map[string][]modedit.OptionView // the options Options returns, by module id
+	optionsErr   error                           // returned by Options
+	setOptionErr error                           // returned by SetOption, before anything changes
+	optionCalls  []string                        // "set fzf theme light", in order
+	optionsRead  int                             // how often Options was called
+}
+
+func (f *fakeBackend) Options(id string) ([]modedit.OptionView, error) {
+	f.optionsRead++
+	if f.optionsErr != nil {
+		return nil, f.optionsErr
+	}
+	return slices.Clone(f.optionRows[id]), nil
+}
+
+func (f *fakeBackend) SetOption(id, key, raw string) error {
+	f.optionCalls = append(f.optionCalls, "set "+id+" "+key+" "+raw)
+	if f.setOptionErr != nil {
+		return f.setOptionErr
+	}
+	for i := range f.optionRows[id] {
+		if f.optionRows[id][i].Key == key {
+			f.optionRows[id][i].Value, f.optionRows[id][i].Set = raw, true
+		}
+	}
+	return nil
+}
+
+// sampleOptions is the options of fzf in the tests: one of each editable type,
+// one list, and one with an allowed-values list and a pattern.
+func sampleOptions() []modedit.OptionView {
+	return []modedit.OptionView{
+		{Key: "ctrl_r", Type: "bool", Help: "Bind Ctrl+R to the fzf history widget", Default: "true", Value: "true", Editable: true},
+		{Key: "extras", Type: "list<string>", Help: "Extra items", Default: "a,b", Value: "a,b"},
+		{Key: "prefix", Type: "string", Help: "Key prefix", Pattern: "^[a-z]+$", Default: "abc", Value: "abc", Editable: true},
+		{Key: "retries", Type: "int", Help: "How often to retry", Default: "3", Value: "3", Editable: true},
+		{Key: "theme", Type: "enum", Help: "Colour theme", Values: []string{"dark", "light", "solarized"}, Default: "dark", Value: "dark", Editable: true},
+	}
+}
+
+// withOptions returns a sized model over sampleViews whose backend knows the
+// options of fzf, plus the backend.
+func withOptions() (Model, *fakeBackend) {
+	m, b := newBackedModel(sampleViews())
+	b.optionRows = map[string][]modedit.OptionView{"fzf": sampleOptions()}
+	return sized(m, 80, 20), b
+}
+
+// openFzfOptions presses o on fzf and lets the options load.
+func openFzfOptions(t *testing.T, m Model) Model {
+	t.Helper()
+	m = press(t, m, "down") // fzf is the second module
+	next, cmd := m.Update(key("o"))
+	return settle(next.(Model), cmd)
 }
 
 func (f *fakeBackend) Plan() (PlanPreview, error) {

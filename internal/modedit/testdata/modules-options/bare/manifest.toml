@@ -1,0 +1,11 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "bare"
+name        = "Bare"
+description = "A module without options"
+version     = "1.0.0"
+schema      = 1

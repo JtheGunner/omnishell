@@ -1,0 +1,38 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "tuned"
+name        = "Tuned"
+description = "A module with one option of every editable type and a list option"
+version     = "1.0.0"
+schema      = 1
+
+[options.verbose]
+type    = "bool"
+default = false
+help    = "Print more"
+
+[options.theme]
+type    = "enum"
+default = "dark"
+values  = ["dark", "light", "solarized"]
+help    = "Colour theme"
+
+[options.retries]
+type    = "int"
+default = 3
+help    = "How often to retry"
+
+[options.label]
+type    = "string"
+default = "work"
+pattern = "^[a-z]+$"
+help    = "Short lower-case label"
+
+[options.extras]
+type    = "list<string>"
+default = ["a", "b"]
+help    = "Extra items"

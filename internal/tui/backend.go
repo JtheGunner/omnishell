@@ -23,6 +23,13 @@ type Backend interface {
 	// change anything, and it may take seconds (it asks the package manager),
 	// so the UI calls it in a command and shows a waiting screen meanwhile.
 	Plan() (PlanPreview, error)
+	// Options returns the options of one module with their current values. It
+	// reads only config.toml and the manifest, so it is cheap.
+	Options(id string) ([]modedit.OptionView, error)
+	// SetOption writes one option of one module, validated against the
+	// module's schema; nothing is written for a rejected value. The error text
+	// is shown to the user as it is.
+	SetOption(id, key, raw string) error
 }
 
 // PlanPreview is what the plan screen shows.

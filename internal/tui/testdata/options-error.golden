@@ -1,0 +1,20 @@
+omnishell  options · fzf · 0 changes since start                              
+  ctrl_r                true (default)            bool                        
+  extras                a,b (default)             list<string>                
+▸ prefix                [ABC_]                    string                      
+  retries               3 (default)               int                         
+  theme                 dark (default)            enum                        
+                                                                              
+Key prefix                                                                    
+Type:    string · enter edits                                                 
+Value:   abc (default)                                                        
+Default: abc                                                                  
+Pattern: ^[a-z]+$                                                             
+Note:    this module is not enabled; its options apply once it is             
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+! invalid value for fzf.prefix: "ABC" does not match required pattern ^[a-z]+$

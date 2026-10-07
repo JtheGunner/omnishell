@@ -12,6 +12,7 @@ type screen int
 const (
 	screenBrowser screen = iota
 	screenPlan
+	screenOptions
 )
 
 // nothingToApply ends the plan text when applying would change nothing.
@@ -116,9 +117,7 @@ func (m Model) updatePlan(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // planRows is how many plan lines fit on the screen.
-func (m Model) planRows() int {
-	return max(m.height-headerLines-footerLines, 1)
-}
+func (m Model) planRows() int { return m.bodyRows() }
 
 func (m Model) maxPlanOffset() int {
 	return max(len(m.plan.lines)-m.planRows(), 0)

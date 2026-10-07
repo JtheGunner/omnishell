@@ -1,0 +1,20 @@
+omnishell  options · fzf · 0 changes since start                              
+  ctrl_r                true (default)            bool                        
+▸ extras                a,b (default)             list<string>                
+  prefix                abc (default)             string                      
+  retries               3 (default)               int                         
+  theme                 dark (default)            enum                        
+                                                                              
+Extra items                                                                   
+Type:    list<string> · a list; set it with omnishell set                     
+Value:   a,b (default)                                                        
+Default: a,b                                                                  
+Note:    this module is not enabled; its options apply once it is             
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+                                                                              
+↑/↓ move · space toggle · ←/→ change · enter edit · esc back · q quit         

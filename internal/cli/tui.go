@@ -62,6 +62,17 @@ func (b tuiBackend) Statuses() (map[string]modedit.Status, error) { return b.edi
 func (b tuiBackend) Enable(id string) error  { return userMessage(b.editor.Enable(id)) }
 func (b tuiBackend) Disable(id string) error { return userMessage(b.editor.Disable(id)) }
 
+// Options lists a module's options with their current values; SetOption writes
+// one. Both reduce a config.Error to its message, like Enable and Disable.
+func (b tuiBackend) Options(id string) ([]modedit.OptionView, error) {
+	opts, err := b.editor.Options(id)
+	return opts, userMessage(err)
+}
+
+func (b tuiBackend) SetOption(id, key, raw string) error {
+	return userMessage(b.editor.SetOption(id, key, raw))
+}
+
 // Plan shows what `omnishell apply` would do for the config as it is now. It
 // reads config.toml again, so toggles made in the UI are included.
 func (b tuiBackend) Plan() (tui.PlanPreview, error) {
@@ -95,7 +106,7 @@ func newTUICmd() *cobra.Command {
 
 Shows every known module with its description, homepage, package status,
 platforms and shells. Move with the arrow keys, press space to enable or disable
-the selected module, type / to filter, q to quit. Space writes config.toml at
+the selected module, press o to edit its options, type / to filter, q to quit. Space writes config.toml at
 once, exactly like 'omnishell enable' and 'disable'; it never touches your
 shells. Press a to preview the plan; confirming it closes the UI and runs
 'omnishell apply', which still asks before it changes anything.

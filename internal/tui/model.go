@@ -17,16 +17,21 @@ const (
 // Model is the Bubble Tea model of the module browser. All state changes go
 // through Update, which returns a new Model.
 type Model struct {
-	backend        Backend
-	views          []modedit.ModuleView
-	visible        []int // indexes into views that match the filter, in order
-	cursor         int   // position within visible
-	filter         string
-	filtering      bool                      // true while the user is typing into the filter
-	status         string                    // the last error to show, cleared by the next key press
-	pending        bool                      // true from pressing space until the write has finished
-	initial        map[string]modedit.Status // each module's state when the browser started
-	screen         screen
+	backend   Backend
+	views     []modedit.ModuleView
+	visible   []int // indexes into views that match the filter, in order
+	cursor    int   // position within visible
+	filter    string
+	filtering bool                      // true while the user is typing into the filter
+	status    string                    // the last error to show, cleared by the next key press
+	pending   bool                      // true from pressing space until the write has finished
+	initial   map[string]modedit.Status // each module's state when the browser started
+	screen    screen
+	options   optionsState
+	// optionBase holds each option's value the first time its module's options
+	// were shown, optionNow the latest; their difference is what changed.
+	optionBase     map[string]map[string]string
+	optionNow      map[string]map[string]string
 	plan           planState
 	planSeq        int  // counts plan requests, so a stale answer can be told from the current one
 	applyRequested bool // set when the user confirmed on the plan screen
@@ -62,10 +67,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyToggled(msg), nil
 	case planMsg:
 		return m.applyPlan(msg), nil
+	case optionsMsg:
+		return m.applyOptions(msg), nil
+	case optionWrittenMsg:
+		return m.applyOptionWritten(msg), nil
 	case tea.KeyPressMsg:
 		m.status = ""
-		if m.screen == screenPlan {
+		switch m.screen {
+		case screenPlan:
 			return m.updatePlan(msg)
+		case screenOptions:
+			return m.updateOptions(msg)
 		}
 		if m.filtering {
 			return m.updateFiltering(msg)
@@ -87,6 +99,8 @@ func (m Model) updateBrowsing(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.toggle()
 	case "a":
 		return m.openPlan()
+	case "o":
+		return m.openOptions()
 	case "/":
 		m.filtering = true
 	case "esc":
@@ -164,10 +178,11 @@ func (m Model) selected() (modedit.ModuleView, bool) {
 	return m.views[m.visible[m.cursor]], true
 }
 
-// changes counts the modules whose enabled state differs from the state they
-// had when the browser started, so toggling a module back counts as no change.
+// changes counts the modules whose enabled state, and the options whose value,
+// differ from what they were when the browser started, so setting something
+// back counts as no change.
 func (m Model) changes() int {
-	n := 0
+	n := m.changedOptions()
 	for _, v := range m.views {
 		if initial, ok := m.initial[v.ID]; ok && initial != v.Status {
 			n++
