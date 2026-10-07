@@ -2,15 +2,11 @@ package cli
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/JtheGunner/omnishell/internal/config"
-	"github.com/JtheGunner/omnishell/internal/engine"
-	"github.com/JtheGunner/omnishell/internal/module"
+	"github.com/JtheGunner/omnishell/internal/modedit"
 	"github.com/spf13/cobra"
 )
 
@@ -46,49 +42,24 @@ PACKAGES is one of:
 				return err
 			}
 
-			cfg, cfgMissing, err := loadConfigForList(cfgPath)
+			views, err := modedit.Editor{Engine: e, CfgPath: cfgPath}.Views()
 			if err != nil {
 				return err
 			}
 
-			overrides := map[string]bool{}
-			for _, id := range e.Registry.Overrides() {
-				overrides[id] = true
-			}
-
-			rows := make([]listRow, 0)
-			for _, m := range e.Registry.All() {
-				mf := m.Manifest
-				id := mf.Module.ID
-
-				status := "—"
-				if !cfgMissing {
-					status = "disabled"
-					if mc, ok := cfg.Modules[id]; ok && mc.Enabled {
-						status = "enabled"
-					}
-				}
-
-				src := "builtin"
-				if m.Source == module.SourceUser {
-					src = "user"
-				}
-				if overrides[id] {
-					src = "user*"
-				}
-
+			rows := make([]listRow, 0, len(views))
+			for _, v := range views {
 				rows = append(rows, listRow{
-					Module:      id,
-					Status:      status,
-					Description: mf.Module.Description,
-					Homepage:    mf.Module.Homepage,
-					Packages:    packageStatus(e, mf),
-					Platforms:   strings.Join(mf.Platforms, ","),
-					Shells:      strings.Join(mf.Shells, ","),
-					Src:         src,
+					Module:      v.ID,
+					Status:      string(v.Status),
+					Description: v.Description,
+					Homepage:    v.Homepage,
+					Packages:    string(v.Packages),
+					Platforms:   strings.Join(v.Platforms, ","),
+					Shells:      strings.Join(v.Shells, ","),
+					Src:         string(v.Origin),
 				})
 			}
-			sort.Slice(rows, func(i, j int) bool { return rows[i].Module < rows[j].Module })
 
 			if asJSON {
 				enc := json.NewEncoder(out)
@@ -107,44 +78,4 @@ PACKAGES is one of:
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a JSON array instead of the table")
 	return cmd
-}
-
-// loadConfigForList loads config.toml, treating a missing file as "no config"
-// (every module renders as —/disabled) rather than an error.
-func loadConfigForList(cfgPath string) (config.Config, bool, error) {
-	cfg, err := config.Load(cfgPath)
-	if err == nil {
-		return cfg, false, nil
-	}
-	if errors.Is(err, config.ErrNotFound) {
-		return config.Default(), true, nil
-	}
-	return config.Config{}, false, err
-}
-
-// packageStatus reports ok/missing/n/a for a module's packages under the
-// detected manager. Rendering choices: with no manager detected, or when the
-// module declares no packages for that manager and no fallback, it is n/a;
-// fallback-only modules also render n/a here (fallback satisfaction needs the
-// apply-time vendor context).
-func packageStatus(e engine.Engine, mf module.Manifest) string {
-	var pkgs []string
-	if e.ManagerOK {
-		pkgs = mf.Packages.ForManager(e.Manager.Name())
-	}
-	hasFallback := len(mf.Packages.Fallback) > 0
-
-	if len(pkgs) == 0 && !hasFallback {
-		return "n/a"
-	}
-	if !e.ManagerOK || len(pkgs) == 0 {
-		return "n/a"
-	}
-	for _, p := range pkgs {
-		installed, err := e.Manager.IsInstalled(p)
-		if err != nil || !installed {
-			return "missing"
-		}
-	}
-	return "ok"
 }
