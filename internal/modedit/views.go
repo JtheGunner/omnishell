@@ -2,9 +2,12 @@ package modedit
 
 import (
 	"errors"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/engine"
 	"github.com/JtheGunner/omnishell/internal/module"
 )
 
@@ -54,6 +57,9 @@ type ModuleView struct {
 	Shells      []string
 	Origin      Origin
 	OptionCount int
+	// Unavailable says why the module cannot run on this host (an unsupported
+	// OS, or none of the managed shells can run it). Empty means it can.
+	Unavailable string
 }
 
 // Views returns one ModuleView per registry module, sorted by ID. A missing
@@ -102,6 +108,7 @@ func (ed Editor) Views() ([]ModuleView, error) {
 			Shells:      mf.Shells,
 			Origin:      origin,
 			OptionCount: len(mf.Options),
+			Unavailable: ed.unavailableReason(cfg, mf),
 		})
 	}
 	sort.Slice(views, func(i, j int) bool { return views[i].ID < views[j].ID })
@@ -141,4 +148,20 @@ func (ed Editor) packageState(mf module.Manifest) PackageState {
 		}
 	}
 	return PackagesOK
+}
+
+// unavailableReason explains why a module cannot run on this host, or returns
+// "" when it can. The OS is checked first, as apply does (it skips a module
+// that does not support the OS), then the managed shells, as Enable does.
+func (ed Editor) unavailableReason(cfg config.Config, mf module.Manifest) string {
+	osName := string(ed.Engine.Platform.OS)
+	if !contains(mf.Platforms, osName) {
+		return fmt.Sprintf("not supported on %s (module supports %s)", osName, strings.Join(mf.Platforms, ", "))
+	}
+	managed := engine.ManagedShells(cfg, ed.Engine.Platform)
+	if !sharesAny(mf.Shells, managed) {
+		return fmt.Sprintf("needs %s, but your managed shells are %s",
+			strings.Join(mf.Shells, " or "), joinOrNone(managed))
+	}
+	return ""
 }

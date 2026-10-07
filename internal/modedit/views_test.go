@@ -35,7 +35,7 @@ func TestViewsAreSortedAndCarryManifestFields(t *testing.T) {
 	for i, v := range views {
 		ids[i] = v.ID
 	}
-	if want := []string{"fzf", "plain", "zshonly"}; !reflect.DeepEqual(ids, want) {
+	if want := []string{"fzf", "macosonly", "plain", "zshonly"}; !reflect.DeepEqual(ids, want) {
 		t.Fatalf("ids = %v, want %v", ids, want)
 	}
 
@@ -200,5 +200,87 @@ func TestViewsEmptyRegistryIsEmptyNotNil(t *testing.T) {
 	}
 	if views == nil || len(views) != 0 {
 		t.Fatalf("views = %#v, want empty non-nil slice", views)
+	}
+}
+
+func TestViewsAvailableModulesHaveNoReason(t *testing.T) {
+	ed, _ := newEditor(t, true, "bash")
+
+	views, err := ed.Views()
+	if err != nil {
+		t.Fatalf("Views: %v", err)
+	}
+	for _, id := range []string{"fzf", "plain"} {
+		if got := viewByID(t, views, id).Unavailable; got != "" {
+			t.Fatalf("%s: Unavailable = %q, want empty", id, got)
+		}
+	}
+}
+
+func TestViewsExplainAModuleThatNeedsAnotherOS(t *testing.T) {
+	ed, _ := newEditor(t, true, "bash") // the fake host is Linux
+
+	views, err := ed.Views()
+	if err != nil {
+		t.Fatalf("Views: %v", err)
+	}
+	want := "not supported on linux (module supports macos)"
+	if got := viewByID(t, views, "macosonly").Unavailable; got != want {
+		t.Fatalf("Unavailable = %q, want %q", got, want)
+	}
+}
+
+func TestViewsExplainAModuleThatNeedsAShellTheHostDoesNotManage(t *testing.T) {
+	ed, _ := newEditor(t, true, "bash") // zsh is not present
+
+	views, err := ed.Views()
+	if err != nil {
+		t.Fatalf("Views: %v", err)
+	}
+	want := "needs zsh, but your managed shells are bash"
+	if got := viewByID(t, views, "zshonly").Unavailable; got != want {
+		t.Fatalf("Unavailable = %q, want %q", got, want)
+	}
+}
+
+func TestViewsReportNoManagedShellsAsNone(t *testing.T) {
+	ed, _ := newEditor(t, true) // neither zsh nor bash present
+
+	views, err := ed.Views()
+	if err != nil {
+		t.Fatalf("Views: %v", err)
+	}
+	want := "needs zsh, but your managed shells are none"
+	if got := viewByID(t, views, "zshonly").Unavailable; got != want {
+		t.Fatalf("Unavailable = %q, want %q", got, want)
+	}
+}
+
+func TestViewsBecomeAvailableOnceTheShellIsPresent(t *testing.T) {
+	ed, _ := newEditor(t, true, "zsh")
+
+	views, err := ed.Views()
+	if err != nil {
+		t.Fatalf("Views: %v", err)
+	}
+	if got := viewByID(t, views, "zshonly").Unavailable; got != "" {
+		t.Fatalf("Unavailable = %q, want empty when zsh is managed", got)
+	}
+}
+
+// The reason must agree with what Enable does, so the TUI never dims a module
+// that Enable would accept, or the other way round.
+func TestViewsUnavailableMatchesWhatEnableRejectsForShells(t *testing.T) {
+	for _, shells := range [][]string{{"bash"}, {"zsh"}, {"zsh", "bash"}, {}} {
+		ed, _ := newEditor(t, true, shells...)
+		views, err := ed.Views()
+		if err != nil {
+			t.Fatalf("shells %v: Views: %v", shells, err)
+		}
+		dimmed := viewByID(t, views, "zshonly").Unavailable != ""
+		rejected := ed.Enable("zshonly") != nil
+		if dimmed != rejected {
+			t.Fatalf("shells %v: dimmed=%v but Enable rejected=%v", shells, dimmed, rejected)
+		}
 	}
 }
