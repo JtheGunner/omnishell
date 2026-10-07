@@ -148,6 +148,15 @@ files matters more than any single file:
    This is the reference shape for user-authored modules too — see
    `docs/writing-a-module.md` for the manifest schema and template context.
 
+11. **`internal/tui`** — the Bubble Tea v2 module browser behind
+   `omnishell tui` (`charm.land/bubbletea/v2`, `charm.land/lipgloss/v2`). It
+   imports neither `cli` nor `engine`: everything comes through its `Backend`
+   interface, which `internal/cli/tui.go` implements over `modedit`. The command
+   refuses a non-terminal and a missing or malformed config before the screen is
+   taken over. Rendering tests compare `View().Content` (styling stripped) with
+   golden files in `internal/tui/testdata`; regenerate them with
+   `go test ./internal/tui -run Golden -update` and review the diff by eye.
+
 ### Key invariants to preserve when touching engine/apply code
 
 - Nothing touches the real system except `apply`, `remove`, `uninstall` (and

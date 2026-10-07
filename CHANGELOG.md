@@ -4,6 +4,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `omnishell tui`: a full-screen terminal UI to browse modules (description,
+  homepage, package status, platforms, shells) with a `/` filter. Read-only for
+  now; it needs an interactive terminal. It brings the first runtime
+  dependencies, Bubble Tea and Lip Gloss, so the binary grows by about 1.5 MiB.
+
 ## [0.6.0] - 2026-10-07
 
 ### Added
