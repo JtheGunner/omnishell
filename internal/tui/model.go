@@ -17,19 +17,27 @@ const (
 // Model is the Bubble Tea model of the module browser. All state changes go
 // through Update, which returns a new Model.
 type Model struct {
+	backend   Backend
 	views     []modedit.ModuleView
 	visible   []int // indexes into views that match the filter, in order
 	cursor    int   // position within visible
 	filter    string
-	filtering bool // true while the user is typing into the filter
-	width     int  // 0 until the first tea.WindowSizeMsg
+	filtering bool                      // true while the user is typing into the filter
+	status    string                    // the last error to show, cleared by the next key press
+	initial   map[string]modedit.Status // each module's state when the browser started
+	width     int                       // 0 until the first tea.WindowSizeMsg
 	height    int
 }
 
-// New returns a browser over views, which must already be sorted for display.
-// Module text is cleaned of control characters first (see sanitize.go).
-func New(views []modedit.ModuleView) Model {
-	m := Model{views: sanitizeViews(views)}
+// New returns a browser over views, which must already be sorted for display,
+// that changes modules through b. Module text is cleaned of control characters
+// first (see sanitize.go).
+func New(b Backend, views []modedit.ModuleView) Model {
+	m := Model{backend: b, views: sanitizeViews(views)}
+	m.initial = make(map[string]modedit.Status, len(m.views))
+	for _, v := range m.views {
+		m.initial[v.ID] = v.Status
+	}
 	m.applyFilter()
 	return m
 }
@@ -42,7 +50,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+	case toggledMsg:
+		return m.applyToggled(msg), nil
 	case tea.KeyPressMsg:
+		m.status = ""
 		if m.filtering {
 			return m.updateFiltering(msg)
 		}
@@ -59,6 +70,8 @@ func (m Model) updateBrowsing(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.move(-1)
 	case "down", "j":
 		m.move(1)
+	case "space":
+		return m.toggle()
 	case "/":
 		m.filtering = true
 	case "esc":
@@ -105,7 +118,11 @@ func (m *Model) move(delta int) {
 
 // applyFilter recomputes visible from the filter (a case-insensitive substring
 // of the module id or description) and moves the cursor back to the top.
-func (m *Model) applyFilter() {
+func (m *Model) applyFilter() { m.applyFilterKeeping("") }
+
+// applyFilterKeeping is applyFilter, but leaves the cursor on the module with
+// the given id when it is still visible. An empty id means the top.
+func (m *Model) applyFilterKeeping(id string) {
 	query := strings.ToLower(m.filter)
 	m.visible = make([]int, 0, len(m.views))
 	for i, v := range m.views {
@@ -116,6 +133,11 @@ func (m *Model) applyFilter() {
 		}
 	}
 	m.cursor = 0
+	for pos, idx := range m.visible {
+		if id != "" && m.views[idx].ID == id {
+			m.cursor = pos
+		}
+	}
 }
 
 // selected returns the module under the cursor, if the filtered list is not
@@ -125,4 +147,16 @@ func (m Model) selected() (modedit.ModuleView, bool) {
 		return modedit.ModuleView{}, false
 	}
 	return m.views[m.visible[m.cursor]], true
+}
+
+// changes counts the modules whose enabled state differs from the state they
+// had when the browser started, so toggling a module back counts as no change.
+func (m Model) changes() int {
+	n := 0
+	for _, v := range m.views {
+		if initial, ok := m.initial[v.ID]; ok && initial != v.Status {
+			n++
+		}
+	}
+	return n
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func TestViewIsEmptyUntilTheTerminalSizeIsKnown(t *testing.T) {
-	if got := New(sampleViews()).View().Content; got != "" {
+	if got := newTestModel(sampleViews()).View().Content; got != "" {
 		t.Fatalf("view before the first size message = %q, want empty", got)
 	}
 }
@@ -14,7 +14,7 @@ func TestViewIsEmptyUntilTheTerminalSizeIsKnown(t *testing.T) {
 func TestViewShowsATooSmallMessageBelowTheMinimumSize(t *testing.T) {
 	cases := []struct{ w, h int }{{79, 20}, {80, 19}, {10, 5}}
 	for _, c := range cases {
-		out := plain(sized(New(sampleViews()), c.w, c.h))
+		out := plain(sized(newTestModel(sampleViews()), c.w, c.h))
 		if !strings.Contains(out, "Terminal too small: need at least 80x20") {
 			t.Fatalf("%dx%d: view = %q, want the too-small message", c.w, c.h, out)
 		}
@@ -25,7 +25,7 @@ func TestViewShowsATooSmallMessageBelowTheMinimumSize(t *testing.T) {
 }
 
 func TestViewAtTheMinimumSizeRendersTheBrowser(t *testing.T) {
-	out := plain(sized(New(sampleViews()), 80, 20))
+	out := plain(sized(newTestModel(sampleViews()), 80, 20))
 
 	if strings.Contains(out, "too small") {
 		t.Fatalf("80x20 must be big enough:\n%s", out)
@@ -35,12 +35,12 @@ func TestViewAtTheMinimumSizeRendersTheBrowser(t *testing.T) {
 
 func TestViewFitsExactlyAtSeveralSizes(t *testing.T) {
 	for _, c := range []struct{ w, h int }{{80, 20}, {100, 30}, {200, 50}} {
-		assertFits(t, plain(sized(New(sampleViews()), c.w, c.h)), c.w, c.h)
+		assertFits(t, plain(sized(newTestModel(sampleViews()), c.w, c.h)), c.w, c.h)
 	}
 }
 
 func TestViewListsModulesWithStatusBoxesAndMarksTheCursor(t *testing.T) {
-	out := plain(sized(New(sampleViews()), 80, 20))
+	out := plain(sized(newTestModel(sampleViews()), 80, 20))
 
 	for _, want := range []string{"▸ [x] completion", "  [ ] fzf", "  [ ] zshonly"} {
 		if !strings.Contains(out, want) {
@@ -50,7 +50,7 @@ func TestViewListsModulesWithStatusBoxesAndMarksTheCursor(t *testing.T) {
 }
 
 func TestViewDetailFollowsTheCursor(t *testing.T) {
-	m := sized(New(sampleViews()), 100, 30)
+	m := sized(newTestModel(sampleViews()), 100, 30)
 	m = press(t, m, "down") // fzf
 
 	out := plain(m)
@@ -66,7 +66,7 @@ func TestViewDetailFollowsTheCursor(t *testing.T) {
 }
 
 func TestViewDetailShowsADashWhenThereIsNoHomepage(t *testing.T) {
-	out := plain(sized(New(sampleViews()), 100, 30)) // completion has none
+	out := plain(sized(newTestModel(sampleViews()), 100, 30)) // completion has none
 
 	if !strings.Contains(out, "Homepage:  —") {
 		t.Fatalf("want a dash for the missing homepage:\n%s", out)
@@ -74,7 +74,7 @@ func TestViewDetailShowsADashWhenThereIsNoHomepage(t *testing.T) {
 }
 
 func TestViewScrollsTheListToKeepTheCursorVisible(t *testing.T) {
-	m := sized(New(manyViews(30)), 80, 20)
+	m := sized(newTestModel(manyViews(30)), 80, 20)
 	for range 29 {
 		m = press(t, m, "down")
 	}
@@ -94,23 +94,23 @@ func TestViewKeepsTheLayoutWhenDescriptionAndHomepageAreVeryLong(t *testing.T) {
 	views[0].Description = strings.Repeat("a very long description ", 40)
 	views[0].Homepage = "https://example.com/" + strings.Repeat("x", 300)
 
-	assertFits(t, plain(sized(New(views), 80, 20)), 80, 20)
+	assertFits(t, plain(sized(newTestModel(views), 80, 20)), 80, 20)
 }
 
 func TestViewTruncatesALongModuleIDInTheList(t *testing.T) {
 	views := sampleViews()
 	views[0].ID = strings.Repeat("long-module-id-", 10)
 
-	assertFits(t, plain(sized(New(views), 80, 20)), 80, 20)
+	assertFits(t, plain(sized(newTestModel(views), 80, 20)), 80, 20)
 }
 
 func TestViewSaysSoWhenThereAreNoModulesOrNoMatches(t *testing.T) {
-	if out := plain(sized(New(nil), 80, 20)); !strings.Contains(out, "No modules") {
+	if out := plain(sized(newTestModel(nil), 80, 20)); !strings.Contains(out, "No modules") {
 		t.Fatalf("empty registry view:\n%s", out)
 	}
-	assertFits(t, plain(sized(New(nil), 80, 20)), 80, 20)
+	assertFits(t, plain(sized(newTestModel(nil), 80, 20)), 80, 20)
 
-	m := press(t, sized(New(sampleViews()), 80, 20), "/", "n", "o", "p", "e")
+	m := press(t, sized(newTestModel(sampleViews()), 80, 20), "/", "n", "o", "p", "e")
 	out := plain(m)
 	if !strings.Contains(out, "No matches") {
 		t.Fatalf("unmatched filter view:\n%s", out)
@@ -119,7 +119,7 @@ func TestViewSaysSoWhenThereAreNoModulesOrNoMatches(t *testing.T) {
 }
 
 func TestViewHeaderAndFooterReflectTheFilterState(t *testing.T) {
-	m := sized(New(sampleViews()), 80, 20)
+	m := sized(newTestModel(sampleViews()), 80, 20)
 
 	typing := plain(press(t, m, "/", "f"))
 	if !strings.Contains(typing, "filter: f_") || !strings.Contains(typing, "enter keep") {
@@ -135,7 +135,7 @@ func TestViewHeaderAndFooterReflectTheFilterState(t *testing.T) {
 // Shrinking the terminal below the minimum hides the browser but must not
 // lose the user's place: growing it again shows the same selection and filter.
 func TestResizingBelowTheMinimumAndBackKeepsTheState(t *testing.T) {
-	m := sized(New(sampleViews()), 100, 30)
+	m := sized(newTestModel(sampleViews()), 100, 30)
 	m = press(t, m, "/", "z", "enter")
 
 	m = sized(m, 40, 10)
@@ -152,14 +152,14 @@ func TestResizingBelowTheMinimumAndBackKeepsTheState(t *testing.T) {
 }
 
 func TestViewGoldenFiles(t *testing.T) {
-	base := sized(New(sampleViews()), 80, 20)
+	base := sized(newTestModel(sampleViews()), 80, 20)
 	cases := map[string]Model{
 		"browser-80x20":      base,
 		"browser-second-row": press(t, base, "down"),
 		"browser-filtered":   press(t, base, "/", "f", "z", "enter"),
 		"browser-typing":     press(t, base, "/", "z"),
-		"browser-no-modules": sized(New(nil), 80, 20),
-		"browser-too-small":  sized(New(sampleViews()), 60, 10),
+		"browser-no-modules": sized(newTestModel(nil), 80, 20),
+		"browser-too-small":  sized(newTestModel(sampleViews()), 60, 10),
 	}
 	for name, m := range cases {
 		assertGolden(t, name, plain(m))
