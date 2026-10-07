@@ -532,3 +532,28 @@ func TestTUIBackendOptionsOfAnUnknownModuleIsAnError(t *testing.T) {
 		t.Fatalf("err = %v, want unknown module", err)
 	}
 }
+
+// The plan said there was something to apply, but the config changed in
+// between and apply finds nothing to do: that must be said, not left silent.
+func TestTUIHandoffSaysWhenApplyFindsNothingToDo(t *testing.T) {
+	zshHostWithCompletion(t)
+	handoffRun(t, tui.Result{ApplyRequested: true}, nil)
+	askedQuestions(t, true)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("first run: exit = %d (stderr: %s)", code, errb.String())
+	}
+	if strings.Contains(out.String(), "Nothing to apply") {
+		t.Fatalf("the first apply had work to do, but said otherwise:\n%s", out.String())
+	}
+
+	out.Reset()
+	errb.Reset()
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("second run: exit = %d (stderr: %s)", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "Nothing to apply: no module or package changes are planned.") {
+		t.Fatalf("a hand-off that finds nothing to do must say so; stdout:\n%s", out.String())
+	}
+}
