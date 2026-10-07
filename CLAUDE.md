@@ -154,7 +154,11 @@ files matters more than any single file:
    interface, which `internal/cli/tui.go` implements over `modedit`. The command
    refuses a non-terminal and a missing or malformed config before the screen is
    taken over. `Update` stays free of I/O: toggling returns a `tea.Cmd` that
-   writes through `modedit.Enable`/`Disable` and then re-reads the modules. Any
+   writes through `modedit.Enable`/`Disable` and then re-reads only the module
+   statuses (`Backend.Statuses`; `Modules` probes the package manager and takes
+   seconds), one write at a time. The `tui` command builds its engine with
+   `io.Discard` writers, because the runner copies package-manager output to
+   them and the UI owns the terminal. Any
    text that comes from a backend or a manifest (module fields, error messages)
    must go through `sanitize` before it is drawn. Rendering tests compare `View().Content` (styling stripped) with
    golden files in `internal/tui/testdata`; regenerate them with

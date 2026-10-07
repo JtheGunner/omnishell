@@ -284,3 +284,65 @@ func TestViewsUnavailableMatchesWhatEnableRejectsForShells(t *testing.T) {
 		}
 	}
 }
+
+// forbiddenManager panics on any call: embedding a nil interface makes every
+// method a nil dereference. Statuses must never need the package manager.
+type forbiddenManager struct{ pkgmgr.Manager }
+
+func TestStatusesFollowTheConfigWithoutProbingPackages(t *testing.T) {
+	ed, _ := newEditor(t, true, "bash")
+	ed.Engine.Manager = forbiddenManager{}
+	if err := ed.Enable("fzf"); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	got, err := ed.Statuses()
+	if err != nil {
+		t.Fatalf("Statuses: %v", err)
+	}
+
+	want := map[string]modedit.Status{
+		"fzf": modedit.StatusEnabled, "macosonly": modedit.StatusDisabled,
+		"plain": modedit.StatusDisabled, "zshonly": modedit.StatusDisabled,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("statuses = %v, want %v", got, want)
+	}
+}
+
+func TestStatusesAgreeWithViews(t *testing.T) {
+	ed, _ := newEditor(t, true, "bash")
+	if err := ed.Enable("plain"); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	views, err := ed.Views()
+	if err != nil {
+		t.Fatalf("Views: %v", err)
+	}
+	statuses, err := ed.Statuses()
+	if err != nil {
+		t.Fatalf("Statuses: %v", err)
+	}
+	for _, v := range views {
+		if statuses[v.ID] != v.Status {
+			t.Fatalf("%s: Statuses says %q, Views says %q", v.ID, statuses[v.ID], v.Status)
+		}
+	}
+}
+
+func TestStatusesWithoutConfigAreUnknownAndMalformedConfigIsAnError(t *testing.T) {
+	ed, _ := newEditor(t, false, "bash")
+	got, err := ed.Statuses()
+	if err != nil || got["fzf"] != modedit.StatusUnknown {
+		t.Fatalf("no config: statuses[fzf]=%q err=%v, want unknown and no error", got["fzf"], err)
+	}
+
+	ed, cfgPath := newEditor(t, true, "bash")
+	if err := os.WriteFile(cfgPath, []byte("not = [toml"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if got, err := ed.Statuses(); err == nil || got != nil {
+		t.Fatalf("malformed config: statuses=%v err=%v, want an error and no statuses", got, err)
+	}
+}

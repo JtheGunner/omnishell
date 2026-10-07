@@ -54,15 +54,31 @@ func manyViews(n int) []modedit.ModuleView {
 // fakeBackend is an in-memory Backend that records every write. Enable and
 // Disable flip the stored status, as the real config.toml would.
 type fakeBackend struct {
-	views      []modedit.ModuleView
-	modulesErr error    // returned by Modules
-	toggleErr  error    // returned by Enable and Disable, before anything changes
-	calls      []string // "enable fzf", "disable fzf", in order
+	views       []modedit.ModuleView
+	modulesErr  error    // returned by Modules
+	statusesErr error    // returned by Statuses
+	toggleErr   error    // returned by Enable and Disable, before anything changes
+	calls       []string // "enable fzf", "disable fzf", in order
+	modulesRead int      // how often Modules was called
 }
 
-func (f *fakeBackend) Modules() ([]modedit.ModuleView, error) { return f.views, f.modulesErr }
-func (f *fakeBackend) Enable(id string) error                 { return f.write(id, "enable", modedit.StatusEnabled) }
-func (f *fakeBackend) Disable(id string) error                { return f.write(id, "disable", modedit.StatusDisabled) }
+func (f *fakeBackend) Modules() ([]modedit.ModuleView, error) {
+	f.modulesRead++
+	return f.views, f.modulesErr
+}
+
+func (f *fakeBackend) Statuses() (map[string]modedit.Status, error) {
+	if f.statusesErr != nil {
+		return nil, f.statusesErr
+	}
+	out := make(map[string]modedit.Status, len(f.views))
+	for _, v := range f.views {
+		out[v.ID] = v.Status
+	}
+	return out, nil
+}
+func (f *fakeBackend) Enable(id string) error  { return f.write(id, "enable", modedit.StatusEnabled) }
+func (f *fakeBackend) Disable(id string) error { return f.write(id, "disable", modedit.StatusDisabled) }
 
 func (f *fakeBackend) write(id, verb string, status modedit.Status) error {
 	f.calls = append(f.calls, verb+" "+id)

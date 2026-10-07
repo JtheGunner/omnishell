@@ -160,7 +160,7 @@ func TestSpaceWhileTypingTheFilterIsText(t *testing.T) {
 
 func TestFailedRefreshAfterASuccessfulWriteShowsTheError(t *testing.T) {
 	m, b := newBackedModel(sampleViews())
-	b.modulesErr = errors.New("cannot re-read config")
+	b.statusesErr = errors.New("cannot re-read config")
 
 	m = space(m)
 
@@ -183,4 +183,90 @@ func TestToggleOfAModuleThatIsUnavailableOnThisHostIsStillAttempted(t *testing.T
 	if want := []string{"enable zshonly"}; !reflect.DeepEqual(b.calls, want) {
 		t.Fatalf("backend calls = %v, want %v", b.calls, want)
 	}
+}
+
+// Re-reading every module's package state after each write takes seconds on a
+// host with brew, and a write only ever changes enabled flags.
+func TestToggleOnlyRereadsStatusesNotTheWholeModuleList(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+
+	space(m)
+
+	if b.modulesRead != 0 {
+		t.Fatalf("Modules was called %d times after a toggle, want 0 (it is the slow call)", b.modulesRead)
+	}
+}
+
+func TestToggleLeavesEveryOtherFieldOfTheModuleAlone(t *testing.T) {
+	m := newTestModel(sampleViews())
+	m = press(t, m, "down") // fzf: Packages "missing", 3 options, a homepage
+
+	m = space(m)
+
+	v, _ := m.selected()
+	if v.Packages != modedit.PackagesMissing || v.OptionCount != 3 || v.Homepage == "" {
+		t.Fatalf("a toggle must only change the status, got %+v", v)
+	}
+}
+
+func TestSpaceIsIgnoredWhileAWriteIsPending(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+
+	next, first := m.Update(key("space"))
+	if first == nil {
+		t.Fatal("setup: the first space must start a write")
+	}
+	_, second := next.(Model).Update(key("space"))
+
+	if second != nil {
+		t.Fatal("a second space while the first write is pending must not start another")
+	}
+
+	settled := settle(next.(Model), first)
+	if want := []string{"disable completion"}; !reflect.DeepEqual(b.calls, want) {
+		t.Fatalf("backend calls = %v, want exactly %v", b.calls, want)
+	}
+	if _, again := settled.Update(key("space")); again == nil {
+		t.Fatal("space must work again once the write has finished")
+	}
+}
+
+func TestPendingEndsEvenWhenTheWriteFails(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+	b.toggleErr = errors.New("nope")
+
+	m = space(m)
+
+	if m.pending {
+		t.Fatal("a failed write must not leave the model waiting")
+	}
+	if _, cmd := m.Update(key("space")); cmd == nil {
+		t.Fatal("space must be possible again after a failed write")
+	}
+}
+
+// The write finishes after the user has already moved on: the cursor must stay
+// where the user put it, not jump back to the module that was toggled.
+func TestCursorStaysWhereTheUserMovedWhileAWriteWasPending(t *testing.T) {
+	m := newTestModel(sampleViews())
+	next, cmd := m.Update(key("space")) // completion
+	m = press(t, next.(Model), "down", "down")
+
+	m = settle(m, cmd)
+
+	if v, _ := m.selected(); v.ID != "zshonly" {
+		t.Fatalf("selected = %q, want zshonly where the user moved to", v.ID)
+	}
+	if got := statusOfID(m, "completion"); got != modedit.StatusDisabled {
+		t.Fatalf("completion = %q, want the finished write applied", got)
+	}
+}
+
+func statusOfID(m Model, id string) modedit.Status {
+	for _, v := range m.views {
+		if v.ID == id {
+			return v.Status
+		}
+	}
+	return ""
 }

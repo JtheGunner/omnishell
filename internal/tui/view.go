@@ -76,6 +76,9 @@ func (m Model) renderFooter() string {
 	if m.status != "" {
 		return statusStyle.Render(ansi.Truncate("! "+m.status, m.width, "…"))
 	}
+	if m.pending {
+		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
+	}
 	help := "↑/↓ move · space toggle · / filter · esc clear filter · q quit"
 	if m.filtering {
 		help = "type to filter · enter keep · esc cancel · ctrl+c quit"

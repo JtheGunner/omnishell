@@ -24,6 +24,7 @@ type Model struct {
 	filter    string
 	filtering bool                      // true while the user is typing into the filter
 	status    string                    // the last error to show, cleared by the next key press
+	pending   bool                      // true from pressing space until the write has finished
 	initial   map[string]modedit.Status // each module's state when the browser started
 	width     int                       // 0 until the first tea.WindowSizeMsg
 	height    int

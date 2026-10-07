@@ -52,6 +52,8 @@ type tuiBackend struct{ editor modedit.Editor }
 
 func (b tuiBackend) Modules() ([]modedit.ModuleView, error) { return b.editor.Views() }
 
+func (b tuiBackend) Statuses() (map[string]modedit.Status, error) { return b.editor.Statuses() }
+
 func (b tuiBackend) Enable(id string) error  { return userMessage(b.editor.Enable(id)) }
 func (b tuiBackend) Disable(id string) error { return userMessage(b.editor.Disable(id)) }
 

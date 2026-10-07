@@ -219,6 +219,21 @@ func TestViewTruncatesALongStatusMessageToTheWidth(t *testing.T) {
 	assertFits(t, out, 80, 20)
 }
 
+func TestViewShowsSavingWhileAWriteIsPending(t *testing.T) {
+	m := sized(newTestModel(sampleViews()), 80, 20)
+	next, cmd := m.Update(key("space"))
+
+	pending := plain(next.(Model))
+	if !strings.Contains(pending, "saving…") || strings.Contains(pending, "esc clear filter") {
+		t.Fatalf("a pending write must be visible in the footer:\n%s", pending)
+	}
+	assertFits(t, pending, 80, 20)
+
+	if done := plain(settle(next.(Model), cmd)); strings.Contains(done, "saving…") {
+		t.Fatalf("the marker must disappear once the write is done:\n%s", done)
+	}
+}
+
 func TestViewHelpMentionsTheSpaceKey(t *testing.T) {
 	if out := plain(sized(newTestModel(sampleViews()), 80, 20)); !strings.Contains(out, "space toggle") {
 		t.Fatalf("footer help should list the space key:\n%s", out)

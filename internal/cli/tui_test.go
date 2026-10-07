@@ -11,6 +11,7 @@ import (
 
 	"github.com/JtheGunner/omnishell/internal/cli"
 	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/modedit"
 	"github.com/JtheGunner/omnishell/internal/pkgmgr"
 	"github.com/JtheGunner/omnishell/internal/tui"
 )
@@ -247,5 +248,24 @@ func TestTUIKeepsPackageManagerOutputOffTheScreen(t *testing.T) {
 
 	if gotOut != io.Discard || gotErr != io.Discard {
 		t.Fatalf("the runner must write to io.Discard, got stdout=%T stderr=%T", gotOut, gotErr)
+	}
+}
+
+func TestTUIBackendStatusesFollowTheConfigAfterAToggle(t *testing.T) {
+	setTestInit(t)
+	cli.SetLookPathForTest(bashPresentLookPath)
+	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
+	b := backendFor(t)
+
+	if err := b.Enable("fzf"); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+	statuses, err := b.Statuses()
+	if err != nil {
+		t.Fatalf("Statuses: %v", err)
+	}
+
+	if statuses["fzf"] != modedit.StatusEnabled || statuses["zshonly"] != modedit.StatusDisabled {
+		t.Fatalf("statuses fzf=%q zshonly=%q, want enabled and disabled", statuses["fzf"], statuses["zshonly"])
 	}
 }

@@ -15,4 +15,8 @@ type Backend interface {
 	// text is shown to the user as it is, so it should read as a sentence.
 	Enable(id string) error
 	Disable(id string) error
+	// Statuses returns every module's current state in config.toml, keyed by
+	// id. It must be cheap: the UI calls it after every write, whereas Modules
+	// can take seconds because it asks the package manager about every package.
+	Statuses() (map[string]modedit.Status, error)
 }
