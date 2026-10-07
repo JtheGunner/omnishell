@@ -1,0 +1,20 @@
+omnishell  plan preview                                     
+Plan (package manager: apt, shells: bash)                   
+                                                            
+  install  completion          snippet: bash                
+  install  fzf                 snippet: bash   packages: fzf
+  skip     macosonly           not supported on linux       
+                                                            
+2 to install, 0 to update, 1 skipped                        
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+↑/↓ scroll · y/enter continue to apply · esc back · q quit  
