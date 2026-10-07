@@ -11,4 +11,8 @@ import "github.com/JtheGunner/omnishell/internal/modedit"
 type Backend interface {
 	// Modules returns one view per known module, sorted by ID.
 	Modules() ([]modedit.ModuleView, error)
+	// Enable and Disable write the module's state to config.toml. The error
+	// text is shown to the user as it is, so it should read as a sentence.
+	Enable(id string) error
+	Disable(id string) error
 }

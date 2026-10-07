@@ -49,6 +49,32 @@ func manyViews(n int) []modedit.ModuleView {
 	return views
 }
 
+// fakeBackend is an in-memory Backend that records every write. Enable and
+// Disable flip the stored status, as the real config.toml would.
+type fakeBackend struct {
+	views      []modedit.ModuleView
+	modulesErr error    // returned by Modules
+	toggleErr  error    // returned by Enable and Disable, before anything changes
+	calls      []string // "enable fzf", "disable fzf", in order
+}
+
+func (f *fakeBackend) Modules() ([]modedit.ModuleView, error) { return f.views, f.modulesErr }
+func (f *fakeBackend) Enable(id string) error                 { return f.write(id, "enable", modedit.StatusEnabled) }
+func (f *fakeBackend) Disable(id string) error                { return f.write(id, "disable", modedit.StatusDisabled) }
+
+func (f *fakeBackend) write(id, verb string, status modedit.Status) error {
+	f.calls = append(f.calls, verb+" "+id)
+	if f.toggleErr != nil {
+		return f.toggleErr
+	}
+	for i := range f.views {
+		if f.views[i].ID == id {
+			f.views[i].Status = status
+		}
+	}
+	return nil
+}
+
 // key builds the key press a terminal would deliver for a key name such as
 // "up", "esc", "ctrl+c", or a single typed character.
 func key(name string) tea.KeyPressMsg {

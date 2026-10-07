@@ -6,22 +6,13 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/JtheGunner/omnishell/internal/modedit"
 )
-
-type fakeBackend struct {
-	views []modedit.ModuleView
-	err   error
-}
-
-func (f fakeBackend) Modules() ([]modedit.ModuleView, error) { return f.views, f.err }
 
 func TestRunReturnsTheBackendErrorWithoutTouchingTheTerminal(t *testing.T) {
 	boom := errors.New("boom")
 	var out bytes.Buffer
 
-	err := Run(fakeBackend{err: boom}, strings.NewReader(""), &out)
+	err := Run(&fakeBackend{modulesErr: boom}, strings.NewReader(""), &out)
 
 	if !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want boom", err)
@@ -35,7 +26,7 @@ func TestRunReturnsTheBackendErrorWithoutTouchingTheTerminal(t *testing.T) {
 func TestRunQuitsWhenTheUserPressesQ(t *testing.T) {
 	done := make(chan error, 1)
 	var out bytes.Buffer
-	go func() { done <- Run(fakeBackend{views: sampleViews()}, strings.NewReader("q"), &out) }()
+	go func() { done <- Run(&fakeBackend{views: sampleViews()}, strings.NewReader("q"), &out) }()
 
 	select {
 	case err := <-done:

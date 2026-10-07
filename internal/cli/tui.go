@@ -52,6 +52,20 @@ type tuiBackend struct{ editor modedit.Editor }
 
 func (b tuiBackend) Modules() ([]modedit.ModuleView, error) { return b.editor.Views() }
 
+func (b tuiBackend) Enable(id string) error  { return userMessage(b.editor.Enable(id)) }
+func (b tuiBackend) Disable(id string) error { return userMessage(b.editor.Disable(id)) }
+
+// userMessage reduces a config.Error to its message. The TUI shows it on a
+// one-line status bar, where the config path that prefixes every config.Error
+// would push the actual reason off the screen.
+func userMessage(err error) error {
+	var cfgErr config.Error
+	if errors.As(err, &cfgErr) {
+		return errors.New(cfgErr.Msg)
+	}
+	return err
+}
+
 func newTUICmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "tui",
@@ -59,8 +73,10 @@ func newTUICmd() *cobra.Command {
 		Long: `Browse modules in a full-screen terminal UI.
 
 Shows every known module with its description, homepage, package status,
-platforms and shells. Type / to filter, q to quit. Read-only: it never changes
-config.toml or your shells.
+platforms and shells. Move with the arrow keys, press space to enable or disable
+the selected module, type / to filter, q to quit. Space writes config.toml at
+once, exactly like 'omnishell enable' and 'disable'; it never touches your
+shells. Run 'omnishell apply' afterwards to apply the changes.
 
 Needs an interactive terminal; in scripts use 'omnishell list'.`,
 		Args: cobra.NoArgs,
