@@ -6,9 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - `omnishell tui`: a full-screen terminal UI to browse modules (description,
-  homepage, package status, platforms, shells) with a `/` filter. Read-only for
-  now; it needs an interactive terminal. It brings the first runtime
-  dependencies, Bubble Tea and Lip Gloss, so the binary grows by about 1.5 MiB.
+  homepage, package status, platforms, shells) with a `/` filter. Space enables
+  or disables the selected module in `config.toml`, like `enable` / `disable`
+  (run `apply` afterwards), and modules that cannot run on this host are
+  dimmed with the reason shown. It needs an interactive terminal. It brings the
+  first runtime dependencies, Bubble Tea and Lip Gloss, so the binary grows by
+  about 1.5 MiB.
 
 ## [0.6.0] - 2026-10-07
 

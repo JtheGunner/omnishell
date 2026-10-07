@@ -153,7 +153,10 @@ files matters more than any single file:
    imports neither `cli` nor `engine`: everything comes through its `Backend`
    interface, which `internal/cli/tui.go` implements over `modedit`. The command
    refuses a non-terminal and a missing or malformed config before the screen is
-   taken over. Rendering tests compare `View().Content` (styling stripped) with
+   taken over. `Update` stays free of I/O: toggling returns a `tea.Cmd` that
+   writes through `modedit.Enable`/`Disable` and then re-reads the modules. Any
+   text that comes from a backend or a manifest (module fields, error messages)
+   must go through `sanitize` before it is drawn. Rendering tests compare `View().Content` (styling stripped) with
    golden files in `internal/tui/testdata`; regenerate them with
    `go test ./internal/tui -run Golden -update` and review the diff by eye.
 
