@@ -14,7 +14,7 @@ func hostileViews() []modedit.ModuleView {
 	return []modedit.ModuleView{{
 		ID:          "evil\x1b]0;pwned\x07",
 		Name:        "Evil\x1b[2J name",
-		Description: "line one\nline two\r\x1b[31mred‮txt",
+		Description: "line one\nline two\r\x1b[31mred\u202etxt",
 		Homepage:    "https://example.com/\x1b[1;1H",
 		Platforms:   []string{"linux\x1b[2J"},
 		Shells:      []string{"zsh\x07"},
@@ -29,7 +29,7 @@ func hostileViews() []modedit.ModuleView {
 func TestViewNeutralisesControlSequencesInModuleText(t *testing.T) {
 	out := sized(New(hostileViews()), 100, 30).View().Content
 
-	for _, bad := range []string{"\x1b]", "\x1b[2J", "\x1b[31m", "\x1b[1;1H", "\x07", "\r", "‮"} {
+	for _, bad := range []string{"\x1b]", "\x1b[2J", "\x1b[31m", "\x1b[1;1H", "\x07", "\r", "\u202e"} {
 		if strings.Contains(out, bad) {
 			t.Fatalf("the view contains %q straight from the manifest:\n%q", bad, out)
 		}
