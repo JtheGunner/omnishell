@@ -105,11 +105,12 @@ func newTUICmd() *cobra.Command {
 		Long: `Browse modules in a full-screen terminal UI.
 
 Shows every known module with its description, homepage, package status,
-platforms and shells. Move with the arrow keys, press space to enable or disable
-the selected module, press o to edit its options, type / to filter, q to quit. Space writes config.toml at
-once, exactly like 'omnishell enable' and 'disable'; it never touches your
-shells. Press a to preview the plan; confirming it closes the UI and runs
-'omnishell apply', which still asks before it changes anything.
+platforms and shells. Move with the arrow keys, press space to enable or
+disable the selected module, press o to edit its options, type / to filter,
+q to quit. Space writes config.toml at once, exactly like 'omnishell enable'
+and 'disable'; it never touches your shells. Press a to preview the plan;
+confirming it closes the UI and runs 'omnishell apply', which still asks
+before it changes anything.
 
 Needs an interactive terminal; in scripts use 'omnishell list'.`,
 		Args: cobra.NoArgs,

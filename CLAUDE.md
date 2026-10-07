@@ -163,16 +163,18 @@ files matters more than any single file:
    change on one key press, string and int options are typed and validated on
    enter (a rejected value keeps the typed text), list options are shown but not
    editable. The header's change count includes options whose value differs from
-   the first value the screen showed. The plan screen (`a`) asks `Backend.Plan`, which is
-   `Engine.Preview`: the plan text plus apply's own "nothing to do" rule, so the
-   screen never promises a change apply would not make. `y` only sets
-   `Result.ApplyRequested`; once the UI has closed, `internal/cli/tui.go` runs
-   the real apply command (`handOffToApply`), so its prompt, sudo and exit codes
+   the first value the screen showed. The plan screen (`a`) asks `Backend.Plan`,
+   which is `Engine.Preview`: the plan text plus apply's own "nothing to do"
+   rule, so the screen never promises a change apply would not make. `y` or
+   Enter only sets `Result.ApplyRequested` (and only while the plan is on
+   screen); once the UI has closed, `internal/cli/tui.go` runs the real apply
+   command (`handOffToApply`), so its prompt, sudo and exit codes
    stay the gate. The UI's own engine is built with `io.Discard` writers,
    because the runner copies package-manager output to them and the UI owns the
    terminal.
    Any text that comes from a backend or a manifest (module fields, plan text,
-   error messages) must go through `sanitize` before it is drawn. Rendering
+   error messages) must go through `sanitize` (`modedit.Clean`, which `omnishell
+   list` uses too) before it is drawn. Rendering
    tests compare `View().Content` (styling stripped) with golden files in
    `internal/tui/testdata`; regenerate them with
    `go test ./internal/tui -run Golden -update` and review the diff by eye.

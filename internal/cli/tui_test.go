@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/JtheGunner/omnishell/internal/cli"
 	"github.com/JtheGunner/omnishell/internal/config"
@@ -555,5 +556,19 @@ func TestTUIHandoffSaysWhenApplyFindsNothingToDo(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Nothing to apply: no module or package changes are planned.") {
 		t.Fatalf("a hand-off that finds nothing to do must say so; stdout:\n%s", out.String())
+	}
+}
+
+// A help line longer than a classic 80-column terminal wraps in the middle of a
+// word.
+func TestTUIHelpFitsAnEightyColumnTerminal(t *testing.T) {
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui", "--help"}, &out, &errb); code != 0 {
+		t.Fatalf("exit = %d (stderr: %s)", code, errb.String())
+	}
+	for _, line := range strings.Split(out.String(), "\n") {
+		if n := utf8.RuneCountInString(line); n > 80 {
+			t.Errorf("help line is %d characters wide: %q", n, line)
+		}
 	}
 }

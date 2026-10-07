@@ -9,13 +9,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   homepage, package status, platforms, shells) with a `/` filter. Space enables
   or disables the selected module in `config.toml`, like `enable` / `disable`.
   `o` edits the module's options (bool, enum, string and int), validated like
-  `omnishell set`. `a` previews the plan; confirming it closes the UI and runs `omnishell apply`,
-  which still asks before it changes anything. Modules that cannot run on this
-  host are dimmed with the reason shown. It needs an interactive terminal. It
-  brings the first runtime dependencies, Bubble Tea and Lip Gloss, so the
-  binary grows by about 1.5 MiB.
+  `omnishell set`; text fields have a movable cursor and accept pasted text.
+  `a` previews the plan; confirming it closes the UI and runs
+  `omnishell apply`, which still asks before it changes anything. Modules that
+  cannot run on this host are dimmed with the reason shown; one that only lacks
+  OS support can still be enabled, but `apply` skips it. It needs an
+  interactive terminal. It brings the first runtime dependencies, Bubble Tea
+  and Lip Gloss, so the binary grows by about 1.5 MiB.
+- `apply` now says "Nothing to apply" when it finds nothing to do, instead of
+  printing nothing.
 
 ### Fixed
+- `list` no longer prints control characters from a module manifest's text to
+  the terminal.
 - `list`, `diff` / `apply --dry-run` and `doctor` no longer print the package
   manager's answers (for example `brew list --versions fzf`) into their own
   output. `list --json` was not valid JSON on hosts where the package manager
