@@ -16,6 +16,7 @@ type optionsState struct {
 	cursor  int
 	editing bool   // true while the user types a new value
 	input   string // the value typed so far
+	stale   bool   // true when a write went through but re-reading the rows failed
 	pos     int    // the cursor within input, as a rune index
 }
 
@@ -29,9 +30,10 @@ type optionsMsg struct {
 // optionWrittenMsg reports the outcome of writing one option: the error that
 // stopped it, or the module's options re-read after the write.
 type optionWrittenMsg struct {
-	id   string
-	rows []modedit.OptionView
-	err  error
+	id      string
+	rows    []modedit.OptionView
+	written bool // true once config.toml holds the new value, even if err is set
+	err     error
 }
 
 // optionsCmd reads the options of a module in the background.
@@ -50,7 +52,16 @@ func optionWriteCmd(b Backend, id, key, raw string) tea.Cmd {
 			return optionWrittenMsg{id: id, err: err}
 		}
 		rows, err := b.Options(id)
-		return optionWrittenMsg{id: id, rows: rows, err: err}
+		return optionWrittenMsg{id: id, rows: rows, written: true, err: err}
+	}
+}
+
+// optionRereadCmd reads a module's options again after a write whose re-read
+// failed; it answers like a write, so the screen unlocks when it succeeds.
+func optionRereadCmd(b Backend, id string) tea.Cmd {
+	return func() tea.Msg {
+		rows, err := b.Options(id)
+		return optionWrittenMsg{id: id, rows: rows, written: true, err: err}
 	}
 }
 
@@ -99,9 +110,17 @@ func (m Model) applyOptionWritten(msg optionWrittenMsg) Model {
 	}
 	if msg.err != nil {
 		m.status = sanitize(msg.err.Error())
+		if msg.written {
+			// The value is in config.toml but the rows are older than it: lock
+			// the keys that compute from them until a read succeeds.
+			m.options.stale = true
+			m.options.editing = false
+			m.options.input, m.options.pos = "", 0
+		}
 		return m
 	}
 	rows := sanitizeOptions(msg.rows)
+	m.options.stale = false
 	m.options.rows = rows
 	m.options.cursor = min(m.options.cursor, max(len(rows)-1, 0))
 	m.options.editing = false
@@ -178,6 +197,9 @@ func (m Model) updateOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.options.editing {
 		return m.updateOptionInput(msg)
+	}
+	if m.options.stale {
+		return m.updateStaleOptions(msg)
 	}
 	switch msg.String() {
 	case "ctrl+c", "q":
@@ -263,4 +285,24 @@ func (m Model) cycleEnum(delta int) (tea.Model, tea.Cmd) {
 func (m Model) writeOption(key, raw string) (tea.Model, tea.Cmd) {
 	m.pending = true
 	return m, optionWriteCmd(m.backend, m.options.id, key, raw)
+}
+
+// updateStaleOptions handles a key press while the rows are older than the file:
+// moving, leaving and reading again work; everything that would write is off.
+func (m Model) updateStaleOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc", "b":
+		m.screen = screenBrowser
+		m.options = optionsState{}
+	case "up", "k":
+		m.options.cursor = max(m.options.cursor-1, 0)
+	case "down", "j":
+		m.options.cursor = min(m.options.cursor+1, max(len(m.options.rows)-1, 0))
+	case "r":
+		m.pending = true
+		return m, optionRereadCmd(m.backend, m.options.id)
+	}
+	return m, nil
 }

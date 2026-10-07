@@ -56,6 +56,8 @@ func (m Model) renderOptionsFooter() string {
 		return m.renderStatus()
 	case m.pending:
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
+	case m.options.stale:
+		return dimStyle.Inline(true).MaxWidth(m.width).Render("values may be out of date · r re-read · esc back · q quit")
 	case m.options.editing:
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("type a value · ←/→ move · enter save · esc cancel · ctrl+c quit")
 	}
