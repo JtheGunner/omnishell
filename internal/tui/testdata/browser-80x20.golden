@@ -1,0 +1,20 @@
+omnishell  3 modules                                                            
+╭────────────────────────────╮╭────────────────────────────────────────────────╮
+│ ▸ [x] completion           ││ Completion                                     │
+│   [ ] fzf                  ││ completion · builtin                           │
+│   [ ] zshonly              ││                                                │
+│                            ││ Tab completion tuning                          │
+│                            ││                                                │
+│                            ││ Status:    enabled                             │
+│                            ││ Packages:  n/a                                 │
+│                            ││ Platforms: macos, linux                        │
+│                            ││ Shells:    zsh, bash                           │
+│                            ││ Options:   0                                   │
+│                            ││ Homepage:  —                                   │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+╰────────────────────────────╯╰────────────────────────────────────────────────╯
+↑/↓ move · / filter · esc clear filter · q quit                                 
