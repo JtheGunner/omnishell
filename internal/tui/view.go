@@ -41,8 +41,8 @@ func (m Model) render() string {
 	case m.width == 0 || m.height == 0:
 		return "" // the size is unknown until the first tea.WindowSizeMsg
 	case m.width < minWidth || m.height < minHeight:
-		return fmt.Sprintf("Terminal too small: need at least %dx%d, have %dx%d",
-			minWidth, minHeight, m.width, m.height)
+		return ansi.Truncate(fmt.Sprintf("Terminal too small: need at least %dx%d, have %dx%d",
+			minWidth, minHeight, m.width, m.height), m.width, "…")
 	}
 
 	switch m.screen {
@@ -52,7 +52,7 @@ func (m Model) render() string {
 		return m.renderOptions()
 	}
 
-	bodyHeight := m.height - headerLines - footerLines
+	bodyHeight := m.bodyRows()
 	rows := bodyHeight - boxChromeV
 	rightWidth := m.width - listWidth
 
@@ -112,7 +112,7 @@ func (m Model) textCursor() *tea.Cursor {
 
 func (m Model) renderFooter() string {
 	if m.status != "" {
-		return statusStyle.Render(ansi.Truncate("! "+m.status, m.width, "…"))
+		return m.renderStatus()
 	}
 	if m.pending {
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
@@ -126,7 +126,44 @@ func (m Model) renderFooter() string {
 
 // bodyRows is how many lines fit between the header and the footer.
 func (m Model) bodyRows() int {
-	return max(m.height-headerLines-footerLines, 1)
+	return max(m.height-headerLines-m.footerHeight(), 1)
+}
+
+// maxStatusLines is how many lines an error message may take in the footer.
+const maxStatusLines = 3
+
+// statusLines is the status message, wrapped to the terminal width so a long
+// reason stays readable; one that still does not fit in maxStatusLines ends
+// with an ellipsis. It is nil when there is no message.
+func (m Model) statusLines() []string {
+	if m.status == "" {
+		return nil
+	}
+	lines := strings.Split(ansi.Wrap("! "+m.status, max(m.width, 1), ""), "\n")
+	if len(lines) > maxStatusLines {
+		lines = lines[:maxStatusLines]
+		last := strings.TrimRight(lines[maxStatusLines-1], " ")
+		lines[maxStatusLines-1] = ansi.Truncate(last, max(m.width-1, 1), "") + "…"
+	}
+	return lines
+}
+
+// footerHeight is how many lines the footer takes: one, or more while a long
+// message is shown.
+func (m Model) footerHeight() int {
+	if m.screen == screenPlan {
+		return footerLines // the plan screen has no status line
+	}
+	return max(len(m.statusLines()), footerLines)
+}
+
+// renderStatus draws the wrapped status message.
+func (m Model) renderStatus() string {
+	lines := m.statusLines()
+	for i, line := range lines {
+		lines[i] = statusStyle.Render(line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // changesText says how many modules differ from the state the browser started

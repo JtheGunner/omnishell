@@ -53,7 +53,7 @@ func (m Model) renderOptionsHeader() string {
 func (m Model) renderOptionsFooter() string {
 	switch {
 	case m.status != "":
-		return statusStyle.Render(ansi.Truncate("! "+m.status, m.width, "…"))
+		return m.renderStatus()
 	case m.pending:
 		return dimStyle.Inline(true).MaxWidth(m.width).Render("saving…")
 	case m.options.editing:

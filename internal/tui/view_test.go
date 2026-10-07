@@ -13,7 +13,7 @@ func TestViewIsEmptyUntilTheTerminalSizeIsKnown(t *testing.T) {
 }
 
 func TestViewShowsATooSmallMessageBelowTheMinimumSize(t *testing.T) {
-	cases := []struct{ w, h int }{{79, 20}, {80, 19}, {10, 5}}
+	cases := []struct{ w, h int }{{79, 20}, {80, 19}, {80, 5}}
 	for _, c := range cases {
 		out := plain(sized(newTestModel(sampleViews()), c.w, c.h))
 		if !strings.Contains(out, "Terminal too small: need at least 80x20") {
