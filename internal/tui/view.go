@@ -228,27 +228,32 @@ func (m Model) renderDetail(rows, width int) string {
 		"",
 		v.Description,
 		"",
-		field("Status", string(v.Status)),
-		field("Packages", string(v.Packages)),
-		field("Platforms", strings.Join(v.Platforms, ", ")),
-		field("Shells", strings.Join(v.Shells, ", ")),
+		field("Status", string(v.Status), width),
+		field("Packages", string(v.Packages), width),
+		field("Platforms", strings.Join(v.Platforms, ", "), width),
+		field("Shells", strings.Join(v.Shells, ", "), width),
 	}
 	if v.Unavailable != "" {
-		lines = append(lines, field("Host", v.Unavailable))
+		lines = append(lines, field("Host", v.Unavailable, width))
 	}
 	lines = append(lines,
-		field("Options", fmt.Sprint(v.OptionCount)),
-		field("Homepage", homepage),
+		field("Options", fmt.Sprint(v.OptionCount), width),
+		field("Homepage", homepage, width),
 	)
 	text := strings.Join(lines, "\n")
 
 	return lipgloss.NewStyle().Width(width).MaxHeight(rows).Render(text)
 }
 
-// field renders one "Label:  value" line of the detail pane.
-func field(label, value string) string {
-	return fmt.Sprintf("%-10s %s", label+":", value)
+// field renders one "Label:  value" entry of the detail pane, wrapped to width
+// with the continuation lines under the value rather than under the label.
+func field(label, value string, width int) string {
+	return strings.Join(wrapValue(fmt.Sprintf("%-10s ", label+":"), value, width, maxFieldLines), "\n")
 }
+
+// maxFieldLines is a safety cap on how many lines one detail field may take;
+// the pane clips to its own height anyway.
+const maxFieldLines = 12
 
 func statusBox(s modedit.Status) string {
 	switch s {

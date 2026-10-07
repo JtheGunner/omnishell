@@ -177,7 +177,8 @@ func (ed Editor) packageState(mf module.Manifest) PackageState {
 func (ed Editor) unavailableReason(cfg config.Config, mf module.Manifest) string {
 	osName := string(ed.Engine.Platform.OS)
 	if !contains(mf.Platforms, osName) {
-		return fmt.Sprintf("not supported on %s (module supports %s)", osName, strings.Join(mf.Platforms, ", "))
+		return fmt.Sprintf("not supported on %s (module supports %s); you can enable it, but apply skips it",
+			osName, strings.Join(mf.Platforms, ", "))
 	}
 	managed := engine.ManagedShells(cfg, ed.Engine.Platform)
 	if !sharesAny(mf.Shells, managed) {
