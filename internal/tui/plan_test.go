@@ -151,19 +151,29 @@ func TestAPlanThatArrivesAfterGoingBackIsDropped(t *testing.T) {
 	}
 }
 
-func TestAnOldPlanDoesNotAnswerANewerRequest(t *testing.T) {
-	m, _ := withPlan(PlanPreview{Text: "fresh", NeedsApply: true}, nil)
+// A plan computation cannot be cancelled, and it queries the package manager:
+// asking again while one is still running would pile up queries.
+func TestAIsIgnoredWhileAnEarlierPlanIsStillBeingComputed(t *testing.T) {
+	m, b := withPlan(PlanPreview{Text: "fresh", NeedsApply: true}, nil)
 	first, firstCmd := m.Update(key("a"))
 	back := press(t, first.(Model), "esc")
-	second, secondCmd := back.Update(key("a"))
 
-	afterOld := settle(second.(Model), firstCmd)
-	if !afterOld.plan.loading {
-		t.Fatal("the answer to the first request must not fill the second screen")
+	again, againCmd := back.Update(key("a"))
+	if againCmd != nil || again.(Model).screen != screenBrowser {
+		t.Fatal("a must be ignored while the earlier plan is still being computed")
 	}
-	afterNew := settle(afterOld, secondCmd)
-	if afterNew.plan.loading || len(afterNew.plan.lines) == 0 {
-		t.Fatal("the answer to the second request must be shown")
+
+	afterOld := settle(again.(Model), firstCmd) // the old answer arrives and is dropped
+	if afterOld.screen != screenBrowser {
+		t.Fatal("the dropped answer must leave the browser alone")
+	}
+
+	next, cmd := afterOld.Update(key("a"))
+	if cmd == nil || next.(Model).screen != screenPlan {
+		t.Fatal("a must work again once the earlier computation has finished")
+	}
+	if b.planCalls != 1 {
+		t.Fatalf("planCalls = %d, want only the first request to have run", b.planCalls)
 	}
 }
 
@@ -286,4 +296,77 @@ func TestResizingKeepsThePlanScrollPositionInRange(t *testing.T) {
 	if rows := m.planRows(); m.plan.offset > m.maxPlanOffset() {
 		t.Fatalf("offset %d is past the end (%d) after growing to %d rows", m.plan.offset, m.maxPlanOffset(), rows)
 	}
+}
+
+func TestYAndEnterDoNothingWhenThePlanIsNotOnScreen(t *testing.T) {
+	for _, name := range []string{"y", "enter"} {
+		m, _ := withPlan(PlanPreview{Text: "Plan", NeedsApply: true}, nil)
+		m = sized(openPlan(m), 70, 15) // the terminal shrank: the too-small notice replaces the plan
+
+		next, cmd := m.Update(key(name))
+
+		if cmd != nil || next.(Model).applyRequested {
+			t.Fatalf("%s must not hand over to apply while the plan is hidden", name)
+		}
+	}
+}
+
+func TestThePlanFooterSaysApplyAsksAgain(t *testing.T) {
+	m, _ := withPlan(PlanPreview{Text: "Plan", NeedsApply: true}, nil)
+	out := plain(openPlan(m))
+
+	if !strings.Contains(out, "y/enter continue to apply (apply asks again)") {
+		t.Fatalf("the footer must say that apply asks once more:\n%s", out)
+	}
+	assertFits(t, out, 80, 20)
+}
+
+func TestLongPlanLinesWrapInsteadOfBeingCut(t *testing.T) {
+	long := "  install  " + strings.Repeat("alpha-beta ", 20) + "THE-END"
+	m, _ := withPlan(PlanPreview{Text: "Plan\n" + long, NeedsApply: true}, nil)
+	out := plain(openPlan(m))
+
+	if !strings.Contains(strings.Join(strings.Fields(out), " "), "alpha-beta THE-END") {
+		t.Fatalf("the end of a long line is missing:\n%s", out)
+	}
+	assertFits(t, out, 80, 20)
+	for _, line := range strings.Split(out, "\n")[2:6] {
+		if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "  ") {
+			t.Fatalf("a wrapped line lost its indentation: %q", line)
+		}
+	}
+}
+
+func TestWrappedPlanLinesAreWhatScrollingAndTheHeaderCount(t *testing.T) {
+	text := strings.Repeat(strings.Repeat("word ", 40)+"\n", 10) // ten lines, three screen lines each
+	m, _ := withPlan(PlanPreview{Text: text, NeedsApply: true}, nil)
+	m = openPlan(m)
+
+	if got := len(m.planDisplay()); got < 20 {
+		t.Fatalf("display lines = %d, want the wrapped lines counted", got)
+	}
+	m = press(t, m, "end")
+	if m.plan.offset != m.maxPlanOffset() || m.maxPlanOffset() == 0 {
+		t.Fatalf("offset=%d max=%d, want the end reachable", m.plan.offset, m.maxPlanOffset())
+	}
+	assertFits(t, plain(m), 80, 20)
+}
+
+func TestALongPlanErrorCanBeScrolled(t *testing.T) {
+	words := make([]string, 600)
+	for i := range words {
+		words[i] = fmt.Sprintf("w%03d", i)
+	}
+	m, _ := withPlan(PlanPreview{}, errors.New(strings.Join(words, " ")))
+	m = openPlan(m)
+
+	if strings.Contains(plain(m), "w599") {
+		t.Fatal("the end of the error should be below the first screen")
+	}
+	m = press(t, m, "end")
+	out := plain(m)
+	if !strings.Contains(out, "w599") {
+		t.Fatalf("scrolling must reach the end of the error:\n%s", out)
+	}
+	assertFits(t, out, 80, 20)
 }

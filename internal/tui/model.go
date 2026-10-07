@@ -35,6 +35,7 @@ type Model struct {
 	optionNow      map[string]map[string]string
 	plan           planState
 	planSeq        int  // counts plan requests, so a stale answer can be told from the current one
+	planRunning    bool // true from asking for a plan until its answer arrives, even if the user left
 	applyRequested bool // set when the user confirmed on the plan screen
 	width          int  // 0 until the first tea.WindowSizeMsg
 	height         int
