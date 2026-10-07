@@ -2258,12 +2258,12 @@ tail = ANSI.sub(b"", seen).decode("utf-8", "replace").replace("\r", "")
 log("last output:", " | ".join(l.strip() for l in tail.split("\n") if l.strip())[-500:])
 ```
 
-Then (every command gets the throwaway `HOME` through `env`; nothing is exported):
+Then (every command that needs the throwaway `HOME` gets it through the `E` function and `env`; nothing is exported, and a function, unlike a variable holding a command, works the same in bash and zsh):
 
 ```bash
 T=$(mktemp -d) && go build -o $T/omnishell ./cmd/omnishell && mkdir -p $T/home
-E="env HOME=$T/home XDG_CONFIG_HOME=$T/home/.config"
-$E $T/omnishell init >/dev/null && $E $T/omnishell enable completion
+E() { env HOME=$T/home XDG_CONFIG_HOME=$T/home/.config "$@"; }
+E $T/omnishell init >/dev/null && E $T/omnishell enable completion
 # 1. plan, confirm, then decline apply's own prompt
 python3 pty_drive.py $T/omnishell $T/home $T/run1.log "wait:modules|send:a|wait:continue to apply|send:y|wait:Proceed?|send:n\\n"; cat $T/run1.log
 ls $T/home/.config/omnishell/

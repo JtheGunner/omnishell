@@ -7,11 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - `omnishell tui`: a full-screen terminal UI to browse modules (description,
   homepage, package status, platforms, shells) with a `/` filter. Space enables
-  or disables the selected module in `config.toml`, like `enable` / `disable`
-  (run `apply` afterwards), and modules that cannot run on this host are
-  dimmed with the reason shown. It needs an interactive terminal. It brings the
-  first runtime dependencies, Bubble Tea and Lip Gloss, so the binary grows by
-  about 1.5 MiB.
+  or disables the selected module in `config.toml`, like `enable` / `disable`.
+  `a` previews the plan; confirming it closes the UI and runs `omnishell apply`,
+  which still asks before it changes anything. Modules that cannot run on this
+  host are dimmed with the reason shown. It needs an interactive terminal. It
+  brings the first runtime dependencies, Bubble Tea and Lip Gloss, so the
+  binary grows by about 1.5 MiB.
 
 ### Fixed
 - `list`, `diff` / `apply --dry-run` and `doctor` no longer print the package
