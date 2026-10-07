@@ -1,0 +1,87 @@
+package cli
+
+import (
+	"errors"
+	"io"
+	"os"
+
+	"github.com/charmbracelet/x/term"
+	"github.com/spf13/cobra"
+
+	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/engine"
+	"github.com/JtheGunner/omnishell/internal/modedit"
+	"github.com/JtheGunner/omnishell/internal/tui"
+)
+
+// Seams for tests: whether the process is attached to a terminal, and the
+// terminal UI itself. Tests reassign them via SetTUIForTest.
+var (
+	tuiIsTerminal = defaultTUIIsTerminal
+	tuiRun        = tui.Run
+)
+
+// SetTUIForTest swaps the terminal check and the UI runner. Passing nil for
+// either restores the real implementation.
+func SetTUIForTest(isTerminal func(in io.Reader, out io.Writer) bool, run func(b tui.Backend, in io.Reader, out io.Writer) error) {
+	tuiIsTerminal = defaultTUIIsTerminal
+	if isTerminal != nil {
+		tuiIsTerminal = isTerminal
+	}
+	tuiRun = tui.Run
+	if run != nil {
+		tuiRun = run
+	}
+}
+
+// defaultTUIIsTerminal reports whether both in and out are terminals.
+func defaultTUIIsTerminal(in io.Reader, out io.Writer) bool {
+	inFile, ok := in.(*os.File)
+	if !ok {
+		return false
+	}
+	outFile, ok := out.(*os.File)
+	if !ok {
+		return false
+	}
+	return term.IsTerminal(inFile.Fd()) && term.IsTerminal(outFile.Fd())
+}
+
+// tuiBackend adapts a modedit.Editor to the tui.Backend the UI consumes.
+type tuiBackend struct{ editor modedit.Editor }
+
+func (b tuiBackend) Modules() ([]modedit.ModuleView, error) { return b.editor.Views() }
+
+func newTUICmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "tui",
+		Short: "Browse modules in a full-screen terminal UI",
+		Long: `Browse modules in a full-screen terminal UI.
+
+Shows every known module with its description, homepage, package status,
+platforms and shells. Type / to filter, q to quit. Read-only: it never changes
+config.toml or your shells.
+
+Needs an interactive terminal; in scripts use 'omnishell list'.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			in, out := cmd.InOrStdin(), cmd.OutOrStdout()
+			if !tuiIsTerminal(in, out) {
+				return engine.ConfigError{Err: errors.New(
+					"omnishell tui needs an interactive terminal; use 'omnishell list', 'enable' and 'apply' in scripts")}
+			}
+
+			e, cfgPath, _, err := buildEngine(out, cmd.ErrOrStderr())
+			if err != nil {
+				return err
+			}
+			// A missing or malformed config.toml must stop us before the screen
+			// is taken over, so the message lands in the normal terminal.
+			if _, err := config.Load(cfgPath); err != nil {
+				return hintIfUninitialised(cmd, err)
+			}
+
+			return tuiRun(tuiBackend{editor: modedit.Editor{Engine: e, CfgPath: cfgPath}}, in, out)
+		},
+	}
+}
