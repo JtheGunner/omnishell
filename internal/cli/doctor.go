@@ -37,7 +37,13 @@ func runDoctor(cmd *cobra.Command, fix, yes bool) error {
 	out := cmd.OutOrStdout()
 	errOut := cmd.ErrOrStderr()
 
-	e, cfgPath, lockPath, err := buildEngine(out, errOut)
+	// Checking only asks the package manager questions; --fix may re-apply, and
+	// then a hook's output should reach the user.
+	build := buildQueryEngine
+	if fix {
+		build = buildEngine
+	}
+	e, cfgPath, lockPath, err := build(out, errOut)
 	if err != nil {
 		return err
 	}

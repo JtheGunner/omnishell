@@ -13,6 +13,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   first runtime dependencies, Bubble Tea and Lip Gloss, so the binary grows by
   about 1.5 MiB.
 
+### Fixed
+- `list`, `diff` / `apply --dry-run` and `doctor` no longer print the package
+  manager's answers (for example `brew list --versions fzf`) into their own
+  output. `list --json` was not valid JSON on hosts where the package manager
+  writes to stdout. `apply`, `doctor --fix`, `remove` and `uninstall` still show
+  installation and hook output.
+
 ## [0.6.0] - 2026-10-07
 
 ### Added

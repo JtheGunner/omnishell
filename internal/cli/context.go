@@ -173,7 +173,25 @@ func defaultPrompt(question string) bool {
 // buildEngine detects the host, loads the module registry (built-in + user),
 // detects the package manager, and assembles an engine.Engine. It does NOT load
 // config.toml — commands that need it call config.Load(cfgPath) themselves.
+//
+// The writers receive the engine's own messages and also whatever the commands
+// it runs print (an install's progress, a hook's output). Use it for commands
+// that install, remove or run hooks; the user is waiting for that output.
 func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath string, err error) {
+	return newEngine(stdout, stderr, stdout, stderr)
+}
+
+// buildQueryEngine is buildEngine for commands that only look: the engine's own
+// messages (warnings, plans) still go to stdout and stderr, but what the package
+// manager prints while it is being asked about installed packages is dropped.
+// Without this, `brew list --versions fzf` lands in the middle of `list --json`.
+func buildQueryEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath string, err error) {
+	return newEngine(stdout, stderr, io.Discard, io.Discard)
+}
+
+// newEngine is the shared body: stdout and stderr are for the engine's own
+// messages, runnerOut and runnerErr for the commands its runner executes.
+func newEngine(stdout, stderr, runnerOut, runnerErr io.Writer) (e engine.Engine, cfgPath, lockPath string, err error) {
 	env := platform.Env{
 		GOOS:     runtime.GOOS,
 		GOARCH:   runtime.GOARCH,
@@ -202,7 +220,7 @@ func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath s
 	if runnerOverride != nil {
 		runner = runnerOverride
 	} else {
-		runner = runnerFactory(stdout, stderr)
+		runner = runnerFactory(runnerOut, runnerErr)
 	}
 	manager, ok := pkgmgr.DetectManager(runtime.GOOS, runner)
 
