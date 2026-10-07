@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -151,15 +152,123 @@ func TestResizingBelowTheMinimumAndBackKeepsTheState(t *testing.T) {
 	assertFits(t, out, 100, 30)
 }
 
+func TestViewHeaderCountsChangesSinceStart(t *testing.T) {
+	m := sized(newTestModel(sampleViews()), 100, 30)
+	if out := plain(m); !strings.Contains(out, "3 modules · 0 changes since start") {
+		t.Fatalf("header before any toggle:\n%s", out)
+	}
+
+	m = space(m)
+	if out := plain(m); !strings.Contains(out, "3 modules · 1 change since start") {
+		t.Fatalf("header after one toggle:\n%s", out)
+	}
+
+	m = space(press(t, m, "down"))
+	if out := plain(m); !strings.Contains(out, "3 modules · 2 changes since start") {
+		t.Fatalf("header after two toggles:\n%s", out)
+	}
+}
+
+func TestViewFooterShowsTheStatusMessageInsteadOfTheHelp(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+	b.toggleErr = errors.New("module \"zshonly\" only supports zsh")
+	m = space(sized(m, 100, 30))
+
+	out := plain(m)
+	if !strings.Contains(out, `! module "zshonly" only supports zsh`) {
+		t.Fatalf("status line missing:\n%s", out)
+	}
+	if strings.Contains(out, "esc clear filter") {
+		t.Fatalf("the help must give way to the status line:\n%s", out)
+	}
+	assertFits(t, out, 100, 30)
+
+	if out := plain(press(t, m, "down")); !strings.Contains(out, "space toggle") {
+		t.Fatalf("the help must come back after the next key:\n%s", out)
+	}
+}
+
+// Error text from a backend is untrusted like manifest text: it must be shown,
+// but never as a terminal command or as extra lines.
+func TestViewShowsAStatusMessageButNeutralisesControlSequences(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+	b.toggleErr = errors.New("bad\x1b]0;pwned\x07\x1b[2J\nsecond line")
+	m = space(sized(m, 100, 30))
+
+	out := m.View().Content
+	for _, bad := range []string{"\x1b]", "\x1b[2J", "\x07"} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("view contains %q from the error text:\n%q", bad, out)
+		}
+	}
+	if !strings.Contains(plain(m), "! bad ]0;pwned") {
+		t.Fatalf("the message must still be readable:\n%s", plain(m))
+	}
+	assertFits(t, plain(m), 100, 30)
+}
+
+func TestViewTruncatesALongStatusMessageToTheWidth(t *testing.T) {
+	m, b := newBackedModel(sampleViews())
+	b.toggleErr = errors.New(strings.Repeat("a very long message ", 20))
+	m = space(sized(m, 80, 20))
+
+	out := plain(m)
+	if !strings.Contains(out, "! a very long message") || !strings.Contains(out, "…") {
+		t.Fatalf("expected a visibly truncated status line:\n%s", out)
+	}
+	assertFits(t, out, 80, 20)
+}
+
+func TestViewHelpMentionsTheSpaceKey(t *testing.T) {
+	if out := plain(sized(newTestModel(sampleViews()), 80, 20)); !strings.Contains(out, "space toggle") {
+		t.Fatalf("footer help should list the space key:\n%s", out)
+	}
+}
+
+func TestViewDimsModulesThatCannotRunOnThisHost(t *testing.T) {
+	m := sized(newTestModel(sampleViews()), 80, 20)
+	rows := strings.Split(m.renderList(10, 26), "\n")
+
+	const faint = "\x1b[2m"
+	if strings.Contains(rows[1], faint) { // fzf runs here
+		t.Fatalf("fzf must not be dimmed: %q", rows[1])
+	}
+	if !strings.Contains(rows[2], faint) { // zshonly does not
+		t.Fatalf("zshonly must be dimmed: %q", rows[2])
+	}
+}
+
+func TestViewDetailExplainsWhyAModuleCannotRunHere(t *testing.T) {
+	m := press(t, sized(newTestModel(sampleViews()), 100, 30), "down", "down") // zshonly
+
+	if out := plain(m); !strings.Contains(out, "Host:      needs zsh, but your managed shells are bash") {
+		t.Fatalf("detail is missing the host line:\n%s", out)
+	}
+}
+
+func TestViewDetailHasNoHostLineForAModuleThatRunsHere(t *testing.T) {
+	m := press(t, sized(newTestModel(sampleViews()), 100, 30), "down") // fzf
+
+	if out := plain(m); strings.Contains(out, "Host:") {
+		t.Fatalf("a usable module must not get a host line:\n%s", out)
+	}
+}
+
 func TestViewGoldenFiles(t *testing.T) {
 	base := sized(newTestModel(sampleViews()), 80, 20)
+	rejectedModel, rejectedBackend := newBackedModel(sampleViews())
+	rejectedBackend.toggleErr = errors.New(`module "zshonly" only supports zsh, but none of your managed shells (bash) do`)
+	rejected := space(press(t, sized(rejectedModel, 80, 20), "down", "down"))
 	cases := map[string]Model{
-		"browser-80x20":      base,
-		"browser-second-row": press(t, base, "down"),
-		"browser-filtered":   press(t, base, "/", "f", "z", "enter"),
-		"browser-typing":     press(t, base, "/", "z"),
-		"browser-no-modules": sized(newTestModel(nil), 80, 20),
-		"browser-too-small":  sized(newTestModel(sampleViews()), 60, 10),
+		"browser-80x20":       base,
+		"browser-second-row":  press(t, base, "down"),
+		"browser-filtered":    press(t, base, "/", "f", "z", "enter"),
+		"browser-typing":      press(t, base, "/", "z"),
+		"browser-no-modules":  sized(newTestModel(nil), 80, 20),
+		"browser-too-small":   sized(newTestModel(sampleViews()), 60, 10),
+		"browser-toggled":     space(press(t, base, "down")),
+		"browser-unavailable": press(t, base, "down", "down"),
+		"browser-rejected":    rejected,
 	}
 	for name, m := range cases {
 		assertGolden(t, name, plain(m))

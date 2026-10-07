@@ -22,10 +22,10 @@ const (
 )
 
 var (
-	boxStyle      = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1)
-	titleStyle    = lipgloss.NewStyle().Bold(true)
-	selectedStyle = lipgloss.NewStyle().Reverse(true)
-	dimStyle      = lipgloss.NewStyle().Faint(true)
+	boxStyle    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1)
+	titleStyle  = lipgloss.NewStyle().Bold(true)
+	dimStyle    = lipgloss.NewStyle().Faint(true)
+	statusStyle = lipgloss.NewStyle().Bold(true).Inline(true)
 )
 
 // View implements tea.Model.
@@ -61,7 +61,8 @@ func (m Model) render() string {
 }
 
 func (m Model) renderHeader() string {
-	line := titleStyle.Render("omnishell") + dimStyle.Render(fmt.Sprintf("  %d modules", len(m.views)))
+	line := titleStyle.Render("omnishell") +
+		dimStyle.Render(fmt.Sprintf("  %d modules · %s", len(m.views), changesText(m.changes())))
 	switch {
 	case m.filtering:
 		line += "  filter: " + m.filter + "_"
@@ -72,11 +73,23 @@ func (m Model) renderHeader() string {
 }
 
 func (m Model) renderFooter() string {
-	help := "↑/↓ move · / filter · esc clear filter · q quit"
+	if m.status != "" {
+		return statusStyle.Render(ansi.Truncate("! "+m.status, m.width, "…"))
+	}
+	help := "↑/↓ move · space toggle · / filter · esc clear filter · q quit"
 	if m.filtering {
 		help = "type to filter · enter keep · esc cancel · ctrl+c quit"
 	}
 	return dimStyle.Inline(true).MaxWidth(m.width).Render(help)
+}
+
+// changesText says how many modules differ from the state the browser started
+// with: "0 changes since start", "1 change since start".
+func changesText(n int) string {
+	if n == 1 {
+		return "1 change since start"
+	}
+	return fmt.Sprintf("%d changes since start", n)
 }
 
 // renderList draws at most rows module lines, scrolled so the cursor is
@@ -102,11 +115,14 @@ func (m Model) renderList(rows, width int) string {
 		if pos == m.cursor {
 			marker = "▸ "
 		}
-		line := ansi.Truncate(marker+statusBox(v.Status)+" "+v.ID, width, "…")
-		if pos == m.cursor {
-			line = selectedStyle.Render(line)
+		style := lipgloss.NewStyle()
+		if v.Unavailable != "" {
+			style = dimStyle
 		}
-		lines = append(lines, line)
+		if pos == m.cursor {
+			style = style.Reverse(true)
+		}
+		lines = append(lines, style.Render(ansi.Truncate(marker+statusBox(v.Status)+" "+v.ID, width, "…")))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -123,7 +139,7 @@ func (m Model) renderDetail(rows, width int) string {
 	if homepage == "" {
 		homepage = "—"
 	}
-	text := strings.Join([]string{
+	lines := []string{
 		titleStyle.Render(v.Name),
 		dimStyle.Render(fmt.Sprintf("%s · %s", v.ID, v.Origin)),
 		"",
@@ -133,9 +149,15 @@ func (m Model) renderDetail(rows, width int) string {
 		field("Packages", string(v.Packages)),
 		field("Platforms", strings.Join(v.Platforms, ", ")),
 		field("Shells", strings.Join(v.Shells, ", ")),
+	}
+	if v.Unavailable != "" {
+		lines = append(lines, field("Host", v.Unavailable))
+	}
+	lines = append(lines,
 		field("Options", fmt.Sprint(v.OptionCount)),
 		field("Homepage", homepage),
-	}, "\n")
+	)
+	text := strings.Join(lines, "\n")
 
 	return lipgloss.NewStyle().Width(width).MaxHeight(rows).Render(text)
 }

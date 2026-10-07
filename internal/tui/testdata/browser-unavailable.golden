@@ -1,18 +1,18 @@
 omnishell  3 modules · 0 changes since start                                    
 ╭────────────────────────────╮╭────────────────────────────────────────────────╮
-│ ▸ [x] completion           ││ Completion                                     │
-│   [ ] fzf                  ││ completion · builtin                           │
-│   [ ] zshonly              ││                                                │
-│                            ││ Tab completion tuning                          │
+│   [x] completion           ││ Zsh only                                       │
+│   [ ] fzf                  ││ zshonly · user                                 │
+│ ▸ [ ] zshonly              ││                                                │
+│                            ││ A module for zsh alone                         │
 │                            ││                                                │
-│                            ││ Status:    enabled                             │
+│                            ││ Status:    disabled                            │
 │                            ││ Packages:  n/a                                 │
-│                            ││ Platforms: macos, linux                        │
-│                            ││ Shells:    zsh, bash                           │
+│                            ││ Platforms: linux                               │
+│                            ││ Shells:    zsh                                 │
+│                            ││ Host:      needs zsh, but your managed shells  │
+│                            ││ are bash                                       │
 │                            ││ Options:   0                                   │
 │                            ││ Homepage:  —                                   │
-│                            ││                                                │
-│                            ││                                                │
 │                            ││                                                │
 │                            ││                                                │
 │                            ││                                                │

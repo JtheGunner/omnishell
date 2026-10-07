@@ -1,4 +1,4 @@
-omnishell  0 modules                                                            
+omnishell  0 modules · 0 changes since start                                    
 ╭────────────────────────────╮╭────────────────────────────────────────────────╮
 │ No modules                 ││                                                │
 │                            ││                                                │
@@ -17,4 +17,4 @@ omnishell  0 modules
 │                            ││                                                │
 │                            ││                                                │
 ╰────────────────────────────╯╰────────────────────────────────────────────────╯
-↑/↓ move · / filter · esc clear filter · q quit                                 
+↑/↓ move · space toggle · / filter · esc clear filter · q quit                  
