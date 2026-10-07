@@ -13,8 +13,9 @@ import (
 
 const (
 	// optionDetailLines is how many lines under the option table describe the
-	// option under the cursor.
-	optionDetailLines = 8
+	// option under the cursor: up to 3 of help, the type, up to 2 of value, the
+	// default, the allowed values or pattern, and a note.
+	optionDetailLines = 10
 	keyColumn         = 22 // width of the option name column
 	valueColumn       = 26 // width of the value column
 )
@@ -98,15 +99,39 @@ func (m Model) optionTable(n int) []string {
 // typed for the row under edit, otherwise the value with a note where it is not
 // a plain, explicitly set value.
 func (m Model) optionValueCell(pos int, row modedit.OptionView) string {
-	switch {
-	case m.options.editing && pos == m.options.cursor:
-		return "[" + m.options.input + "_]"
-	case row.Invalid:
-		return row.Value + " (invalid)"
-	case !row.Set:
-		return row.Value + " (default)"
+	if m.options.editing && pos == m.options.cursor {
+		return editCell(m.options.input)
 	}
-	return row.Value
+	return row.Value + valueNote(row)
+}
+
+// valueNote says where a value comes from when it is not a plain, explicitly
+// set one.
+func valueNote(row modedit.OptionView) string {
+	switch {
+	case row.Invalid:
+		return " (invalid)"
+	case !row.Set:
+		return " (default)"
+	}
+	return ""
+}
+
+// editCell draws the text being typed between brackets. A long input is cut on
+// the left, so the end of it and the cursor stay inside the value column.
+func editCell(input string) string {
+	const room = valueColumn - 1 - 3 // the column keeps one cell free; "[", "_" and "]" take three
+	if w := ansi.StringWidth(input); w > room {
+		// TruncateLeft keeps a wide character that is cut in the middle, so the
+		// result can be one cell too wide: cut a little more until it fits.
+		for n := w - (room - 1); ; n++ {
+			if cut := ansi.TruncateLeft(input, n, "…"); ansi.StringWidth(cut) <= room {
+				input = cut
+				break
+			}
+		}
+	}
+	return "[" + input + "_]"
 }
 
 // pad cuts s to width cells (with an ellipsis) or pads it with spaces.
@@ -128,6 +153,7 @@ func (m Model) optionDetail(n int) []string {
 		lines = append(lines, clip(strings.Split(wrapped, "\n"), 3)...)
 	}
 	lines = append(lines, "Type:    "+row.Type+" · "+optionHint(row))
+	lines = append(lines, wrapValue("Value:   ", row.Value+valueNote(row), max(m.width-2, 1), 2)...)
 	lines = append(lines, "Default: "+row.Default)
 	if len(row.Values) > 0 {
 		lines = append(lines, "Allowed: "+strings.Join(row.Values, ", "))
@@ -139,6 +165,31 @@ func (m Model) optionDetail(n int) []string {
 		lines = append(lines, "Note:    this module is not enabled; its options apply once it is")
 	}
 	return clip(lines, n)
+}
+
+// wrapValue draws "label value" in at most maxLines lines of width cells. The
+// value wraps in the column right of the label, so continuation lines line up
+// under it; when it does not fit, the last line ends with an ellipsis.
+func wrapValue(label, value string, width, maxLines int) []string {
+	indent := strings.Repeat(" ", ansi.StringWidth(label))
+	column := max(width-ansi.StringWidth(label), 1)
+
+	body := strings.Split(lipgloss.NewStyle().Width(column).Render(value), "\n")
+	if len(body) > maxLines {
+		body = body[:maxLines]
+		last := strings.TrimRight(ansi.Truncate(body[maxLines-1], max(column-1, 1), ""), " ")
+		body[maxLines-1] = last + "…"
+	}
+
+	lines := make([]string, len(body))
+	for i, line := range body {
+		prefix := indent
+		if i == 0 {
+			prefix = label
+		}
+		lines[i] = prefix + strings.TrimRight(line, " ")
+	}
+	return lines
 }
 
 // optionHint says how the option under the cursor is changed.

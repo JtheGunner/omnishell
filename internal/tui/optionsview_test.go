@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -219,4 +220,96 @@ func TestOptionsScreenGoldenFiles(t *testing.T) {
 	for name, m := range optionScreens(t) {
 		assertGolden(t, name, plain(m))
 	}
+}
+
+// A value wider than the table column must still be readable somewhere: the
+// detail pane shows the whole current value.
+func TestOptionsDetailShowsTheFullCurrentValue(t *testing.T) {
+	m, b := withOptions()
+	const long = "--height 40% --reverse --border --cycle --info inline"
+	b.optionRows["fzf"][2].Value, b.optionRows["fzf"][2].Set = long, true
+	m = onOption(t, openFzfOptions(t, m), "prefix")
+
+	out := plain(m)
+
+	if !strings.Contains(out, "Value:   "+long) {
+		t.Fatalf("the detail pane must show the whole value:\n%s", out)
+	}
+	assertFits(t, out, 80, 20)
+}
+
+func TestOptionsDetailMarksADefaultAndAnInvalidValue(t *testing.T) {
+	m, b := withOptions()
+	b.optionRows["fzf"][3].Value, b.optionRows["fzf"][3].Set, b.optionRows["fzf"][3].Invalid = "many", true, true
+	m = openFzfOptions(t, m)
+
+	if out := plain(onOption(t, m, "prefix")); !strings.Contains(out, "Value:   abc (default)") {
+		t.Fatalf("an unset option's value is marked default:\n%s", out)
+	}
+	if out := plain(onOption(t, m, "retries")); !strings.Contains(out, "Value:   many (invalid)") {
+		t.Fatalf("an invalid value is marked as such:\n%s", out)
+	}
+}
+
+func TestOptionsDetailKeepsAVeryLongValueToTwoLinesWithAnEllipsis(t *testing.T) {
+	m, b := withOptions()
+	b.optionRows["fzf"][2].Value, b.optionRows["fzf"][2].Set = strings.Repeat("v", 300), true
+	m = onOption(t, openFzfOptions(t, m), "prefix")
+
+	out := plain(m)
+
+	lines := strings.Split(out, "\n")
+	at := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "Value:   ") })
+	if at < 0 || at+2 >= len(lines) {
+		t.Fatalf("no value lines:\n%s", out)
+	}
+	first, second, next := strings.TrimRight(lines[at], " "), strings.TrimRight(lines[at+1], " "), lines[at+2]
+	if !strings.HasPrefix(first, "Value:   vvvv") || strings.Contains(first, "…") {
+		t.Fatalf("the first line must start the value right after the label: %q", first)
+	}
+	if !strings.HasPrefix(second, "         vvvv") || !strings.HasSuffix(second, "…") {
+		t.Fatalf("the second line must continue under the value and end with an ellipsis: %q", second)
+	}
+	if !strings.HasPrefix(next, "Default: ") {
+		t.Fatalf("exactly two value lines are allowed, then the default: %q", next)
+	}
+	assertFits(t, out, 80, 20)
+}
+
+// While typing, the end of the input and the cursor are what matters: a long
+// input must scroll so they stay inside the value column.
+func TestEditingALongValueKeepsTheCursorInView(t *testing.T) {
+	m, b := withOptions()
+	b.optionRows["fzf"][2].Value, b.optionRows["fzf"][2].Set = "--height 40% --reverse --border TAIL", true
+	m = onOption(t, openFzfOptions(t, m), "prefix")
+
+	m = press(t, m, "enter", "x")
+	out := plain(m)
+
+	if !strings.Contains(out, "[…") || !strings.Contains(out, "TAILx_]") {
+		t.Fatalf("the cell must show the tail of the input and the cursor:\n%s", out)
+	}
+	assertFits(t, out, 80, 20)
+}
+
+func TestEditingAShortValueIsNotScrolled(t *testing.T) {
+	out := plain(optionScreens(t)["options-editing"])
+
+	if !strings.Contains(out, "[abcx_]") || strings.Contains(out, "[…") {
+		t.Fatalf("a short input must be shown whole:\n%s", out)
+	}
+}
+
+func TestEditingWideCharactersKeepsTheCursorInViewAndTheLayoutIntact(t *testing.T) {
+	m, b := withOptions()
+	b.optionRows["fzf"][2].Value, b.optionRows["fzf"][2].Set = strings.Repeat("日本語", 10), true
+	m = onOption(t, openFzfOptions(t, m), "prefix")
+
+	m = press(t, m, "enter", "語")
+	out := plain(m)
+
+	if !strings.Contains(out, "語_]") {
+		t.Fatalf("the cursor must stay in view with wide characters:\n%s", out)
+	}
+	assertFits(t, out, 80, 20)
 }

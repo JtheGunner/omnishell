@@ -7,10 +7,10 @@ omnishell  options · fzf · 0 changes since start
                                                                               
 Colour theme                                                                  
 Type:    enum · ←/→ changes                                                   
+Value:   dark (default)                                                       
 Default: dark                                                                 
 Allowed: dark, light, solarized                                               
 Note:    this module is not enabled; its options apply once it is             
-                                                                              
                                                                               
                                                                               
                                                                               

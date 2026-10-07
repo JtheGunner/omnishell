@@ -7,9 +7,9 @@ omnishell  options · fzf · 0 changes since start
                                                                               
 Bind Ctrl+R to the fzf history widget                                         
 Type:    bool · space toggles                                                 
+Value:   true (default)                                                       
 Default: true                                                                 
 Note:    this module is not enabled; its options apply once it is             
-                                                                              
                                                                               
                                                                               
                                                                               

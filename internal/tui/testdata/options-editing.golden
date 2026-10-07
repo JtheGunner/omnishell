@@ -7,10 +7,10 @@ omnishell  options · fzf · 0 changes since start
                                                                               
 Key prefix                                                                    
 Type:    string · enter edits                                                 
+Value:   abc (default)                                                        
 Default: abc                                                                  
 Pattern: ^[a-z]+$                                                             
 Note:    this module is not enabled; its options apply once it is             
-                                                                              
                                                                               
                                                                               
                                                                               

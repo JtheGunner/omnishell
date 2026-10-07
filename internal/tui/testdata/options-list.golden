@@ -7,9 +7,9 @@ omnishell  options · fzf · 0 changes since start
                                                                               
 Extra items                                                                   
 Type:    list<string> · a list; set it with omnishell set                     
+Value:   a,b (default)                                                        
 Default: a,b                                                                  
 Note:    this module is not enabled; its options apply once it is             
-                                                                              
                                                                               
                                                                               
                                                                               
