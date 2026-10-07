@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -267,5 +268,49 @@ func TestTUIBackendStatusesFollowTheConfigAfterAToggle(t *testing.T) {
 
 	if statuses["fzf"] != modedit.StatusEnabled || statuses["zshonly"] != modedit.StatusDisabled {
 		t.Fatalf("statuses fzf=%q zshonly=%q, want enabled and disabled", statuses["fzf"], statuses["zshonly"])
+	}
+}
+
+func TestTUIBackendPlanDescribesTheConfigAsItIsNow(t *testing.T) {
+	setTestInit(t)
+	cli.SetLookPathForTest(bashPresentLookPath)
+	t.Cleanup(func() { cli.SetLookPathForTest(nil) })
+	b := backendFor(t)
+
+	before, err := b.Plan()
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if !strings.HasPrefix(before.Text, "Plan (") || !before.NeedsApply {
+		t.Fatalf("a fresh init has work for apply, got needs=%v:\n%s", before.NeedsApply, before.Text)
+	}
+	if strings.Contains(before.Text, "fzf") {
+		t.Fatalf("fzf is not enabled yet:\n%s", before.Text)
+	}
+
+	if err := b.Enable("fzf"); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+	after, err := b.Plan()
+	if err != nil {
+		t.Fatalf("Plan after enabling: %v", err)
+	}
+	if !strings.Contains(after.Text, "fzf") {
+		t.Fatalf("the plan must include what was just toggled:\n%s", after.Text)
+	}
+}
+
+func TestTUIBackendPlanReportsAMalformedLockfile(t *testing.T) {
+	cfgPath := setTestInit(t)
+	b := backendFor(t)
+	lockPath := filepath.Join(filepath.Dir(cfgPath), "state.lock.json")
+	if err := os.WriteFile(lockPath, []byte("{not json"), 0o644); err != nil {
+		t.Fatalf("write lockfile: %v", err)
+	}
+
+	_, err := b.Plan()
+
+	if err == nil || !strings.Contains(err.Error(), "lockfile") {
+		t.Fatalf("err = %v, want a lockfile error", err)
 	}
 }
