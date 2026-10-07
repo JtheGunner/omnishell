@@ -11,6 +11,7 @@ import (
 
 	"github.com/JtheGunner/omnishell/internal/cli"
 	"github.com/JtheGunner/omnishell/internal/config"
+	"github.com/JtheGunner/omnishell/internal/pkgmgr"
 	"github.com/JtheGunner/omnishell/internal/tui"
 )
 
@@ -222,5 +223,29 @@ func TestTUIBackendUnknownModuleIsAnError(t *testing.T) {
 
 	if err := b.Enable("no-such-module"); err == nil || !strings.Contains(err.Error(), "unknown module") {
 		t.Fatalf("err = %v, want unknown module", err)
+	}
+}
+
+// The Bubble Tea program owns the terminal while the UI runs. Whatever a
+// package manager prints while the UI probes it (brew and dpkg-query both
+// write to stdout) must therefore never reach that terminal.
+func TestTUIKeepsPackageManagerOutputOffTheScreen(t *testing.T) {
+	setTestInit(t)
+	cli.SetRunnerForTest(nil) // let the factory below build the runner
+	var gotOut, gotErr io.Writer
+	cli.SetRunnerFactoryForTest(func(stdout, stderr io.Writer) pkgmgr.Runner {
+		gotOut, gotErr = stdout, stderr
+		return &pkgmgr.MockRunner{}
+	})
+	t.Cleanup(func() { cli.SetRunnerFactoryForTest(nil) })
+	tuiSpy(t, true)
+
+	var out, errb bytes.Buffer
+	if code := cli.Execute([]string{"tui"}, &out, &errb); code != 0 {
+		t.Fatalf("exit = %d (stderr: %s)", code, errb.String())
+	}
+
+	if gotOut != io.Discard || gotErr != io.Discard {
+		t.Fatalf("the runner must write to io.Discard, got stdout=%T stderr=%T", gotOut, gotErr)
 	}
 }

@@ -87,7 +87,9 @@ Needs an interactive terminal; in scripts use 'omnishell list'.`,
 					"omnishell tui needs an interactive terminal; use 'omnishell list', 'enable' and 'apply' in scripts")}
 			}
 
-			e, cfgPath, _, err := buildEngine(out, cmd.ErrOrStderr())
+			// The engine's runner copies a package manager's output to the writers
+			// it is given, and the UI owns the terminal: send it nowhere.
+			e, cfgPath, _, err := buildEngine(io.Discard, io.Discard)
 			if err != nil {
 				return err
 			}
