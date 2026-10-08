@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- `apply` and `doctor --fix` no longer print the package manager's answers (for
+  example `brew info fzf`) before the plan and the `Proceed?` prompt. Only the
+  questions are silenced; installs, sudo prompts and hooks still show their
+  output.
 - `omnishell tui`: the filter and option-value fields move the cursor and
   delete by grapheme cluster, so a combining accent, an emoji sequence or a flag
   is handled as one character.

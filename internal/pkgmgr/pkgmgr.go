@@ -53,8 +53,17 @@ type Manager interface {
 
 var linuxOrder = []string{"apt", "dnf", "pacman", "zypper", "apk"}
 
-// DetectManager returns the first available manager for the OS.
+// DetectManager returns the first available manager for the OS, using r for
+// both queries and installs.
 func DetectManager(goos string, r Runner) (Manager, bool) {
+	return DetectManagerWith(goos, r, r)
+}
+
+// DetectManagerWith is DetectManager with separate runners: queries runs the
+// read-only commands that ask whether a package is installed or available,
+// installs runs the commands that change the system. A caller can silence the
+// former without hiding the progress of the latter.
+func DetectManagerWith(goos string, queries, installs Runner) (Manager, bool) {
 	var names []string
 	switch goos {
 	case "darwin":
@@ -65,7 +74,7 @@ func DetectManager(goos string, r Runner) (Manager, bool) {
 		return nil, false
 	}
 	for _, n := range names {
-		m := newManager(n, r)
+		m := newManager(n, queries, installs)
 		if m != nil && m.Detect() {
 			return m, true
 		}

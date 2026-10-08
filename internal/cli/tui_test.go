@@ -434,13 +434,15 @@ func TestTUIHandoffStreamsInstallOutputLikeApplyDoes(t *testing.T) {
 	var out, errb bytes.Buffer
 	cli.Execute([]string{"tui"}, &out, &errb)
 
-	if len(runnerWriters) < 2 {
-		t.Fatalf("want an engine for the UI and one for apply, got %d", len(runnerWriters))
+	// Every engine builds two runners: the one for installs and hooks, then a
+	// quiet one for package queries. The UI's engine is quiet in both.
+	if len(runnerWriters) < 4 {
+		t.Fatalf("want an engine for the UI and one for apply (two runners each), got %d runners", len(runnerWriters))
 	}
-	if runnerWriters[0] != io.Discard {
+	if runnerWriters[0] != io.Discard || runnerWriters[1] != io.Discard {
 		t.Fatal("the UI's engine must stay quiet")
 	}
-	if last := runnerWriters[len(runnerWriters)-1]; last == io.Discard {
+	if install := runnerWriters[2]; install == io.Discard {
 		t.Fatal("the apply that follows the UI must stream installs and hooks to the terminal")
 	}
 }
