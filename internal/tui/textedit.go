@@ -3,35 +3,77 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 )
 
 // The two text fields (the filter and an option value) keep their text as a
 // string and the cursor as a rune index into it, so the Model stays a plain
-// value and tests can read the text directly.
+// value and tests can read the text directly. The cursor always rests on a
+// grapheme-cluster boundary: a visible character made of several runes (a
+// combining accent, a ZWJ emoji, a flag) is moved over and deleted as one.
+
+// clusterStarts returns the rune index at which each grapheme cluster of runes
+// starts, followed by len(runes) as the final boundary.
+func clusterStarts(runes []rune) []int {
+	starts := make([]int, 0, len(runes)+1)
+	rest, offset := string(runes), 0
+	for rest != "" {
+		cluster, remainder, _, _ := uniseg.FirstGraphemeClusterInString(rest, -1)
+		starts = append(starts, offset)
+		offset += len([]rune(cluster))
+		rest = remainder
+	}
+	return append(starts, len(runes))
+}
+
+// snapToBoundary returns the cluster boundary at or before pos, which it first
+// clamps into the text.
+func snapToBoundary(starts []int, pos int) int {
+	pos = min(max(pos, 0), starts[len(starts)-1])
+	for i := len(starts) - 1; i >= 0; i-- {
+		if starts[i] <= pos {
+			return starts[i]
+		}
+	}
+	return 0
+}
+
+// boundaryIndex returns the index into starts of the boundary pos (already
+// snapped).
+func boundaryIndex(starts []int, pos int) int {
+	for i, s := range starts {
+		if s == pos {
+			return i
+		}
+	}
+	return len(starts) - 1
+}
 
 // editText applies one key press to text, with the cursor at pos, and returns
 // the new text and cursor. ok is false for keys it does not handle, so the
 // caller can give them their own meaning (enter, esc, ctrl+c).
 func editText(text string, pos int, msg tea.KeyPressMsg) (string, int, bool) {
 	runes := []rune(text)
-	pos = min(max(pos, 0), len(runes))
+	starts := clusterStarts(runes)
+	pos = snapToBoundary(starts, pos)
+	at := boundaryIndex(starts, pos)
 	switch msg.String() {
 	case "left", "ctrl+b":
-		pos = max(pos-1, 0)
+		pos = starts[max(at-1, 0)]
 	case "right", "ctrl+f":
-		pos = min(pos+1, len(runes))
+		pos = starts[min(at+1, len(starts)-1)]
 	case "home", "ctrl+a":
 		pos = 0
 	case "end", "ctrl+e":
 		pos = len(runes)
 	case "backspace":
-		if pos > 0 {
-			runes = append(runes[:pos-1], runes[pos:]...)
-			pos--
+		if at > 0 {
+			runes = append(runes[:starts[at-1]], runes[pos:]...)
+			pos = starts[at-1]
 		}
 	case "delete", "ctrl+d":
-		if pos < len(runes) {
-			runes = append(runes[:pos], runes[pos+1:]...)
+		if at < len(starts)-1 {
+			runes = append(runes[:pos], runes[starts[at+1]:]...)
 		}
 	default:
 		if msg.Text == "" {
@@ -47,7 +89,7 @@ func editText(text string, pos int, msg tea.KeyPressMsg) (string, int, bool) {
 // the new text and the cursor behind the inserted part.
 func pasteText(text string, pos int, content string) (string, int) {
 	runes := []rune(text)
-	pos = min(max(pos, 0), len(runes))
+	pos = snapToBoundary(clusterStarts(runes), pos)
 	add := []rune(sanitize(content))
 	out := make([]rune, 0, len(runes)+len(add))
 	out = append(out, runes[:pos]...)
@@ -62,7 +104,7 @@ func pasteText(text string, pos int, content string) (string, int) {
 // right when much of it follows the cursor, so the cursor is always inside.
 func editWindow(text string, pos, room int) (string, int) {
 	runes := []rune(text)
-	pos = min(max(pos, 0), len(runes))
+	pos = snapToBoundary(clusterStarts(runes), pos)
 	before, after := string(runes[:pos]), string(runes[pos:])
 	atEnd := after == ""
 

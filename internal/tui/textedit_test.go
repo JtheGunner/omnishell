@@ -269,3 +269,92 @@ func TestNoCursorOutsideTextFields(t *testing.T) {
 		t.Fatal("a kept filter has no cursor")
 	}
 }
+
+// Clusters made of several runes, written as escapes so the source stays
+// unambiguous: e + combining acute, a ZWJ family emoji, and a flag.
+const (
+	clusterAccent = "e\u0301"
+	clusterFamily = "\U0001F468\u200d\U0001F469\u200d\U0001F467"
+	clusterFlag   = "\U0001F1E9\U0001F1EA"
+)
+
+func TestEditTextMovesOverWholeClusters(t *testing.T) {
+	for name, cluster := range map[string]string{"accent": clusterAccent, "family": clusterFamily, "flag": clusterFlag} {
+		text := "a" + cluster + "z"
+		end := len([]rune(text))
+		afterCluster := end - 1
+
+		_, pos, _ := editText(text, afterCluster, key("left"))
+		if pos != 1 {
+			t.Errorf("%s: left from behind the cluster gave pos %d, want 1", name, pos)
+		}
+		_, pos, _ = editText(text, 1, key("right"))
+		if pos != afterCluster {
+			t.Errorf("%s: right over the cluster gave pos %d, want %d", name, pos, afterCluster)
+		}
+	}
+}
+
+func TestEditTextDeletesWholeClusters(t *testing.T) {
+	for name, cluster := range map[string]string{"accent": clusterAccent, "family": clusterFamily, "flag": clusterFlag} {
+		text := "a" + cluster + "z"
+		afterCluster := len([]rune(text)) - 1
+
+		got, pos, _ := editText(text, afterCluster, key("backspace"))
+		if got != "az" || pos != 1 {
+			t.Errorf("%s: backspace gave text=%q pos=%d, want az / 1", name, got, pos)
+		}
+		got, pos, _ = editText(text, 1, key("delete"))
+		if got != "az" || pos != 1 {
+			t.Errorf("%s: delete gave text=%q pos=%d, want az / 1", name, got, pos)
+		}
+	}
+}
+
+func TestEditTextSnapsAMidClusterCursorToABoundary(t *testing.T) {
+	text := "a" + clusterFamily + "z"
+	_, pos, _ := editText(text, 3, key("right")) // 3 is inside the family emoji
+	if pos != len([]rune(text))-1 {
+		t.Fatalf("pos = %d, want the cursor behind the cluster", pos)
+	}
+	got, pos, _ := editText(text, 3, key("delete"))
+	if got != "az" || pos != 1 {
+		t.Fatalf("text=%q pos=%d, want the whole cluster removed", got, pos)
+	}
+}
+
+func TestPasteTextSnapsAMidClusterCursorToABoundary(t *testing.T) {
+	got, pos := pasteText("a"+clusterAccent+"z", 2, "X") // between e and the accent
+	if got != "aXe\u0301z" || pos != 2 {
+		t.Fatalf("text=%q pos=%d, want X before the cluster, never inside it", got, pos)
+	}
+}
+
+func TestEditWindowNeverCutsACluster(t *testing.T) {
+	for name, cluster := range map[string]string{"accent": clusterAccent, "family": clusterFamily, "flag": clusterFlag} {
+		text := strings.Repeat("ab"+cluster, 12)
+		runes := []rune(text)
+		for pos := 0; pos <= len(runes); pos++ {
+			cell, col := editWindow(text, pos, 9)
+			if w := ansi.StringWidth(cell); w > 9 || col < 0 || col >= 9 {
+				t.Fatalf("%s pos %d: cell %q is %d wide with cursor at %d", name, pos, cell, w, col)
+			}
+			for _, bad := range []string{"\u0301", "\u200d"} {
+				if strings.HasPrefix(strings.TrimPrefix(cell, "…"), bad) {
+					t.Fatalf("%s pos %d: cell %q starts inside a cluster", name, pos, cell)
+				}
+			}
+			if strings.Count(cell, "\U0001F1E9")+strings.Count(cell, "\U0001F1EA") == 1 {
+				t.Fatalf("%s pos %d: cell %q holds half a flag", name, pos, cell)
+			}
+		}
+	}
+}
+
+func TestEditWindowPlacesTheCursorOnAClusterColumn(t *testing.T) {
+	text := "a" + clusterAccent + "z"
+	cell, col := editWindow(text, 2, 23) // mid-cluster input snaps to the boundary
+	if cell != text || col != 1 {
+		t.Fatalf("cell=%q col=%d, want the cursor on the accent cluster at column 1", cell, col)
+	}
+}
