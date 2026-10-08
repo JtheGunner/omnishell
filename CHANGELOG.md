@@ -4,6 +4,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `omnishell tui`: the filter and option-value fields move the cursor and
+  delete by grapheme cluster, so a combining accent, an emoji sequence or a flag
+  is handled as one character.
+
 ## [0.7.0] - 2026-10-07
 
 ### Added
