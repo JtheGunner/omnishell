@@ -21,21 +21,21 @@ pacman = ["mise"]
 [[packages.fallback]]
 type = "release"
 repo = "https://github.com/jdx/mise"
-ref  = "v2026.10.3"
+ref  = "v2026.10.8"
 bin  = "mise"
 
 [[packages.fallback.assets]]
 os     = "linux"
 arch   = "amd64"
 url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-x64-musl.tar.gz"
-sha256 = "23c45c76567f8f1e4cfc40efff3f19e3352d3745e6c25e74891102765d1cdc3c"
+sha256 = "51011ed1cc7568472b6a3251a358bf51306a54f3bfee8ef690d40368f96f0426"
 member = "mise/bin/mise"
 
 [[packages.fallback.assets]]
 os     = "linux"
 arch   = "arm64"
 url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-arm64-musl.tar.gz"
-sha256 = "0af3379b7a8060b047416576a746078daee3c9d2bf57fa8f6ba07d3cdf5f47aa"
+sha256 = "bd7f725dc843cb2fe2e4e8a4ec70f0b1a14ff781a65dc3fc27faf20277d887c7"
 member = "mise/bin/mise"
 
 # mise ships no armv6 build.
@@ -44,14 +44,14 @@ os     = "linux"
 arch   = "arm"
 goarm  = "7"
 url    = "https://github.com/jdx/mise/releases/download/{{.Ref}}/mise-{{.Ref}}-linux-armv7-musl.tar.gz"
-sha256 = "8448b5f0e1733944eaceef9e1588d33e88ed157b1edc13e1363fd7fd6fb01f56"
+sha256 = "b20b4e62d87c052615352ce8832c37d886ded7e0a677baf04893eb719d2105ab"
 member = "mise/bin/mise"
 
 [[packages.fallback]]
 type = "git"
 repo = "https://github.com/jdx/mise.git"
 dest = "{{.VendorDir}}/mise"
-ref  = "v2026.10.3"
+ref  = "v2026.10.8"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/mise", "--root", "{{.VendorDir}}"]
 requires = ["cargo>=1.95", "cmake"]
 
