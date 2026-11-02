@@ -22,28 +22,28 @@ pacman = ["broot"]
 [[packages.fallback]]
 type = "release"
 repo = "https://github.com/Canop/broot"
-ref  = "v1.61.0"
+ref  = "v1.62.0"
 bin  = "broot"
 
 [[packages.fallback.assets]]
 os     = "linux"
 arch   = "amd64"
 url    = "https://github.com/Canop/broot/releases/download/{{.Ref}}/broot_{{.Version}}.zip"
-sha256 = "6cafe8e993fb8e5684eb25549703a4fb9dec61ac6a8f1947cbed6566cb4e58e5"
+sha256 = "13630ae5d3b011ddc81fca05cb80dbee6189dad3ba393dd477f5f687c7b5106d"
 member = "x86_64-unknown-linux-musl/broot"
 
 [[packages.fallback.assets]]
 os     = "linux"
 arch   = "arm64"
 url    = "https://github.com/Canop/broot/releases/download/{{.Ref}}/broot_{{.Version}}.zip"
-sha256 = "6cafe8e993fb8e5684eb25549703a4fb9dec61ac6a8f1947cbed6566cb4e58e5"
+sha256 = "13630ae5d3b011ddc81fca05cb80dbee6189dad3ba393dd477f5f687c7b5106d"
 member = "aarch64-unknown-linux-musl/broot"
 
 [[packages.fallback]]
 type = "git"
 repo = "https://github.com/Canop/broot.git"
 dest = "{{.VendorDir}}/broot"
-ref  = "v1.61.0"
+ref  = "v1.62.0"
 run  = ["cargo", "install", "--locked", "--path", "{{.VendorDir}}/broot", "--root", "{{.VendorDir}}"]
 requires = ["cargo>=1.85"]
 
