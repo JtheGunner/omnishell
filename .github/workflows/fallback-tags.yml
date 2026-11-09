@@ -25,7 +25,7 @@ jobs:
         if: steps.tags.outputs.changed == 'true'
         # Pinned to a commit SHA because this step runs with write access (and
         # possibly a personal access token); Dependabot keeps the SHA current.
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        uses: peter-evans/create-pull-request@15733dbdfeedb4f7fdb73d13c6f5ac83b710fab8 # v8.1.2
         with:
           # A PR created with the default GITHUB_TOKEN does not trigger other
           # workflows, so ci would not run on it. Set FALLBACK_TAGS_TOKEN to a
