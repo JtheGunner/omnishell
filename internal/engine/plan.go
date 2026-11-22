@@ -311,8 +311,31 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, 
 			}
 		}
 		if len(unavailable) > 0 {
-			mp.UnavailablePackages = unavailable
-			planFallback(mp, e, prev)
+			fb, ok := selectFallback(mf.Packages.Fallback, e.Platform)
+			if !ok || len(fb.Replaces) == 0 {
+				// The fallback stands in for the whole package list.
+				mp.UnavailablePackages = unavailable
+				planFallback(mp, e, prev)
+				return
+			}
+			// The fallback stands in for the packages it names only: every
+			// other missing package stays with the manager, where one the
+			// repositories cannot provide fails with the manager's error.
+			var replaced []string
+			for _, name := range unavailable {
+				if contains(fb.Replaces, name) {
+					replaced = append(replaced, name)
+				}
+			}
+			if len(replaced) > 0 {
+				mp.UnavailablePackages = replaced
+				planFallback(mp, e, prev)
+			}
+			for _, pp := range missing {
+				if !contains(replaced, pp.Name) {
+					mp.MissingPackages = append(mp.MissingPackages, pp)
+				}
+			}
 			return
 		}
 		mp.MissingPackages = append(mp.MissingPackages, missing...)

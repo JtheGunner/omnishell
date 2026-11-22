@@ -154,6 +154,29 @@ member = "mise/bin/mise"                # file inside the .tar.gz / .zip; omit f
 - On `arch = "arm"` an asset with `goarm` matches only that variant of the host; an asset without it matches every variant, and the variant-specific one wins when both exist. A host whose variant is unknown matches only variant-less assets.
 - `requires` is not allowed on a release entry; it belongs to the `git` entry.
 
+### A fallback for one package of several
+
+By default a fallback stands in for the module's whole package list: as soon as one listed package is unavailable, the fallback is used and the manager installs nothing for the module. That fits a module with one tool.
+
+A module that lists several packages can limit a fallback (either type) to the packages it provides with `replaces`:
+
+```toml
+[packages]
+apt = ["eza", "bat", "fd-find"]
+
+[[packages.fallback]]
+type     = "release"
+repo     = "https://github.com/eza-community/eza"
+ref      = "v0.23.5"
+bin      = "eza"
+replaces = ["eza"]                      # manager package names this entry stands in for
+```
+
+- The fallback is used only when a package named in `replaces` is unavailable. Every other missing package is still installed by the manager.
+- An unavailable package that `replaces` does not name stays with the manager, so its install error degrades the module as it would without a fallback.
+- Each name must be a package the manifest lists for at least one manager.
+- A module still has one active fallback: the first entry that fits the host.
+
 ## Templates
 
 `zsh.tmpl` / `bash.tmpl` are plain Go `text/template`. An unknown field is an

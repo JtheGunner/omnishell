@@ -485,6 +485,31 @@ func TestBuiltinReleaseFallbacks(t *testing.T) {
 	}
 }
 
+// eza is missing from older distro releases. Its release binary stands in for
+// eza only, so bat and fd stay with the package manager.
+func TestModernAliasesEzaFallback(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("modern-aliases")
+	if !ok {
+		t.Fatal("module modern-aliases missing")
+	}
+	fbs := m.Manifest.Packages.Fallback
+	if len(fbs) != 1 || fbs[0].Type != "release" || fbs[0].Bin != "eza" {
+		t.Fatalf("fallbacks = %+v, want one release entry for eza", fbs)
+	}
+	if len(fbs[0].Replaces) != 1 || fbs[0].Replaces[0] != "eza" {
+		t.Fatalf("replaces = %v, want [eza]", fbs[0].Replaces)
+	}
+	for _, arch := range []string{"amd64", "arm64"} {
+		if _, ok := fbs[0].AssetFor("linux", arch, ""); !ok {
+			t.Errorf("release fallback has no linux/%s asset", arch)
+		}
+	}
+}
+
 // 32-bit ARM: starship ships one armv6-compatible binary, mise only armv7, and
 // broot nothing, so broot builds from source there.
 func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {

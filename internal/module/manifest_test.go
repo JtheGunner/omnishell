@@ -1,6 +1,7 @@
 package module_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -249,4 +250,54 @@ func replaceFirst(s, old, repl string) string {
 		return s
 	}
 	return s[:i] + repl + s[i+len(old):]
+}
+
+const replacesManifest = `
+platforms = ["linux"]
+shells    = ["bash"]
+
+[module]
+id      = "partial"
+name    = "partial"
+version = "1.0.0"
+schema  = 1
+
+[packages]
+apt  = ["alpha", "beta"]
+brew = ["alpha-brew"]
+
+[[packages.fallback]]
+type     = "git"
+repo     = "https://example.com/alpha.git"
+dest     = "{{.VendorDir}}/alpha"
+replaces = [%s]
+`
+
+func TestValidateManifestFallbackReplaces(t *testing.T) {
+	cases := []struct {
+		name, replaces string
+		wantErr        bool
+	}{
+		{"a package of one manager", `"alpha"`, false},
+		{"a package another manager lists", `"alpha-brew"`, false},
+		{"several packages", `"alpha", "beta"`, false},
+		{"empty replaces the whole list", ``, false},
+		{"a name no manager lists", `"gamma"`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m, err := module.ParseManifest([]byte(fmt.Sprintf(replacesManifest, tc.replaces)))
+			if err != nil {
+				t.Fatalf("ParseManifest: %v", err)
+			}
+			err = module.ValidateManifest(m)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ValidateManifest err = %v, wantErr %v", err, tc.wantErr)
+			}
+			var me module.ManifestError
+			if tc.wantErr && (!errors.As(err, &me) || me.Field != "packages.fallback[0].replaces") {
+				t.Fatalf("err = %v, want a ManifestError on packages.fallback[0].replaces", err)
+			}
+		})
+	}
 }
