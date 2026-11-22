@@ -34,7 +34,10 @@ type ModuleMeta struct {
 // "cmake"); they are checked before the clone. Ref optionally pins the clone
 // to a tag or branch; empty clones the repository's default branch. A
 // type = "release" entry instead names the installed binary (Bin) and one
-// download per OS and architecture (Assets); see release.go.
+// download per OS and architecture (Assets); see release.go. Replaces names
+// the manager packages the entry stands in for; the module's other packages
+// are still installed by the manager. Empty means the entry replaces the whole
+// package list.
 type Fallback struct {
 	Type     string   `toml:"type"`
 	Repo     string   `toml:"repo"`
@@ -44,6 +47,16 @@ type Fallback struct {
 	Requires []string `toml:"requires"`
 	Bin      string   `toml:"bin"`
 	Assets   []Asset  `toml:"assets"`
+	Replaces []string `toml:"replaces"`
+}
+
+// All returns every package name the manifest lists for any manager.
+func (p Packages) All() []string {
+	var out []string
+	for _, list := range [][]string{p.Brew, p.Apt, p.Dnf, p.Pacman, p.Zypper, p.Apk} {
+		out = append(out, list...)
+	}
+	return out
 }
 
 // Packages is the [packages] table.
@@ -208,6 +221,15 @@ func ValidateManifest(m Manifest) error {
 		for _, req := range fb.Requires {
 			if _, err := ParseRequirement(req); err != nil {
 				return e(fmt.Sprintf("packages.fallback[%d].requires", i), err.Error())
+			}
+		}
+	}
+	listed := toSet(m.Packages.All())
+	for i, fb := range m.Packages.Fallback {
+		for _, name := range fb.Replaces {
+			if !listed[name] {
+				return e(fmt.Sprintf("packages.fallback[%d].replaces", i),
+					"not a package of any manager: "+name)
 			}
 		}
 	}

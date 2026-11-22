@@ -135,6 +135,10 @@ files matters more than any single file:
    pinned ref is adopted (its binary stays) and its leftovers (`leftovers.go`:
    source tree, this crate's `.crates.toml`/`.crates2.json` entries) are removed
    only with filesystem evidence that they are ours; the plan lists them.
+   A fallback's optional `replaces` names the manager packages it stands in
+   for: `planPackages` then uses it only when one of those is unavailable and
+   keeps every other missing package on the manager path (`modern-aliases`
+   does this for `eza`). Without it a fallback replaces the whole package list.
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 

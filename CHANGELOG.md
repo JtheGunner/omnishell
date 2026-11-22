@@ -4,6 +4,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `[[packages.fallback]]` accepts `replaces`: the manager packages the entry
+  stands in for. The fallback is then used only when one of them is
+  unavailable, and the manager still installs the module's other packages.
+  Without `replaces` a fallback stands in for the whole package list, as
+  before.
+
+### Fixed
+- `modern-aliases` no longer degrades where the distribution has no `eza`
+  package (Debian 12, Ubuntu 22.04): on Linux x86_64 and arm64 the upstream
+  release binary is installed instead, while `bat` and `fd` still come from the
+  package manager. Before, the failed `eza` install also dropped the `cat` and
+  `find` aliases.
+
 ## [0.7.1] - 2026-11-22
 
 ### Fixed
