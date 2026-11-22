@@ -4,6 +4,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-22
+
 ### Added
 - `[[packages.fallback]]` accepts `replaces`: the manager packages the entry
   stands in for. The fallback is then used only when one of them is
@@ -296,7 +298,8 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/JtheGunner/omnishell/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/JtheGunner/omnishell/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/JtheGunner/omnishell/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/JtheGunner/omnishell/compare/v0.5.0...v0.6.0
