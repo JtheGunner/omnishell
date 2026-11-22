@@ -4,6 +4,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-22
+
 ### Fixed
 - The generated init files now put `<vendor>/bin` on `PATH` (appended, in a
   first section of their own) before the module snippets run. A tool installed
@@ -280,7 +282,8 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/JtheGunner/omnishell/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/JtheGunner/omnishell/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/JtheGunner/omnishell/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/JtheGunner/omnishell/compare/v0.4.0...v0.5.0
