@@ -582,7 +582,34 @@ func (e Engine) buildSections(plan Plan, rendered map[[2]string]string,
 			Body:    body,
 		})
 	}
-	return sections
+	if len(sections) == 0 {
+		return nil
+	}
+	return append([]initfile.Section{e.vendorBinSection()}, sections...)
+}
+
+// vendorBinSectionID names the init-file section that puts <vendor>/bin on
+// PATH. The leading underscore keeps it outside the module id namespace.
+const vendorBinSectionID = "_vendor-bin"
+
+// vendorBinSection is the first section of every init file: it appends
+// <vendor>/bin to PATH, so the module snippets below it find the release
+// binaries and source builds omnishell installed there. The directory test
+// runs at shell start, which keeps the section identical whether or not a
+// fallback has been installed yet. Appending leaves a copy the system provides
+// in front, as the shadowing notice of a release install describes.
+func (e Engine) vendorBinSection() initfile.Section {
+	dir := render.ShellQuote(filepath.Join(e.vendorDir(), "bin"))
+	body := "_omnishell_vendor_bin=" + dir + `
+if [ -d "$_omnishell_vendor_bin" ]; then
+  case ":$PATH:" in
+    *":$_omnishell_vendor_bin:"*) ;;
+    *) export PATH="$PATH:$_omnishell_vendor_bin" ;;
+  esac
+fi
+unset _omnishell_vendor_bin
+`
+	return initfile.Section{ID: vendorBinSectionID, Version: "1", Body: body}
 }
 
 // initFileHandEdited reports whether the on-disk init file was edited by hand.

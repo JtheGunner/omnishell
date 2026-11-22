@@ -148,7 +148,7 @@ when `XDG_CONFIG_HOME` is unset:
 | 🔒 | `state.lock.json`        | Machine-managed lockfile (idempotency, drift detection, clean removal). Not for editing.                                                                                                                     |
 | 💾 | `backups/<timestamp>/`   | Every rc-file and init-file write is copied here first.                                                                                                                                                      |
 | 🧩 | `modules/<id>/`          | Your own modules (same format as the built-ins).                                                                                                                                                             |
-| 📥 | `vendor/`                | Clones made by the `git` package fallback (`apply` moves them to the tag the manifest pins and rebuilds) and `bin/` with release binaries.                                                                                                     |
+| 📥 | `vendor/`                | Clones made by the `git` package fallback (`apply` moves them to the tag the manifest pins and rebuilds) and `bin/` with release binaries. The init files append `vendor/bin` to `PATH`.                                                                                                     |
 
 Each managed rc file gets **exactly one** marker block, appended at the end:
 

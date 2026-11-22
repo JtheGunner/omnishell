@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- The generated init files now put `<vendor>/bin` on `PATH` (appended, in a
+  first section of their own) before the module snippets run. A tool installed
+  as a release binary or built from source was not found at shell start, so its
+  integration was skipped without a message: no `starship` prompt, no `mise`
+  or `broot` activation. The first `apply` after upgrading rewrites the init
+  files once.
 - `omnishell tui`: the filter and option-value fields move the cursor and
   delete by grapheme cluster, so a combining accent, an emoji sequence or a flag
   is handled as one character.
