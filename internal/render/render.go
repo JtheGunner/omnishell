@@ -55,6 +55,10 @@ func Render(tmpl string, ctx Context) (string, error) {
 	return normalise(buf.String()), nil
 }
 
+// ShellQuote single-quotes s for a POSIX shell, as the shellquote template
+// helper does.
+func ShellQuote(s string) string { return shellquote(s) }
+
 func shellquote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
