@@ -30,6 +30,20 @@ not built. For how the features work, see the [README](../README.md),
 - Unknown and malformed modules are reported at `notice` severity so they do not
   cause exit code 3, consistent with the `module-override` notice.
 
+## Non-shell files
+
+- **omnishell writes only its init files and the rc marker block.** Modules
+  must not create or edit other files such as `~/.gitconfig`.
+- **Why:** backup, rollback, `doctor` and drift detection are built around the
+  init files. Extending them to arbitrary third-party config files would mean
+  merging with hand-written content and owning its format, which is a larger
+  and riskier surface than the benefit.
+- **Consequence for `delta`:** the module sets `GIT_PAGER` from the shell
+  environment. It is only exported when `delta` is on `PATH` and `GIT_PAGER` is
+  unset, so existing user settings win. `GIT_PAGER` overrides `core.pager`
+  without editing it. `interactive.diffFilter` (for `git add -p`) cannot be
+  set through the environment and is left to the user.
+
 ## Deferred ideas
 
 Not planned, not tracked in the issue tracker yet.
@@ -41,5 +55,4 @@ Not planned, not tracked in the issue tracker yet.
 | **Presets / bundles** | Named groups of modules enabled together; a larger change to the config model. |
 | **Remote module registry** | Reuse the checksum and signature pattern of `install.sh` for authenticity. |
 | **`omnishell self-update`** | For hosts without Homebrew. |
-| **`git-enhancements` / `delta`** | Would ideally write `~/.gitconfig`, which leaves the "shell rc files only" model. Needs a decision on non-shell files first. |
 | **`keychain` (ssh-agent) module** | Not selected so far. |

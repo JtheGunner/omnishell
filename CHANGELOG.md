@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `delta` module: installs [delta](https://github.com/dandavison/delta)
+  (`git-delta`, `delta` on Alpine) and exports `GIT_PAGER` so git uses it, only
+  when `delta` is on `PATH` and `GIT_PAGER` is unset. Options `side_by_side`,
+  `navigate` and `line_numbers`. `~/.gitconfig` is not touched: omnishell
+  writes no non-shell files (see `docs/design-decisions.md`).
 - `ble-sh` module (bash only, opt-in): autosuggestions and syntax highlighting
   for bash through [ble.sh](https://github.com/akinomyoga/ble.sh), installed
   from a pinned clone (`v0.4.0-devel3`) built with `make` (needs `make`, `gawk`
