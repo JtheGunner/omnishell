@@ -3,6 +3,7 @@ package modules_test
 import (
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -435,6 +436,66 @@ func TestSpellCorrection(t *testing.T) {
 	}
 	if !strings.Contains(all, "setopt correct_all") {
 		t.Errorf("scope=all must set CORRECT_ALL, got:\n%s", all)
+	}
+}
+
+func TestSpellCorrectionNocorrectCommands(t *testing.T) {
+	names := []any{"git", "mkdir", "g++"}
+	listed := renderModule(t, "spell-correction", "zsh", map[string]any{"nocorrect_commands": names})
+	listedAll := renderModule(t, "spell-correction", "zsh",
+		map[string]any{"scope": "all", "nocorrect_commands": names})
+	assertGoldenNamed(t, "spell-correction", "zsh-nocorrect", listed)
+	assertGoldenNamed(t, "spell-correction", "zsh-all-nocorrect", listedAll)
+
+	if strings.Contains(renderModule(t, "spell-correction", "zsh", nil), "alias") {
+		t.Error("an empty nocorrect_commands list must render no alias")
+	}
+	for _, name := range []string{"git", "mkdir", "g++"} {
+		want := "alias '" + name + "'='nocorrect " + name + "'"
+		if !strings.Contains(listed, want) {
+			t.Errorf("missing %s in:\n%s", want, listed)
+		}
+	}
+	if !strings.Contains(listed, "|| alias") {
+		t.Errorf("aliases must not overwrite one another module already set:\n%s", listed)
+	}
+}
+
+func TestSpellCorrectionKeepsAliasesOtherModulesSet(t *testing.T) {
+	zsh, err := exec.LookPath("zsh")
+	if err != nil {
+		t.Skip("zsh not installed")
+	}
+	rendered := renderModule(t, "spell-correction", "zsh",
+		map[string]any{"nocorrect_commands": []any{"mkdir", "g++", "touch"}})
+	script := "alias mkdir='eza-stand-in'\nalias 'g++'='other-stand-in'\n" + rendered + "\nalias\n"
+	out, err := exec.Command(zsh, "-f", "-c", script).CombinedOutput()
+	if err != nil {
+		t.Fatalf("zsh: %v\n%s", err, out)
+	}
+	got := string(out)
+	for _, want := range []string{"mkdir=eza-stand-in", "g++=other-stand-in", "touch='nocorrect touch'"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("alias output lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestSpellCorrectionRejectsUnsafeCommandNames(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("spell-correction")
+	if !ok {
+		t.Fatal("module spell-correction not embedded")
+	}
+	for _, bad := range []string{"git; rm -rf ~", "$(id)", "a b", "-rf", "x'y", ""} {
+		_, err := module.ValidateOptions(m.Manifest.Options,
+			map[string]any{"nocorrect_commands": []any{bad}})
+		if err == nil {
+			t.Errorf("command name %q was accepted", bad)
+		}
 	}
 }
 

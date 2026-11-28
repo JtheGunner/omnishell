@@ -3,3 +3,6 @@ setopt correct_all
 {{- else -}}
 setopt correct
 {{- end }}
+{{- range .Options.nocorrect_commands }}
+alias {{ . | shellquote }} >/dev/null 2>&1 || alias {{ . | shellquote }}={{ printf "nocorrect %s" . | shellquote }}
+{{- end }}

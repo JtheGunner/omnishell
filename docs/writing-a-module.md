@@ -120,6 +120,13 @@ help    = "Directories direnv trusts without an explicit `direnv allow`"
 #   type    = "string"
 #   default = "z"
 #   pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
+#
+# A type = "list<string>" option may carry `pattern` too; then every item, and
+# every item of the default, must match (from spell-correction):
+#   [options.nocorrect_commands]
+#   type    = "list<string>"
+#   default = []
+#   pattern = "^[A-Za-z0-9_][A-Za-z0-9_.+-]*$"
 ```
 
 `omnishell set <id>.<key> <value>` validates against this schema and rejects
