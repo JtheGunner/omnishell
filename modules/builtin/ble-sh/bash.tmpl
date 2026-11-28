@@ -1,0 +1,3 @@
+if [[ $- == *i* && -r {{ pathjoin .VendorDir "ble.sh" "out" "ble.sh" | shellquote }} ]]; then
+  source {{ pathjoin .VendorDir "ble.sh" "out" "ble.sh" | shellquote }} --attach=prompt
+fi

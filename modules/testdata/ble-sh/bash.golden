@@ -1,0 +1,3 @@
+if [[ $- == *i* && -r '/home/j/.config/omnishell/vendor/ble.sh/out/ble.sh' ]]; then
+  source '/home/j/.config/omnishell/vendor/ble.sh/out/ble.sh' --attach=prompt
+fi
