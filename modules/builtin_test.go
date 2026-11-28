@@ -634,6 +634,47 @@ func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {
 	}
 }
 
+// tealdeer is packaged under one name by every supported manager; the pinned
+// release binary only covers hosts whose repositories lack it. The module
+// installs the tldr client and renders no shell code.
+func TestTealdeer(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("tealdeer")
+	if !ok {
+		t.Fatal("module tealdeer missing")
+	}
+	for _, mgr := range []string{"brew", "apt", "dnf", "pacman", "zypper", "apk"} {
+		if got := m.Manifest.Packages.ForManager(mgr); len(got) != 1 || got[0] != "tealdeer" {
+			t.Errorf("%s packages = %v, want [tealdeer]", mgr, got)
+		}
+	}
+	fbs := m.Manifest.Packages.Fallback
+	if len(fbs) != 1 || fbs[0].Type != "release" || fbs[0].Bin != "tldr" || fbs[0].Ref == "" {
+		t.Fatalf("fallbacks = %+v, want one pinned release entry for tldr", fbs)
+	}
+	for _, c := range []struct {
+		arch, goarm string
+		want        bool
+	}{
+		{"amd64", "", true},
+		{"arm64", "", true},
+		{"arm", "7", true},
+		{"arm", "6", false},
+	} {
+		if _, got := fbs[0].AssetFor("linux", c.arch, c.goarm); got != c.want {
+			t.Errorf("linux/%s goarm=%q: release asset = %v, want %v", c.arch, c.goarm, got, c.want)
+		}
+	}
+	for _, shell := range []string{"zsh", "bash"} {
+		if _, has, err := m.Template(shell); err != nil || has {
+			t.Errorf("%s template: has=%v err=%v, want none", shell, has, err)
+		}
+	}
+}
+
 func TestZshCompletions(t *testing.T) {
 	out := renderModule(t, "zsh-completions", "zsh", nil)
 	assertGolden(t, "zsh-completions", "zsh", out)
