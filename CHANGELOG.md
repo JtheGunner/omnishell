@@ -4,6 +4,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `spell-correction` module (zsh only, opt-in): turns on zsh's built-in
+  spelling correction. The `scope` option picks `commands` (`setopt correct`,
+  the default) or `all` (`setopt correct_all`, which also checks arguments).
+
 ## [0.8.0] - 2026-11-22
 
 ### Added

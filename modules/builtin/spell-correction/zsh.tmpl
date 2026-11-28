@@ -1,0 +1,5 @@
+{{- if eq .Options.scope "all" -}}
+setopt correct_all
+{{- else -}}
+setopt correct
+{{- end }}
