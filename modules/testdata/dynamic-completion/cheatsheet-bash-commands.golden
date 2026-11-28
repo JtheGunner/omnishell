@@ -1,0 +1,4 @@
+- `terraform` — `Tab` asks the program itself for completions
+- `aws=aws_completer` — `Tab` asks the program itself for completions
+- An entry `name=binary` completes `name` using `binary`; a command whose binary is not on `PATH` at shell start is skipped
+- Adds no commands of its own

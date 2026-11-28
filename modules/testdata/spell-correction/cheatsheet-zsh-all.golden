@@ -1,0 +1,2 @@
+- Mistyped commands and arguments, including file names that do not exist yet, trigger a prompt
+- Answer the prompt with `y` (accept), `n` (keep as typed), `a` (abort) or `e` (edit)

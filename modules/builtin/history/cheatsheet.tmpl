@@ -1,0 +1,7 @@
+- `Up` / `Down` — step through history entries that start with what you have typed
+{{ if eq .Shell "zsh" -}}
+- Keeps {{ .Options.size }} entries; duplicates are dropped and all open sessions share one history
+{{ else -}}
+- Keeps {{ .Options.size }} entries; consecutive duplicates and commands starting with a space are not recorded, and sessions append to the same file instead of overwriting it
+{{ end -}}
+- Adds no commands of its own

@@ -1,0 +1,2 @@
+- `Tab` — open completions in an fzf picker instead of the plain menu; type to filter, `Enter` to accept
+- `cd` + `Tab` — the picker previews the selected directory's contents

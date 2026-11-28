@@ -1,0 +1,9 @@
+{{ if eq .Options.scope "all" -}}
+- Mistyped commands and arguments, including file names that do not exist yet, trigger a prompt
+{{ else -}}
+- A mistyped command name triggers a prompt
+{{ end -}}
+- Answer the prompt with `y` (accept), `n` (keep as typed), `a` (abort) or `e` (edit)
+{{- range .Options.nocorrect_commands }}
+- `{{ . }}` — never corrected (aliased to `nocorrect {{ . }}` unless something else already aliases it)
+{{- end }}

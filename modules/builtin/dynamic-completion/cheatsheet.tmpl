@@ -1,0 +1,9 @@
+{{ if .Options.commands -}}
+{{ range .Options.commands -}}
+- `{{ . }}` — `Tab` asks the program itself for completions
+{{ end -}}
+- An entry `name=binary` completes `name` using `binary`; a command whose binary is not on `PATH` at shell start is skipped
+{{ else -}}
+- Nothing is registered until you set the `commands` option (for example `terraform`, or `aws=aws_completer`)
+{{ end -}}
+- Adds no commands of its own
