@@ -1,0 +1,17 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh"]
+after       = ["completion"]
+
+[module]
+id          = "spell-correction"
+name        = "Spell correction"
+description = "Offer zsh's built-in spelling correction for mistyped commands (zsh)"
+homepage    = "https://zsh.sourceforge.io/Doc/Release/Options.html#Input_002fOutput"
+version     = "1.0.0"
+schema      = 1
+
+[options.scope]
+type    = "enum"
+values  = ["commands", "all"]
+default = "commands"
+help    = "What to correct: 'commands' fixes mistyped command names (setopt correct); 'all' also asks about arguments, including file names that do not exist yet (setopt correct_all)"

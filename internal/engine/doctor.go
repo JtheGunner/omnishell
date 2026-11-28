@@ -10,6 +10,7 @@ import (
 	"github.com/JtheGunner/omnishell/internal/initfile"
 	"github.com/JtheGunner/omnishell/internal/lockfile"
 	"github.com/JtheGunner/omnishell/internal/rcfile"
+	"github.com/JtheGunner/omnishell/internal/render"
 )
 
 // Severity values a Finding may carry.
@@ -200,6 +201,16 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 				add(SeverityNotice, "path-shadow:"+id,
 					shadowMessage(id, mp.Fallback, other, e.releaseContext().BinPath(mp.Fallback)))
 			}
+		}
+	}
+
+	// 5b. zsh-completions: compinit rejects group- or world-writable
+	// completion directories. Notice only; Doctor never changes permissions.
+	if mp, ok := plan.Modules["zsh-completions"]; ok && mp.Action != ActionSkip {
+		for _, dir := range writableCompletionDirs(completionDirCandidates(e.vendorDir())) {
+			add(SeverityNotice, "completion-dir-writable:"+dir,
+				fmt.Sprintf("completion directory %s is writable by group or others, so compinit reports insecure directories; fix with: chmod go-w %s",
+					dir, render.ShellQuote(dir)))
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/graph"
@@ -423,6 +424,37 @@ func TestRootLoops(t *testing.T) {
 		renderModule(t, "root-loops", "zsh", map[string]any{"appearance": "light"}))
 }
 
+func TestSpellCorrection(t *testing.T) {
+	commands := renderModule(t, "spell-correction", "zsh", nil)
+	all := renderModule(t, "spell-correction", "zsh", map[string]any{"scope": "all"})
+	assertGoldenNamed(t, "spell-correction", "zsh-commands", commands)
+	assertGoldenNamed(t, "spell-correction", "zsh-all", all)
+
+	if !strings.Contains(commands, "setopt correct\n") || strings.Contains(commands, "correct_all") {
+		t.Errorf("default scope must set only CORRECT, got:\n%s", commands)
+	}
+	if !strings.Contains(all, "setopt correct_all") {
+		t.Errorf("scope=all must set CORRECT_ALL, got:\n%s", all)
+	}
+}
+
+func TestSpellCorrectionIsZshOnly(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("spell-correction")
+	if !ok {
+		t.Fatal("module spell-correction not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Errorf("shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Errorf("bash template: has=%v err=%v, want none", has, err)
+	}
+}
+
 func TestPagerDefaults(t *testing.T) {
 	assertGolden(t, "pager-defaults", "zsh", renderModule(t, "pager-defaults", "zsh", nil))
 	assertGolden(t, "pager-defaults", "bash", renderModule(t, "pager-defaults", "bash", nil))
@@ -538,5 +570,78 @@ func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {
 		if got != c.want {
 			t.Errorf("%s goarm=%q: release asset = %v, want %v", c.id, c.goarm, got, c.want)
 		}
+	}
+}
+
+func TestZshCompletions(t *testing.T) {
+	out := renderModule(t, "zsh-completions", "zsh", nil)
+	assertGolden(t, "zsh-completions", "zsh", out)
+}
+
+func TestZshCompletionsIsZshOnly(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("zsh-completions")
+	if !ok {
+		t.Fatal("zsh-completions not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Fatalf("zsh-completions shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Fatalf("zsh-completions must not ship a bash template: has=%v err=%v", has, err)
+	}
+	for _, mgr := range []string{"brew", "apt", "dnf", "pacman", "zypper", "apk"} {
+		if pkgs := m.Manifest.Packages.ForManager(mgr); len(pkgs) != 1 || pkgs[0] != "zsh-completions" {
+			t.Errorf("zsh-completions packages for %s = %v, want [zsh-completions]", mgr, pkgs)
+		}
+	}
+}
+
+// TestZshCompletionsFpathPrecedesCompinit pins the ordering the module exists
+// for: zsh-completions only takes effect when its directory is on fpath before
+// compinit runs, and compinit lives in the completion module.
+func TestZshCompletionsFpathPrecedesCompinit(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := map[string]module.Manifest{}
+	for _, id := range []string{"completion", "zsh-completions", "fzf", "fzf-tab", "autosuggestions"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %q not embedded", id)
+		}
+		active[id] = m.Manifest
+	}
+	order, err := graph.Order(active)
+	if err != nil {
+		t.Fatalf("graph.Order: %v", err)
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	if pos["zsh-completions"] > pos["completion"] {
+		t.Fatalf("zsh-completions must load before completion: %v", order)
+	}
+}
+
+// TestCompletionWithoutZshCompletions keeps the soft ordering hint harmless:
+// completion must still order cleanly when zsh-completions is not active.
+func TestCompletionWithoutZshCompletions(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("completion")
+	if !ok {
+		t.Fatal("completion not embedded")
+	}
+	order, err := graph.Order(map[string]module.Manifest{"completion": m.Manifest})
+	if err != nil || len(order) != 1 || order[0] != "completion" {
+		t.Fatalf("order = %v, err = %v", order, err)
 	}
 }

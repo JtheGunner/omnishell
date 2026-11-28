@@ -1,5 +1,6 @@
 platforms   = ["macos", "linux"]
 shells      = ["zsh", "bash"]
+after       = ["zsh-completions"]
 
 [module]
 id          = "completion"
