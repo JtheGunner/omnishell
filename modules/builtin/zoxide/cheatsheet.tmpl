@@ -1,0 +1,5 @@
+- `{{ .Options.cmd }} foo` — jump to the best-ranked directory matching `foo`
+- `{{ .Options.cmd }} foo bar` — match several parts of the path
+- `{{ .Options.cmd }} -` — back to the previous directory
+- `{{ .Options.cmd }}i foo` — pick among the matches interactively (needs `fzf` installed)
+- Directories are ranked by how often and how recently you visit them; plain `cd` is unchanged

@@ -1,0 +1,6 @@
+- Put variables in an `.envrc`; they load when you `cd` into the directory and unload when you leave
+- `direnv allow` — trust the `.envrc` in the current directory (required again after it changes)
+- `direnv deny` — revoke that trust
+- `direnv edit` — edit the `.envrc` and trust it afterwards
+- `direnv reload` — reload the environment
+- `direnv status` — show debug information

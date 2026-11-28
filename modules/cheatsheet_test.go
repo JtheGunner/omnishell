@@ -119,3 +119,83 @@ func TestAutosuggestionsAndFzfTabCheatsheetsFollowOptions(t *testing.T) {
 		t.Error("cd_preview must change the fzf-tab cheatsheet")
 	}
 }
+
+func TestFzfCheatsheetFollowsOptions(t *testing.T) {
+	def := renderCheatsheet(t, "fzf", "zsh", nil)
+	noR := renderCheatsheet(t, "fzf", "zsh", map[string]any{"ctrl_r": false})
+	withT := renderCheatsheet(t, "fzf", "bash", map[string]any{"ctrl_t": true})
+
+	if !strings.Contains(def, "Ctrl-R") {
+		t.Errorf("default must list Ctrl-R:\n%s", def)
+	}
+	if strings.Contains(def, "Ctrl-T") {
+		t.Errorf("default must not list Ctrl-T:\n%s", def)
+	}
+	if strings.Contains(noR, "Ctrl-R") {
+		t.Errorf("ctrl_r = false must drop Ctrl-R:\n%s", noR)
+	}
+	if !strings.Contains(withT, "Ctrl-T") {
+		t.Errorf("ctrl_t = true must list Ctrl-T:\n%s", withT)
+	}
+}
+
+func TestAtuinCheatsheetFollowsOptions(t *testing.T) {
+	def := renderCheatsheet(t, "atuin", "zsh", nil)
+	off := renderCheatsheet(t, "atuin", "bash", map[string]any{"bind_ctrl_r": false, "bind_up_arrow": false})
+
+	for _, want := range []string{"Ctrl-R", "`Up`"} {
+		if !strings.Contains(def, want) {
+			t.Errorf("default must list %s:\n%s", want, def)
+		}
+		if strings.Contains(off, want) {
+			t.Errorf("disabled binding %s must be dropped:\n%s", want, off)
+		}
+	}
+}
+
+func TestZoxideCheatsheetFollowsCmd(t *testing.T) {
+	got := renderCheatsheet(t, "zoxide", "zsh", map[string]any{"cmd": "j"})
+	for _, want := range []string{"`j ", "`ji "} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s in:\n%s", want, got)
+		}
+	}
+	for _, bad := range []string{"`z ", "`zi ", "`z`", "`zi`"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("cmd = j must not mention %s:\n%s", bad, got)
+		}
+	}
+}
+
+func TestBrootCheatsheetFollowsCmd(t *testing.T) {
+	def := renderCheatsheet(t, "broot", "zsh", nil)
+	got := renderCheatsheet(t, "broot", "bash", map[string]any{"cmd": "tree"})
+	if strings.Contains(def, "alias") {
+		t.Errorf("default must not mention an alias:\n%s", def)
+	}
+	if !strings.Contains(got, "`tree`") || !strings.Contains(got, "`br`") {
+		t.Errorf("custom cmd must appear next to br:\n%s", got)
+	}
+}
+
+func TestDirenvCheatsheetFollowsLogFormat(t *testing.T) {
+	def := renderCheatsheet(t, "direnv", "zsh", nil)
+	got := renderCheatsheet(t, "direnv", "zsh", map[string]any{"log_format": "[direnv] %s"})
+	if strings.Contains(def, "DIRENV_LOG_FORMAT") {
+		t.Errorf("default must not mention the log format:\n%s", def)
+	}
+	if !strings.Contains(got, "[direnv] %s") {
+		t.Errorf("log_format must appear:\n%s", got)
+	}
+}
+
+func TestMiseCheatsheetFollowsMode(t *testing.T) {
+	act := renderCheatsheet(t, "mise", "zsh", nil)
+	shims := renderCheatsheet(t, "mise", "bash", map[string]any{"mode": "shims"})
+	if act == shims {
+		t.Error("mode must change the mise cheatsheet")
+	}
+	if !strings.Contains(shims, "shims") {
+		t.Errorf("shims mode must say so:\n%s", shims)
+	}
+}
