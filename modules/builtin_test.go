@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/graph"
@@ -421,6 +422,37 @@ func TestRootLoops(t *testing.T) {
 		renderModule(t, "root-loops", "zsh", map[string]any{"appearance": "dark"}))
 	assertGoldenNamed(t, "root-loops", "zsh-light",
 		renderModule(t, "root-loops", "zsh", map[string]any{"appearance": "light"}))
+}
+
+func TestSpellCorrection(t *testing.T) {
+	commands := renderModule(t, "spell-correction", "zsh", nil)
+	all := renderModule(t, "spell-correction", "zsh", map[string]any{"scope": "all"})
+	assertGoldenNamed(t, "spell-correction", "zsh-commands", commands)
+	assertGoldenNamed(t, "spell-correction", "zsh-all", all)
+
+	if !strings.Contains(commands, "setopt correct\n") || strings.Contains(commands, "correct_all") {
+		t.Errorf("default scope must set only CORRECT, got:\n%s", commands)
+	}
+	if !strings.Contains(all, "setopt correct_all") {
+		t.Errorf("scope=all must set CORRECT_ALL, got:\n%s", all)
+	}
+}
+
+func TestSpellCorrectionIsZshOnly(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("spell-correction")
+	if !ok {
+		t.Fatal("module spell-correction not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Errorf("shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Errorf("bash template: has=%v err=%v, want none", has, err)
+	}
 }
 
 func TestPagerDefaults(t *testing.T) {

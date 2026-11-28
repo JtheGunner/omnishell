@@ -14,6 +14,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `omnishell doctor` warns when a `zsh-completions` directory, or its parent, is
   writable by group or others (`compinit` then reports "insecure directories")
   and prints the `chmod go-w` command to fix it. It never changes permissions.
+- `spell-correction` module (zsh only, opt-in): turns on zsh's built-in
+  spelling correction. The `scope` option picks `commands` (`setopt correct`,
+  the default) or `all` (`setopt correct_all`, which also checks arguments).
 
 ## [0.8.0] - 2026-11-22
 
