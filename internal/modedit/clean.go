@@ -18,6 +18,16 @@ func Clean(s string) string {
 	}, s)
 }
 
+// CleanLines applies Clean to every line of s and keeps each newline, so a
+// multi-line body stays multi-line while no line can carry a terminal escape.
+func CleanLines(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = Clean(line)
+	}
+	return strings.Join(lines, "\n")
+}
+
 func isBidiControl(r rune) bool {
 	return (r >= 0x202A && r <= 0x202E) || (r >= 0x2066 && r <= 0x2069)
 }

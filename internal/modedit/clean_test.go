@@ -2,6 +2,20 @@ package modedit
 
 import "testing"
 
+func TestCleanLinesKeepsNewlinesAndCleansEachLine(t *testing.T) {
+	cases := map[string]string{
+		"a\x1b[2Jb\nline2\n": "a [2Jb\nline2\n",
+		"x\u202ey\nz":        "x y\nz",
+		"":                   "",
+		"\n\n":               "\n\n",
+	}
+	for in, want := range cases {
+		if got := CleanLines(in); got != want {
+			t.Errorf("CleanLines(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestCleanReplacesControlAndBidiCharactersWithSpaces(t *testing.T) {
 	cases := map[string]string{
 		"plain text":              "plain text",
