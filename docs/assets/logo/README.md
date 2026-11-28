@@ -56,12 +56,13 @@ Concept 2 was refined in [`overview-modules.svg`](overview-modules.svg)
 |:--|:--|
 | `omnishell-logo-2-modules.svg` | Main mark: six module segments around an amber shell prompt, on a dark tile |
 | `omnishell-logo-2-modules-glyph.svg` | Same mark without the tile, for READMEs on light or dark pages |
-| `omnishell-logo-2-modules-small.svg` | Three-part cube with a prompt on its left face, for 32 and 16 px, where six segments blur |
+| `omnishell-logo-2-modules-small.svg` | Same mark with coarser details (thicker segments, narrower gaps, bolder prompt) for 32 and 16 px |
 
 Changes from the first draft: two tones for the modules, clearly separated
 segments, a larger hexagon inside the tile, and the shell prompt `>_` as the
-amber centre so the terminal is the focal point. A simplified small-size variant
-covers the sizes where the prompt inside the hexagon is too fine to read.
+amber centre so the terminal is the focal point. The small-size variant keeps
+the same structure and colours and only simplifies the details, so the prompt
+stays readable at 32 and 16 px.
 
 ## Palette
 
