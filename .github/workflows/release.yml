@@ -6,6 +6,8 @@ permissions:
   contents: write
 jobs:
   goreleaser:
+    # GitHub-hosted on purpose: this job holds the release secrets (Homebrew tap
+    # token), and a release must not depend on a laptop being online.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

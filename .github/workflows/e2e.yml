@@ -8,6 +8,8 @@ jobs:
       fail-fast: false
       matrix:
         image: [debian:stable-slim, ubuntu:24.04, fedora:latest, archlinux:latest, alpine:latest]
+    # GitHub-hosted on purpose: the distro matrix wants clean hosts with real
+    # package managers, not containers inside the local runner's container.
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     steps:
@@ -21,6 +23,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: sh test/e2e/run.sh
   macos:
+    # GitHub-hosted on purpose: needs a macOS runner.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
