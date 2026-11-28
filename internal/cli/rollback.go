@@ -18,8 +18,9 @@ func newRollbackCmd() *cobra.Command {
 With --to <timestamp>, restores every file changed since (and including) that
 snapshot back to its state immediately before it, chaining through every
 later apply/remove/uninstall run in reverse. Packages are never touched; use
-'omnishell remove --purge' for that. config.toml is never touched either —
-only the files apply/remove/uninstall write.`,
+'omnishell remove --purge' for that. config.toml is touched only when a
+snapshot taken by 'omnishell config sync --write' is rolled back; otherwise
+only the files apply/remove/uninstall write are restored.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runRollback(cmd)
