@@ -4,6 +4,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `omnishell config sync` brings `config.toml` up to date after an upgrade. It
+  lists the options a module gained and the options and module tables that no
+  longer exist; `--write` backs the file up (restore it with `omnishell
+  rollback`), adds new options as commented-out lines with their default and
+  removes the stale entries, keeping your comments, values and ordering.
+- `validate`, `apply` and `doctor` now point to `omnishell config sync` when
+  `config.toml` mentions a module or option that is no longer installed.
+
 ## [0.8.0] - 2026-11-22
 
 ### Added

@@ -18,6 +18,12 @@ type OptionError struct {
 
 func (e OptionError) Error() string { return fmt.Sprintf("option %q: %s", e.Key, e.Msg) }
 
+const unknownOptionMsg = "not a known option for this module"
+
+// IsUnknown reports whether the option is not part of the module's schema at
+// all (as opposed to holding a value the schema rejects).
+func (e OptionError) IsUnknown() bool { return e.Msg == unknownOptionMsg }
+
 // ParseValue converts a CLI string into the canonical typed value for the schema.
 func (s OptionSchema) ParseValue(raw string) (any, error) {
 	switch s.Type {
@@ -74,7 +80,7 @@ func checkPattern(spec OptionSchema, v string) error {
 func ValidateOptions(schema map[string]OptionSchema, in map[string]any) (map[string]any, error) {
 	for k := range in {
 		if _, ok := schema[k]; !ok {
-			return nil, OptionError{Key: k, Msg: "not a known option for this module"}
+			return nil, OptionError{Key: k, Msg: unknownOptionMsg}
 		}
 	}
 	out := make(map[string]any, len(schema))

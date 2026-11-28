@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -186,6 +187,10 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 	for _, id := range activeIDs {
 		norm, err := module.ValidateOptions(active[id].Options, cfg.Modules[id].Options)
 		if err != nil {
+			var optErr module.OptionError
+			if errors.As(err, &optErr) && optErr.IsUnknown() {
+				err = fmt.Errorf("module %q: %w; %s", id, err, StaleConfigHint)
+			}
 			return Plan{}, ConfigError{Err: err}
 		}
 		optsByID[id] = norm

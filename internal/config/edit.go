@@ -37,6 +37,10 @@ func SetOption(path, moduleID, key string, value any) error {
 	return editTable(path, moduleID, "options", key, lit)
 }
 
+// FormatValue renders a canonical option value (bool, int, string or a list of
+// strings) as a TOML literal.
+func FormatValue(value any) (string, error) { return tomlLiteral(value) }
+
 func tomlLiteral(value any) (string, error) {
 	switch v := value.(type) {
 	case bool:

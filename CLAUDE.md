@@ -91,6 +91,13 @@ files matters more than any single file:
    `enable`/`disable`/`set` edits (`edit.go`), validating option values against
    a module's schema before writing. Every command except `apply`/`remove`/
    `uninstall` only touches this package.
+   `omnishell config sync` (`internal/cli/config.go`, logic in
+   `internal/configsync`) is the one command that rewrites more than a line of
+   `config.toml`: `Plan` compares the file with the registry's option schemas,
+   `Apply` edits the lines (new options as commented defaults, stale options and
+   module tables removed, everything else untouched) and re-checks that the
+   result parses; the CLI takes a `backup.Session` (kind `config-sync`) first so
+   `rollback` can restore the file.
    The rules shared by `enable`/`disable`/`set`/`list` (unknown-id, shell
    compatibility, option validation, the per-module view) live in
    `internal/modedit`; the CLI commands are thin callers of it.

@@ -64,7 +64,11 @@ dependency cycle. Exit 0 if the config is valid, exit 2 if not.`,
 			}
 
 			if !rep.OK() {
-				return engine.ConfigError{Err: fmt.Errorf("config.toml has %d schema problem(s)", len(rep.Problems))}
+				msg := fmt.Sprintf("config.toml has %d schema problem(s)", len(rep.Problems))
+				if rep.HasStaleEntries() {
+					msg += "; " + engine.StaleConfigHint
+				}
+				return engine.ConfigError{Err: errors.New(msg)}
 			}
 			return nil
 		},

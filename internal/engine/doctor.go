@@ -225,7 +225,7 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 	// 7b. Enabled ids in the config that no registered module provides. Notice.
 	for _, id := range plan.UnknownModules {
 		add(SeverityNotice, "unknown-module:"+id,
-			fmt.Sprintf("config enables module %q but no module provides it", id))
+			fmt.Sprintf("config enables module %q but no module provides it; %s", id, StaleConfigHint))
 	}
 
 	// 7c. User module dirs that were skipped because they could not be loaded.

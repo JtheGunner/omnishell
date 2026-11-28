@@ -82,7 +82,12 @@ func Load(path string) (Config, error) {
 		}
 		return Config{}, Error{Path: path, Msg: err.Error()}
 	}
+	return Parse(path, data)
+}
 
+// Parse decodes config.toml content that was read from path (used only to
+// label errors). It applies the same strict checks as Load.
+func Parse(path string, data []byte) (Config, error) {
 	var r raw
 	md, derr := toml.Decode(string(data), &r)
 	if derr != nil {
