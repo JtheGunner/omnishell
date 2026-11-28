@@ -246,8 +246,8 @@ func ValidateManifest(m Manifest) error {
 			return e("options."+key+".values", "enum types require a non-empty values list")
 		}
 		if opt.Pattern != "" {
-			if opt.Type != "string" {
-				return e("options."+key+".pattern", "pattern is only valid for type = \"string\"")
+			if opt.Type != "string" && opt.Type != "list<string>" {
+				return e("options."+key+".pattern", "pattern is only valid for type = \"string\" or \"list<string>\"")
 			}
 			if _, perr := compilePattern(opt.Pattern); perr != nil {
 				return e("options."+key+".pattern", "invalid regexp: "+perr.Error())
@@ -288,8 +288,16 @@ func checkDefault(opt OptionSchema) error {
 			return fmt.Errorf("%q is not in values", s)
 		}
 	case "list<string>", "list<enum>":
-		if _, ok := toStringSlice(opt.Default); !ok {
+		list, ok := toStringSlice(opt.Default)
+		if !ok {
 			return fmt.Errorf("must be a list")
+		}
+		if opt.Type == "list<string>" {
+			for _, v := range list {
+				if err := checkPattern(opt, v); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
