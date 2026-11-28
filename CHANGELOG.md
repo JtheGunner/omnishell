@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `completion` module (bash): installs `bash-completion` through the detected
+  package manager (`bash-completion@2` on Homebrew) and finds it under the macOS
+  Homebrew paths (`/opt/homebrew`, `/usr/local`) before the distro paths. It is
+  only sourced on Bash 4.2 or newer, so the macOS system Bash 3.2 is left alone.
+  The package is installed on zsh-only hosts too; the zsh snippet is unchanged.
 - `you-should-use` module (zsh only): installs
   [zsh-you-should-use](https://github.com/MichaelAquilina/zsh-you-should-use)
   and hints at an existing alias when you type the long command it stands for.
