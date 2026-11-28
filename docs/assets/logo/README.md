@@ -33,19 +33,18 @@ single silhouette, and survives as a small square avatar.
 | 3 | **Undo** | A prompt inside a loop that returns | Encodes *reversible*, the tool's distinguishing trait | Close to generic "refresh / history" icons |
 | 4 | **Monogram** | An "o" with a block cursor in its centre | Simplest and boldest; holds up at every size | Least specific; could be mistaken for a record or power icon |
 
-## Recommendation
+## Decision
 
-**Concept 1 (Shell)** as the main mark.
+**Concept 2 (Modules)** is the chosen direction, with the shell prompt `>_` as
+its centre (see the refinement below).
 
-- It is the only direction that is recognisably *about a shell* without the
-  generic terminal cliché, and it matches the 🐚 the project already uses.
-- A single bold spiral plus one cursor block is memorable, friendly and
-  distinct in a list of CLI tools.
-- To fix the small-size weakness, thicken the stroke and reduce the spiral to
-  two or three turns for the 16/32 px versions.
-
-Concept 4 is the fallback if a calmer, more minimal look is preferred; it also
-works as a favicon next to the full mark.
+- It says *modular* and *terminal* in one mark: six module segments around a
+  shell prompt, which is the tool's job in a single picture.
+- It uses the README palette and stays distinct from the generic terminal
+  cliché.
+- The first-round recommendation was Concept 1 (Shell), for its link to the 🐚
+  used in the README. Concept 2 was preferred after comparing both; concepts 1,
+  3 and 4 stay in this folder as unused alternatives.
 
 ## Refined direction: Modules
 
@@ -61,8 +60,15 @@ Concept 2 was refined in [`overview-modules.svg`](overview-modules.svg)
 Changes from the first draft: two tones for the modules, clearly separated
 segments, a larger hexagon inside the tile, and the shell prompt `>_` as the
 amber centre so the terminal is the focal point. The small-size variant keeps
-the same structure and colours and only simplifies the details, so the prompt
-stays readable at 32 and 16 px.
+the same structure and colours and only simplifies the details.
+
+Size guidance:
+
+- **64 px and up:** main mark (or the glyph where no tile is wanted).
+- **32 px:** small-size variant; the prompt chevron stays readable.
+- **16 px:** use the small-size variant as well, but expect only the hexagon
+  silhouette and the amber chevron to read; the underscore is lost. If a
+  favicon needs more, a dedicated 16 px drawing is a follow-up.
 
 ## Palette
 
