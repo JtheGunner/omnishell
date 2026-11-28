@@ -1,0 +1,4 @@
+- Registered entry `terraform`
+- Registered entry `aws=aws_completer`
+- You type `name`, then `Tab` asks the program itself for completions; an entry `name=binary` runs `binary` for that, and a command whose binary is not on `PATH` at shell start is skipped
+- Adds no commands of its own

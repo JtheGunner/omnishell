@@ -1,0 +1,2 @@
+- Typing a long command that has an alias prints a hint before the command runs
+- The hint shows only the closest matching alias

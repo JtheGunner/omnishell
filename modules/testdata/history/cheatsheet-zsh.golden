@@ -1,0 +1,3 @@
+- `Up` / `Down` — step through history entries that start with what you have typed
+- Keeps 50000 entries; duplicates are dropped and all open sessions share one history
+- Adds no commands of its own

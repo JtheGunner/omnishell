@@ -1,0 +1,2 @@
+- `Ctrl-R` — fuzzy-search the command history; `Enter` pastes the pick at the prompt
+- `Alt-C` — fuzzy-pick a directory and `cd` into it

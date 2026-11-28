@@ -1,0 +1,2 @@
+- `ls` and other tools that read the colour variables use one consistent palette (`CLICOLOR` / `LSCOLORS` on macOS, `LS_COLORS` on Linux)
+- Adds no commands of its own

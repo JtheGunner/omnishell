@@ -33,6 +33,24 @@ func TestTemplateMissingIsNotAnError(t *testing.T) {
 	}
 }
 
+func TestModuleCheatsheetReadsFile(t *testing.T) {
+	m := module.Module{FS: fstest.MapFS{
+		"cheatsheet.tmpl": {Data: []byte("ll  list files\n")},
+	}}
+	body, has, err := m.Cheatsheet()
+	if err != nil || !has || body != "ll  list files\n" {
+		t.Fatalf("cheatsheet: body=%q has=%v err=%v", body, has, err)
+	}
+}
+
+func TestModuleCheatsheetMissingFileIsNotAnError(t *testing.T) {
+	m := module.Module{FS: fstest.MapFS{}}
+	body, has, err := m.Cheatsheet()
+	if err != nil || has || body != "" {
+		t.Fatalf("missing cheatsheet: body=%q has=%v err=%v", body, has, err)
+	}
+}
+
 func TestLoadRegistryMergesBuiltinAndUser(t *testing.T) {
 	reg, err := module.LoadRegistry(os.DirFS("testdata/builtin"), "testdata/user")
 	if err != nil {

@@ -1,0 +1,3 @@
+- `Tab` — complete commands, paths and arguments with bash-completion (loaded only on Bash 4.2 or newer)
+- Matching ignores letter case
+- Adds no commands of its own

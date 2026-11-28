@@ -1,0 +1,4 @@
+- `Ctrl-R` — open the atuin history search
+- `Up` — open the atuin history search when the cursor is on the first line
+- `atuin search <query>` — search the history from the command line
+- `atuin stats` — show statistics about your commands

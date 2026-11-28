@@ -1,0 +1,5 @@
+- `br` — open the broot directory tree
+{{ if ne .Options.cmd "br" -}}
+- `{{ .Options.cmd }}` — alias for `br`
+{{ end -}}
+- `Alt-Enter` inside broot — `cd` to the selected directory and quit

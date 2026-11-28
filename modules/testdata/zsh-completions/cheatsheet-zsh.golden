@@ -1,0 +1,2 @@
+- Nothing changes until the `completion` module is enabled: it runs the completion system that reads the extra definitions this module puts on `fpath`
+- Adds no commands of its own

@@ -34,6 +34,18 @@ func (m Module) Template(shell string) (string, bool, error) {
 	return string(data), true, nil
 }
 
+// Cheatsheet returns the body of cheatsheet.tmpl, or ("", false, nil) if absent.
+func (m Module) Cheatsheet() (string, bool, error) {
+	data, err := fs.ReadFile(m.FS, "cheatsheet.tmpl")
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return string(data), true, nil
+}
+
 // HasHook reports whether hooks/<name>.sh exists.
 func (m Module) HasHook(name string) bool {
 	_, err := fs.Stat(m.FS, path.Join("hooks", name+".sh"))
