@@ -34,10 +34,14 @@ func (e Engine) rcPath(shell string) string {
 	return ""
 }
 
-// vendorDir is where git-fallback packages are cloned.
-func (e Engine) vendorDir() string {
+// VendorDir is where git-fallback packages are cloned. Exported so read-only
+// callers can build the same render context apply uses.
+func (e Engine) VendorDir() string {
 	return filepath.Join(e.Platform.ConfigDir, "vendor")
 }
+
+// vendorDir is the package-internal spelling of VendorDir.
+func (e Engine) vendorDir() string { return e.VendorDir() }
 
 // HomeRelative rewrites a path under home to start with "$HOME"; other paths are
 // returned verbatim. Exported so the CLI (`omnishell init`) and the engine
