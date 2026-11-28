@@ -13,7 +13,16 @@ import (
 
 // envShell returns the base name of $SHELL; tests override it via
 // SetEnvShellForTest.
-var envShell = func() string { return filepath.Base(os.Getenv("SHELL")) }
+var envShell = func() string { return shellBaseName(os.Getenv("SHELL")) }
+
+// shellBaseName returns the base name of a $SHELL value, or "" when it is
+// empty (filepath.Base would turn that into ".").
+func shellBaseName(value string) string {
+	if value == "" {
+		return ""
+	}
+	return filepath.Base(value)
+}
 
 // SetEnvShellForTest pins the shell name the cheatsheet command reads from
 // $SHELL and returns a function that restores the real lookup.
@@ -88,7 +97,9 @@ func printCheatsheet(w io.Writer, sheet modedit.Cheatsheet) error {
 	fmt.Fprintf(&b, "# omnishell cheatsheet (%s)\n", sheet.Shell)
 	for _, entry := range sheet.Entries {
 		fmt.Fprintf(&b, "\n## %s (%s)\n", modedit.CleanLines(entry.Name), modedit.CleanLines(entry.ID))
-		fmt.Fprintf(&b, "%s\n", modedit.CleanLines(entry.Description))
+		if description := modedit.CleanLines(entry.Description); description != "" {
+			fmt.Fprintf(&b, "%s\n", description)
+		}
 		if entry.PackagesMissing {
 			b.WriteString("Packages missing — run 'omnishell apply'.\n")
 		}

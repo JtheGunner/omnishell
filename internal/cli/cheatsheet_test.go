@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/cli"
+	"github.com/JtheGunner/omnishell/internal/pkgmgr"
 )
 
 // writeCheatModule installs a user module with no packages that supports both
@@ -163,6 +164,97 @@ func TestCheatsheetCommandCleansControlSequences(t *testing.T) {
 	}
 	if !strings.Contains(out, "line 2\n") {
 		t.Fatalf("multi-line body lost its newlines: %q", out)
+	}
+	for _, visible := range []string{"## Al", "pha (alpha)", "Desc", "body ", " here"} {
+		if !strings.Contains(out, visible) {
+			t.Fatalf("visible text %q was dropped: %q", visible, out)
+		}
+	}
+}
+
+func TestShellBaseName(t *testing.T) {
+	cases := map[string]string{
+		"":              "",
+		"/bin/zsh":      "zsh",
+		"/usr/bin/bash": "bash",
+		"zsh":           "zsh",
+	}
+	for in, want := range cases {
+		if got := cli.ShellBaseName(in); got != want {
+			t.Errorf("ShellBaseName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestCheatsheetCommandEmptyDescriptionLeavesNoBlankLine(t *testing.T) {
+	configDir := cheatsheetEnv(t)
+	writeCheatModule(t, configDir, "alpha", "Alpha", "", "- `aa` does a\n")
+	initAndEnable(t, "alpha")
+
+	code, out, errOut := runCheatsheetCLI("cheatsheet")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	want := "# omnishell cheatsheet (zsh)\n\n## Alpha (alpha)\n\n- `aa` does a\n"
+	if out != want {
+		t.Fatalf("output mismatch\n got: %q\nwant: %q", out, want)
+	}
+}
+
+func TestCheatsheetCommandFlagsMissingPackages(t *testing.T) {
+	configDir := cheatsheetEnv(t)
+	cli.SetRunnerForTest(&pkgmgr.MockRunner{LookOK: map[string]bool{"brew": true, "apt-get": true}})
+	writeCheatModule(t, configDir, "alpha", "Alpha", "First module", "- `aa`\n")
+	manifest := filepath.Join(configDir, "modules", "alpha", "manifest.toml")
+	f, err := os.OpenFile(manifest, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("\n[packages]\nbrew = [\"tool\"]\napt = [\"tool\"]\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	initAndEnable(t, "alpha")
+
+	code, out, errOut := runCheatsheetCLI("cheatsheet")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "First module\nPackages missing — run 'omnishell apply'.\n\n- `aa`\n") {
+		t.Fatalf("missing-packages line absent or misplaced: %q", out)
+	}
+}
+
+func TestCheatsheetCommandUnmanagedShellExits2(t *testing.T) {
+	cheatsheetEnv(t)
+	initAndEnable(t)
+
+	for _, shell := range []string{"fish", "csh"} {
+		code, _, errOut := runCheatsheetCLI("cheatsheet", "--shell", shell)
+		if code != 2 {
+			t.Fatalf("--shell %s: exit = %d, want 2 (stderr %q)", shell, code, errOut)
+		}
+	}
+}
+
+func TestCheatsheetCommandExplicitIDsSelectOnlyThose(t *testing.T) {
+	configDir := cheatsheetEnv(t)
+	writeCheatModule(t, configDir, "alpha", "Alpha", "First module", "- `aa`\n")
+	writeCheatModule(t, configDir, "beta", "Beta", "Second module", "- `bb`\n")
+	writeCheatModule(t, configDir, "gamma", "Gamma", "Third module", "- `cc`\n")
+	initAndEnable(t, "alpha", "beta", "gamma")
+
+	code, out, errOut := runCheatsheetCLI("cheatsheet", "gamma", "alpha")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "## Alpha (alpha)") || !strings.Contains(out, "## Gamma (gamma)") {
+		t.Fatalf("selected modules missing: %q", out)
+	}
+	if strings.Contains(out, "Beta") {
+		t.Fatalf("unselected module printed: %q", out)
 	}
 }
 
