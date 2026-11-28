@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `delta` module: installs [delta](https://github.com/dandavison/delta)
+  (`git-delta`, `delta` on Alpine) and exports `GIT_PAGER` so git uses it, only
+  when `delta` is on `PATH` and `GIT_PAGER` is unset. Options `side_by_side`,
+  `navigate` and `line_numbers`. `~/.gitconfig` is not touched: omnishell
+  writes no non-shell files (see `docs/design-decisions.md`).
 - `navi` module: installs the [navi](https://github.com/denisidoro/navi)
   cheatsheet browser (package `navi` on every supported package manager, with a
   verified release binary pinned to `v2.24.0` on Linux x86_64, arm64 and
