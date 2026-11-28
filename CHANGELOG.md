@@ -4,7 +4,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-28
+
 ### Added
+- `omnishell cheatsheet [module-id ...]` shows the commands, aliases and key
+  bindings that your active modules provide. Modules ship a `cheatsheet.tmpl`
+  that is rendered for one shell (`--shell`, else `$SHELL`, else the first
+  managed shell) with the options from `config.toml`; modules without one are
+  listed at the end. Every built-in module now has a cheatsheet. Nothing is
+  written.
 - `omnishell self-update` updates the binary to the latest release on hosts
   without Homebrew. It resolves the newest tag like `install.sh`, verifies the
   archive's SHA-256 against `checksums.txt`, and atomically replaces the running
@@ -386,7 +394,8 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/JtheGunner/omnishell/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/JtheGunner/omnishell/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/JtheGunner/omnishell/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/JtheGunner/omnishell/compare/v0.7.0...v0.7.1
