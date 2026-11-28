@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `navi` module: installs the [navi](https://github.com/denisidoro/navi)
+  cheatsheet browser (package `navi` on every supported package manager, with a
+  verified release binary pinned to `v2.24.0` on Linux x86_64, arm64 and
+  armv7) and wires its shell widget in zsh and bash. It requires `fzf`, which
+  navi uses as its selector. The widget opens on Ctrl+G, a key `fzf` and
+  `atuin` leave free; the `key` option (`ctrl-<letter>` or `alt-<letter>`)
+  rebinds it and restores Ctrl+G to its shell default. No cheatsheets are
+  shipped.
 - `dynamic-completion` module (bash only, opt-in): registers completion for
   CLIs that complete themselves (`terraform`, `vault`, `aws`) with bash's native
   `complete -C <binary> <name>`. The `commands` option takes `name` or
