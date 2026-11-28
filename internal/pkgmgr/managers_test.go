@@ -9,6 +9,9 @@ import (
 )
 
 func TestUninstallArgv(t *testing.T) {
+	restore := pkgmgr.SetRunningAsRootForTest(false)
+	defer restore()
+
 	cases := map[string][]string{
 		"brew":   {"brew", "uninstall", "--", "fzf"},
 		"apt":    {"sudo", "apt-get", "remove", "-y", "--", "fzf"},
@@ -32,6 +35,9 @@ func TestUninstallArgv(t *testing.T) {
 }
 
 func TestUninstallArgvAllManagers(t *testing.T) {
+	restore := pkgmgr.SetRunningAsRootForTest(false)
+	defer restore()
+
 	cases := map[string]string{
 		"brew":   "brew uninstall -- fzf",
 		"apt":    "sudo apt-get remove -y -- fzf",
@@ -122,6 +128,9 @@ func TestBrewIsInstalledAndInstall(t *testing.T) {
 }
 
 func TestAptInstallUsesSudoArgv(t *testing.T) {
+	restore := pkgmgr.SetRunningAsRootForTest(false)
+	defer restore()
+
 	r := &pkgmgr.MockRunner{LookOK: map[string]bool{"apt-get": true}}
 	m, ok := pkgmgr.DetectManager("linux", r)
 	if !ok || m.Name() != "apt" {
