@@ -4,6 +4,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `tealdeer` module: installs the `tldr` client (package `tealdeer` on every
+  supported package manager, with a verified release binary pinned to `v1.9.1`
+  on Linux x86_64, arm64 and armv7). `apply` does not download the page cache;
+  `tldr` fetches it on first use.
+
 ## [0.9.0] - 2026-11-28
 
 ### Added
