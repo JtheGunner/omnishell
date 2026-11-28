@@ -1,0 +1,28 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh"]
+after       = ["completion", "autosuggestions", "syntax-highlighting"]
+
+[module]
+id          = "zsh-edit-select"
+name        = "zsh-edit-select"
+description = "Edit the command line like a text editor: Shift selection, copy, cut, paste, undo and mouse selection (zsh)"
+homepage    = "https://github.com/Michael-Matta1/zsh-edit-select"
+version     = "1.0.0"
+schema      = 1
+
+# No package manager ships the plugin, so it is always a pinned clone (MIT).
+# It also needs a native clipboard agent. On macOS the agent is built here, from
+# the pinned clone, so a failure shows up in `apply`; the plugin would otherwise
+# download an unpinned binary from its latest release on the first shell start.
+# The first run entry renders to an empty command on every other platform, which
+# skips the build: on Linux the agent depends on the display server (X11 or
+# Wayland) and its development libraries, so the plugin provisions it itself.
+# Loading after autosuggestions and syntax-highlighting is the order the plugin
+# is written for: it registers its hooks on the first prompt, after the widget
+# wrappers those plugins install at load time exist.
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/Michael-Matta1/zsh-edit-select.git"
+dest = "{{.VendorDir}}/zsh-edit-select"
+ref  = "v0.7.01"
+run  = ["{{ if eq .Platform \"macos\" }}make{{ end }}", "-C", "{{.VendorDir}}/zsh-edit-select/impl-macos/backends/macos"]
