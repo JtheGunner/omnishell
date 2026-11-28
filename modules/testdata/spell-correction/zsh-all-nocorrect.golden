@@ -1,0 +1,4 @@
+setopt correct_all
+alias 'git' >/dev/null 2>&1 || alias 'git'='nocorrect git'
+alias 'mkdir' >/dev/null 2>&1 || alias 'mkdir'='nocorrect mkdir'
+alias 'g++' >/dev/null 2>&1 || alias 'g++'='nocorrect g++'

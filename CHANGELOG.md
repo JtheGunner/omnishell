@@ -17,6 +17,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `spell-correction` module (zsh only, opt-in): turns on zsh's built-in
   spelling correction. The `scope` option picks `commands` (`setopt correct`,
   the default) or `all` (`setopt correct_all`, which also checks arguments).
+  `nocorrect_commands` lists commands to exempt from correction: each becomes
+  a `nocorrect` alias (empty by default), and a command another module already
+  aliases is left alone.
+- A `list<string>` option in a module manifest may carry `pattern`: every item
+  of a value, and of the default, must match it.
 - `omnishell config sync` brings `config.toml` up to date after an upgrade. It
   lists the options a module gained and the options and module tables that no
   longer exist; `--write` backs the file up (restore it with `omnishell
