@@ -104,6 +104,63 @@ func TestParseValueEnforcesStringPattern(t *testing.T) {
 	}
 }
 
+const commandNamePattern = "^[A-Za-z0-9_][A-Za-z0-9_.+-]*$"
+
+func TestValidateOptionsEnforcesListStringPattern(t *testing.T) {
+	sch := map[string]module.OptionSchema{
+		"names": {Type: "list<string>", Default: []any{}, Pattern: commandNamePattern},
+	}
+	got, err := module.ValidateOptions(sch, map[string]any{"names": []any{"git", "g++", "python3.12"}})
+	if err != nil {
+		t.Fatalf("valid names rejected: %v", err)
+	}
+	if list, _ := got["names"].([]string); len(list) != 3 {
+		t.Fatalf("names = %v, want 3 entries", got["names"])
+	}
+	for _, bad := range []string{"git; rm", "-rf", "a b", ""} {
+		if _, err := module.ValidateOptions(sch, map[string]any{"names": []any{"git", bad}}); err == nil {
+			t.Errorf("want error for list item %q", bad)
+		}
+	}
+}
+
+func TestParseValueEnforcesListStringPattern(t *testing.T) {
+	s := module.OptionSchema{Type: "list<string>", Pattern: commandNamePattern}
+	if _, err := s.ParseValue("git, mkdir"); err != nil {
+		t.Fatalf("valid list: %v", err)
+	}
+	if _, err := s.ParseValue("git, $(id)"); err == nil {
+		t.Fatal("want error for an item with shell metacharacters")
+	}
+	if got, err := s.ParseValue(""); err != nil || len(got.([]string)) != 0 {
+		t.Fatalf("empty input = %v, %v; want empty list", got, err)
+	}
+}
+
+func TestValidateManifestAcceptsPatternOnListString(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Options["names"] = module.OptionSchema{Type: "list<string>", Default: []any{"git"}, Pattern: commandNamePattern}
+	if err := module.ValidateManifest(m); err != nil {
+		t.Fatalf("pattern on list<string> rejected: %v", err)
+	}
+}
+
+func TestValidateManifestRejectsListDefaultThatBreaksPattern(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Options["names"] = module.OptionSchema{Type: "list<string>", Default: []any{"git", "a b"}, Pattern: commandNamePattern}
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error for a default item that does not match the pattern")
+	}
+}
+
+func TestValidateManifestRejectsPatternOnListEnum(t *testing.T) {
+	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
+	m.Options["names"] = module.OptionSchema{Type: "list<enum>", Values: []string{"a"}, Default: []any{}, Pattern: "^a$"}
+	if err := module.ValidateManifest(m); err == nil {
+		t.Fatal("want error for pattern on a list<enum> option")
+	}
+}
+
 func TestValidateManifestRejectsPatternOnNonString(t *testing.T) {
 	m, _ := module.ParseManifest(loadFixture(t, "fzf-manifest.toml"))
 	opt := m.Options["ctrl_r"]
