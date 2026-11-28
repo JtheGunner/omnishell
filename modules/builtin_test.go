@@ -572,3 +572,76 @@ func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {
 		}
 	}
 }
+
+func TestZshCompletions(t *testing.T) {
+	out := renderModule(t, "zsh-completions", "zsh", nil)
+	assertGolden(t, "zsh-completions", "zsh", out)
+}
+
+func TestZshCompletionsIsZshOnly(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("zsh-completions")
+	if !ok {
+		t.Fatal("zsh-completions not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Fatalf("zsh-completions shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Fatalf("zsh-completions must not ship a bash template: has=%v err=%v", has, err)
+	}
+	for _, mgr := range []string{"brew", "apt", "dnf", "pacman", "zypper", "apk"} {
+		if pkgs := m.Manifest.Packages.ForManager(mgr); len(pkgs) != 1 || pkgs[0] != "zsh-completions" {
+			t.Errorf("zsh-completions packages for %s = %v, want [zsh-completions]", mgr, pkgs)
+		}
+	}
+}
+
+// TestZshCompletionsFpathPrecedesCompinit pins the ordering the module exists
+// for: zsh-completions only takes effect when its directory is on fpath before
+// compinit runs, and compinit lives in the completion module.
+func TestZshCompletionsFpathPrecedesCompinit(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := map[string]module.Manifest{}
+	for _, id := range []string{"completion", "zsh-completions", "fzf", "fzf-tab", "autosuggestions"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %q not embedded", id)
+		}
+		active[id] = m.Manifest
+	}
+	order, err := graph.Order(active)
+	if err != nil {
+		t.Fatalf("graph.Order: %v", err)
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	if pos["zsh-completions"] > pos["completion"] {
+		t.Fatalf("zsh-completions must load before completion: %v", order)
+	}
+}
+
+// TestCompletionWithoutZshCompletions keeps the soft ordering hint harmless:
+// completion must still order cleanly when zsh-completions is not active.
+func TestCompletionWithoutZshCompletions(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("completion")
+	if !ok {
+		t.Fatal("completion not embedded")
+	}
+	order, err := graph.Order(map[string]module.Manifest{"completion": m.Manifest})
+	if err != nil || len(order) != 1 || order[0] != "completion" {
+		t.Fatalf("order = %v, err = %v", order, err)
+	}
+}
