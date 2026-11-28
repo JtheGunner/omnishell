@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -36,13 +37,18 @@ type writers struct{ out, err io.Writer }
 
 // chattyEngine installs a runner factory that records the writers it is given
 // and builds a chattyRunner on the stdout writer. It returns the recorded
-// writers and the number of commands the runner ran.
+// writers and the number of commands the runner ran. An engine builds its
+// install runner first and a runner for package queries second, which is always
+// quiet, so only the first call is recorded: those are the writers that decide
+// whether installs and hooks are visible.
 func chattyEngine(t *testing.T) (*writers, *int) {
 	t.Helper()
 	got, calls := &writers{}, new(int)
 	cli.SetRunnerForTest(nil) // setupModuleCLITest installed a mock; the factory below replaces it
 	cli.SetRunnerFactoryForTest(func(stdout, stderr io.Writer) pkgmgr.Runner {
-		got.out, got.err = stdout, stderr
+		if got.out == nil {
+			got.out, got.err = stdout, stderr
+		}
 		return chattyRunner{out: stdout, calls: calls}
 	})
 	t.Cleanup(func() { cli.SetRunnerFactoryForTest(nil) })
@@ -143,5 +149,75 @@ func TestDiffStillWarnsAboutAnUnknownModule(t *testing.T) {
 
 	if !strings.Contains(errb.String(), `unknown module "ghost"`) {
 		t.Fatalf("the engine's warning is missing from stderr:\n%s", errb.String())
+	}
+}
+
+// echoRunner prints the full command line of everything it runs to the writer
+// it was built with, as brew and apt do on a terminal. Nothing is installed, so
+// apply has to install; every query succeeds.
+type echoRunner struct{ out io.Writer }
+
+func (r echoRunner) Run(name string, args ...string) ([]byte, error) {
+	line := strings.TrimSpace(name + " " + strings.Join(args, " "))
+	_, _ = io.WriteString(r.out, "RAN "+line+"\n")
+	switch {
+	case name == "dpkg-query" || name == "rpm":
+		return nil, errors.New("not installed")
+	case strings.Contains(line, "apt-cache policy"):
+		return []byte("Candidate: 1.0\n"), nil
+	default:
+		return nil, nil
+	}
+}
+
+func (r echoRunner) Look(name string) (string, error) { return "/usr/bin/" + name, nil }
+
+// isQueryLine reports whether a line echoed by echoRunner is one of the
+// read-only questions the package manager is asked while the plan is computed.
+func isQueryLine(line string) bool {
+	for _, q := range []string{"brew info", "brew list", "dpkg-query", "apt-cache policy"} {
+		if strings.Contains(line, q) {
+			return true
+		}
+	}
+	return false
+}
+
+func installLines(out string) (queries, installs []string) {
+	for _, line := range strings.Split(out, "\n") {
+		switch {
+		case isQueryLine(line):
+			queries = append(queries, line)
+		case strings.Contains(line, "RAN ") && strings.Contains(line, "install"):
+			installs = append(installs, line)
+		}
+	}
+	return queries, installs
+}
+
+func echoEngine(t *testing.T) {
+	t.Helper()
+	cli.SetRunnerForTest(nil)
+	cli.SetRunnerFactoryForTest(func(stdout, _ io.Writer) pkgmgr.Runner { return echoRunner{out: stdout} })
+	t.Cleanup(func() { cli.SetRunnerFactoryForTest(nil) })
+}
+
+func TestApplyShowsInstallsButNotPackageManagerQueries(t *testing.T) {
+	_, run := setupHome(t)
+	echoEngine(t)
+
+	for _, args := range [][]string{{"init"}, {"enable", "fzf"}, {"enable", "autosuggestions"}} {
+		if code, out := run(args...); code != 0 {
+			t.Fatalf("%v: exit %d: %s", args, code, out)
+		}
+	}
+	_, out := run("apply", "--yes") // the exit code does not matter here
+
+	queries, installs := installLines(out)
+	if len(queries) != 0 {
+		t.Fatalf("package manager queries reached the terminal:\n%s", strings.Join(queries, "\n"))
+	}
+	if len(installs) == 0 {
+		t.Fatalf("setup: no install output reached the terminal, so this test proves nothing:\n%.400s", out)
 	}
 }

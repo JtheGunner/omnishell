@@ -240,3 +240,45 @@ func TestAvailableApkNeedsSearchOutput(t *testing.T) {
 		t.Fatalf("nope: %v, %v; want false, nil", got, err)
 	}
 }
+
+func TestDetectManagerWithSendsQueriesAndInstallsToTheirOwnRunner(t *testing.T) {
+	cases := []struct {
+		goos, bin string
+	}{
+		{"darwin", "brew"},
+		{"linux", "apt-get"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.goos, func(t *testing.T) {
+			defer pkgmgr.SetRunningAsRootForTest(true)()
+			queries := &pkgmgr.MockRunner{LookOK: map[string]bool{tc.bin: true}}
+			installs := &pkgmgr.MockRunner{}
+			m, ok := pkgmgr.DetectManagerWith(tc.goos, queries, installs)
+			if !ok {
+				t.Fatalf("no manager detected on %s", tc.goos)
+			}
+
+			if _, err := m.IsInstalled("fzf"); err != nil {
+				t.Fatalf("IsInstalled: %v", err)
+			}
+			if _, err := m.Available("fzf"); err != nil {
+				t.Fatalf("Available: %v", err)
+			}
+			if err := m.Install([]string{"fzf"}); err != nil {
+				t.Fatalf("Install: %v", err)
+			}
+
+			if len(queries.Calls) != 2 {
+				t.Fatalf("queries runner calls = %q, want the IsInstalled and Available probes", queries.Calls)
+			}
+			for _, c := range queries.Calls {
+				if strings.Contains(c, " install ") {
+					t.Fatalf("an install went through the queries runner: %q", c)
+				}
+			}
+			if len(installs.Calls) != 1 || !strings.Contains(installs.Calls[0], "install") {
+				t.Fatalf("installs runner calls = %q, want exactly the install", installs.Calls)
+			}
+		})
+	}
+}

@@ -26,7 +26,8 @@ type cmdManager struct {
 	name        string
 	bin         string
 	sudo        bool
-	runner      Runner
+	queries     Runner // read-only questions: IsInstalled, Available
+	runner      Runner // commands that change the system: Install
 	isInstalled func(r Runner, pkg string) (bool, error)
 	available   func(r Runner, pkg string) (bool, error)
 	installArgv func(pkgs []string) []string
@@ -34,11 +35,11 @@ type cmdManager struct {
 
 func (m cmdManager) Name() string    { return m.name }
 func (m cmdManager) NeedsSudo() bool { return m.sudo && !runningAsRoot }
-func (m cmdManager) Detect() bool    { _, err := m.runner.Look(m.bin); return err == nil }
+func (m cmdManager) Detect() bool    { _, err := m.queries.Look(m.bin); return err == nil }
 
-func (m cmdManager) IsInstalled(pkg string) (bool, error) { return m.isInstalled(m.runner, pkg) }
+func (m cmdManager) IsInstalled(pkg string) (bool, error) { return m.isInstalled(m.queries, pkg) }
 
-func (m cmdManager) Available(pkg string) (bool, error) { return m.available(m.runner, pkg) }
+func (m cmdManager) Available(pkg string) (bool, error) { return m.available(m.queries, pkg) }
 
 func (m cmdManager) Install(pkgs []string) error {
 	if len(pkgs) == 0 {
@@ -115,11 +116,12 @@ func UninstallArgv(manager string, pkgs []string) []string {
 }
 
 // newManager builds the concrete Manager for name, or nil for an unknown name.
-func newManager(name string, r Runner) Manager {
+// Queries go through queries, installs through installs.
+func newManager(name string, queries, installs Runner) Manager {
 	switch name {
 	case "brew":
 		return cmdManager{
-			name: "brew", bin: "brew", sudo: false, runner: r,
+			name: "brew", bin: "brew", sudo: false, queries: queries, runner: installs,
 			isInstalled: func(r Runner, pkg string) (bool, error) {
 				return outputNonEmpty(r, "brew", "list", "--versions", pkg)
 			},
@@ -128,7 +130,7 @@ func newManager(name string, r Runner) Manager {
 		}
 	case "apt":
 		return cmdManager{
-			name: "apt", bin: "apt-get", sudo: true, runner: r,
+			name: "apt", bin: "apt-get", sudo: true, queries: queries, runner: installs,
 			isInstalled: func(r Runner, pkg string) (bool, error) {
 				out, err := r.Run("dpkg-query", "-W", "-f=${Status}", pkg)
 				if err != nil {
@@ -143,7 +145,7 @@ func newManager(name string, r Runner) Manager {
 		}
 	case "dnf":
 		return cmdManager{
-			name: "dnf", bin: "dnf", sudo: true, runner: r,
+			name: "dnf", bin: "dnf", sudo: true, queries: queries, runner: installs,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
 			available:   queryExitsZero("dnf", "-q", "info"),
 			installArgv: func(p []string) []string {
@@ -152,7 +154,7 @@ func newManager(name string, r Runner) Manager {
 		}
 	case "pacman":
 		return cmdManager{
-			name: "pacman", bin: "pacman", sudo: true, runner: r,
+			name: "pacman", bin: "pacman", sudo: true, queries: queries, runner: installs,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "pacman", "-Q", pkg) },
 			available:   queryExitsZero("pacman", "-Si"),
 			installArgv: func(p []string) []string {
@@ -161,7 +163,7 @@ func newManager(name string, r Runner) Manager {
 		}
 	case "zypper":
 		return cmdManager{
-			name: "zypper", bin: "zypper", sudo: true, runner: r,
+			name: "zypper", bin: "zypper", sudo: true, queries: queries, runner: installs,
 			isInstalled: func(r Runner, pkg string) (bool, error) { return exitZero(r, "rpm", "-q", pkg) },
 			available:   queryExitsZero("zypper", "-q", "info"),
 			installArgv: func(p []string) []string {
@@ -170,7 +172,7 @@ func newManager(name string, r Runner) Manager {
 		}
 	case "apk":
 		return cmdManager{
-			name: "apk", bin: "apk", sudo: true, runner: r,
+			name: "apk", bin: "apk", sudo: true, queries: queries, runner: installs,
 			isInstalled: func(r Runner, pkg string) (bool, error) {
 				return outputNonEmpty(r, "apk", "info", "-e", pkg)
 			},

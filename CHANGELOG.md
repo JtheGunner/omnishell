@@ -54,6 +54,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `tldr` fetches it on first use.
 
 ### Fixed
+- `apply` and `doctor --fix` no longer print the package manager's answers (for
+  example `brew info fzf`) before the plan and the `Proceed?` prompt. Only the
+  questions are silenced; installs, sudo prompts and hooks still show their
+  output.
 - A module that only has a fallback and no manager packages (such as `ble-sh`)
   is no longer dropped silently on a host without a detected package manager:
   `apply` now plans and installs its fallback, and a failed prerequisite check

@@ -175,8 +175,10 @@ func defaultPrompt(question string) bool {
 // config.toml — commands that need it call config.Load(cfgPath) themselves.
 //
 // The writers receive the engine's own messages and also whatever the commands
-// it runs print (an install's progress, a hook's output). Use it for commands
-// that install, remove or run hooks; the user is waiting for that output.
+// it runs print (an install's progress, a hook's output), except what the
+// package manager prints while it is asked whether a package is installed or
+// available: that is dropped. Use it for commands that install, remove or run
+// hooks; the user is waiting for that output.
 func buildEngine(stdout, stderr io.Writer) (e engine.Engine, cfgPath, lockPath string, err error) {
 	return newEngine(stdout, stderr, stdout, stderr)
 }
@@ -216,13 +218,15 @@ func newEngine(stdout, stderr, runnerOut, runnerErr io.Writer) (e engine.Engine,
 		return engine.Engine{}, "", "", config.Error{Path: modulesDir, Msg: "load module registry: " + rerr.Error()}
 	}
 
-	var runner pkgmgr.Runner
-	if runnerOverride != nil {
-		runner = runnerOverride
-	} else {
+	// The package manager is asked about installed packages while the plan is
+	// computed, before the user has been asked anything; those answers are
+	// dropped. Installs, uninstalls and hooks run on runner and stay visible.
+	runner, queries := runnerOverride, runnerOverride
+	if runnerOverride == nil {
 		runner = runnerFactory(runnerOut, runnerErr)
+		queries = runnerFactory(io.Discard, io.Discard)
 	}
-	manager, ok := pkgmgr.DetectManager(runtime.GOOS, runner)
+	manager, ok := pkgmgr.DetectManagerWith(runtime.GOOS, queries, runner)
 
 	e = engine.Engine{
 		Platform:   info,
