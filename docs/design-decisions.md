@@ -74,50 +74,83 @@ not built. For how the features work, see the [README](../README.md),
 ## Remote module registry (proposal, not implemented)
 
 Modules come from the binary (built-in) and `~/.config/omnishell/modules/`.
-A remote registry would add a third source. A module's templates are shell code
-that runs in every new shell, so the registry is a code-distribution channel:
-authenticity and least privilege matter more than convenience. This section
-records the proposed design; nothing here is built yet.
+A remote registry would add a third source. A module's `zsh.tmpl` / `bash.tmpl`
+is shell code that runs in every new shell, so a registry is a code-distribution
+channel: authenticity and honesty about residual risk matter more than
+convenience. This section records the proposed design; nothing here is built.
 
-- **Hosting:** no registry is operated by this project. A registry is any
-  HTTPS location that serves an `index.toml` plus one `<id>-<version>.tar.gz`
-  per module. The user adds it explicitly (`[registries]` in `config.toml`);
-  there is no default registry.
-- **Authenticity:** a registry publishes `index.toml` signed with an Ed25519
-  key (detached `index.toml.sig`). The user pins the public key in
-  `config.toml` next to the registry URL (trust on explicit configuration,
-  never trust on first use). The index lists each archive's SHA-256. The
-  archive is verified against the index entry before anything is extracted, and
-  extraction follows the same rules as `self-update` (single known layout, size
-  limit, no absolute or `..` paths). A failed signature or checksum stops the
-  install and leaves the module directory untouched. Ed25519 is in the Go
-  standard library, so no new dependency is needed; `minisign` or `cosign` would
-  add one for little gain.
-- **Key management:** owned by whoever runs a registry. Rotation is a config
-  edit (add the new key, remove the old one). omnishell never fetches keys from
-  the network.
-- **Storage and precedence:** an installed registry module is copied to
-  `~/.config/omnishell/modules/<id>/` together with a `.registry.toml` record
-  (registry URL, version, archive SHA-256). It is then a normal user module, so
-  `rollback`, `doctor` and hand-edit detection need no new code path. A module
-  whose id equals a built-in is refused unless the user passes `--override`
-  explicitly; the existing override rule and its `doctor` warning then apply.
-- **Privileges:** a registry module gets exactly what a user module has today,
-  which is shell snippets, packages and hooks, all shown in the plan. Because a
-  remote author can ship arbitrary code, `install` prints the module's packages,
-  hooks and fallbacks and asks for confirmation. Hooks and git/release
-  fallbacks from a registry module are disabled unless the user passes
-  `--allow-hooks` at install time; the choice is recorded in `.registry.toml`.
-- **Offline behaviour:** only `registry install` and `registry update` touch the
-  network. `apply`, `doctor` and every other command read the local copy, so
+- **Hosting:** this project operates no registry. A registry is any HTTPS
+  location that serves a signed `index.toml` and one archive per module
+  version. The user adds it explicitly (`[registries]` in `config.toml`); there
+  is no default registry.
+- **Authenticity:** the index is signed with Ed25519 (detached
+  `index.toml.sig`; the algorithm is in the Go standard library, so no new
+  dependency). The user pins the registry's public key in `config.toml` next to
+  its URL: trust comes from explicit configuration, never from first use. The
+  index lists each archive's SHA-256. The archive is verified against its index
+  entry before anything is extracted; a failed signature or checksum stops the
+  install and leaves existing module directories untouched.
+- **Replay, downgrade, freeze:** the signed index carries a monotonically
+  increasing `sequence` and an `expires` timestamp. A client rejects an index
+  with a lower sequence than the last one it saw, an expired index, and an
+  archive whose version is lower than the installed one unless the user asks
+  for it. Without this a stale but validly signed index could serve an
+  archive with a known vulnerability.
+- **Index validation:** module ids must match the manifest id pattern and are
+  never used as a path unless they do. Archive URLs are relative to the registry
+  URL, HTTPS only, and must stay on the registry's host (no redirect to another
+  host).
+- **Archive extraction:** this is new code. `internal/selfupdate` reads a
+  single member into a writer and is not enough: a module archive holds several
+  files. Rules: extract into a temp directory next to the target, accept only
+  regular files named `manifest.toml`, `*.tmpl` and `hooks/*` (no symlinks, no
+  hardlinks, no devices), reject absolute and `..` names, cap file count and
+  total size, then swap the directory in with a rename.
+- **Key management:** owned by whoever runs a registry. A registry may publish
+  several keys so users can rotate without a flag day (add the new key, then
+  drop the old one). There is no remote revocation: a compromised key means
+  every user edits their config. This is a known limit of pinning without a
+  central authority.
+- **Storage and ownership:** an installed module is copied to
+  `~/.config/omnishell/modules/<id>/` with a `.registry.toml` record (registry
+  URL, version, archive SHA-256, install-time choices). That file is also the
+  proof of ownership: `registry install` and `registry update` only replace a
+  directory that has a matching `.registry.toml`. An id that exists as a
+  hand-written local module is refused, so a registry can never overwrite local
+  work.
+- **Built-in id collision:** refused unless the user passes `--override`. The
+  existing override rule (`Registry.Overrides()`) and the `doctor` notice then
+  apply unchanged.
+- **Privileges, honestly:** a registry module can ship arbitrary shell
+  snippets, packages (installed with the package manager, possibly via sudo),
+  hooks and fallbacks. Snippets cannot be restricted: they are the module. So
+  `--allow-hooks` is a speed bump for hooks and git/release fallbacks, not a
+  sandbox, and the doc and the CLI must say so. Before the user confirms an
+  install or an update, omnishell prints the packages, hooks, fallbacks and the
+  full text of the templates (for an update, a diff against the installed
+  copy).
+- **Enforcing the hooks gate:** unlike a plain user module this needs a new code
+  path. The module registry loads `.registry.toml`, marks the module as remote
+  and, unless hooks were allowed, drops its hooks and fallbacks when the plan is
+  computed, so the restriction is in place before `Apply` and its hand-edit
+  guard. `registry update` keeps the recorded choice and asks again if the new
+  version adds hooks or fallbacks the old one did not have.
+- **Integrity after install:** the init-file hand-edit guard and `rollback` do
+  not cover `modules/<id>/`; rollback restores init files, the rc file and the
+  lockfile. A tampered local copy of a registry module would go unnoticed, so
+  `doctor` should compare each registry module's directory with the recorded
+  hash. Rolling a module back to an older version is `registry install` of that
+  version, not `rollback`.
+- **Offline behaviour:** only `registry install` and `registry update` use the
+  network. `apply`, `doctor` and the other commands read the local copy, so
   built-in and local modules behave as before without a network.
-- **Updates:** explicit only (`registry update <id>`); a changed archive hash
-  or version is shown before it replaces the local copy.
+- **Updates:** explicit only (`registry update <id>`); never during `apply`.
 - **Out of scope:** operating a public registry, ratings, search.
 
-Suggested build order: signature and checksum verification as a standalone
-package, then `registry install` writing a user module, then update and the
-`--allow-hooks` gate.
+Suggested build order: signature, index and checksum verification as a
+standalone package; safe archive extraction; `registry install` writing a user
+module with `.registry.toml`; the hooks gate and `doctor` check; `registry
+update`.
 
 ## Deferred ideas
 
