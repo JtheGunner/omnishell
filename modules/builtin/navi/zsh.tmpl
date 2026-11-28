@@ -1,0 +1,14 @@
+{{- $key := .Options.key -}}
+{{- if eq $key "ctrl-g" -}}
+command -v navi >/dev/null 2>&1 && eval "$(navi widget zsh)"
+{{- else -}}
+{{- $seq := printf "^%s" (slice $key 5) -}}
+{{- if eq (slice $key 0 3) "alt" -}}
+{{- $seq = printf "^[%s" (slice $key 4) -}}
+{{- end -}}
+if command -v navi >/dev/null 2>&1; then
+  eval "$(navi widget zsh)"
+  bindkey {{ $seq | shellquote }} _navi_widget
+  bindkey '^g' send-break
+fi
+{{- end }}
