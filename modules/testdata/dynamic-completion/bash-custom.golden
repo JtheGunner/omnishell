@@ -1,0 +1,7 @@
+for __omnishell_dc_entry in 'terraform' 'vault' 'aws=aws_completer' ; do
+  __omnishell_dc_name=${__omnishell_dc_entry%%=*}
+  __omnishell_dc_bin=${__omnishell_dc_entry#*=}
+  __omnishell_dc_path=$(type -P -- "$__omnishell_dc_bin" 2>/dev/null)
+  [ -n "$__omnishell_dc_path" ] && complete -C "$__omnishell_dc_path" "$__omnishell_dc_name"
+done
+unset __omnishell_dc_entry __omnishell_dc_name __omnishell_dc_bin __omnishell_dc_path
