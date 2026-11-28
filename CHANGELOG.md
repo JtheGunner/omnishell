@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `omnishell self-update` updates the binary to the latest release on hosts
+  without Homebrew. It resolves the newest tag like `install.sh`, verifies the
+  archive's SHA-256 against `checksums.txt`, and atomically replaces the running
+  binary; on any failure the old binary stays. `--check` only reports whether a
+  newer release exists. Homebrew installs are pointed to `brew upgrade`, and
+  development builds are never replaced.
 - `delta` module: installs [delta](https://github.com/dandavison/delta)
   (`git-delta`, `delta` on Alpine) and exports `GIT_PAGER` so git uses it, only
   when `delta` is on `PATH` and `GIT_PAGER` is unset. Options `side_by_side`,

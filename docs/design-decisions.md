@@ -44,6 +44,33 @@ not built. For how the features work, see the [README](../README.md),
   without editing it. `interactive.diffFilter` (for `git add -p`) cannot be
   set through the environment and is left to the user.
 
+## Self-update
+
+`omnishell self-update` (`internal/selfupdate`) mirrors `install.sh`:
+
+- **Latest version:** the tag comes from the `Location` header of
+  `github.com/JtheGunner/omnishell/releases/latest`, which is never followed
+  and must stay on the requested host. No REST API, so no rate limit.
+- **Verification:** the archive `omnishell_<os>_<arch>.tar.gz` (armv6/armv7 on
+  Linux) and `checksums.txt` come from the release download URL over HTTPS
+  (the shared `pkgmgr.Downloader`). The SHA-256 must match before anything is
+  extracted; only the `omnishell` member is read, with a size limit, and an
+  archive with absolute or `..` entries is rejected.
+- **Replacement:** the binary is written to a temp file in the running binary's
+  own directory, given the old file's mode and renamed over it. Any error
+  removes the temp file and leaves the old binary untouched. That temp file is
+  also the writability probe, so a read-only directory fails before any
+  download. There is no sudo and no escalation.
+- **Homebrew:** a symlink-resolved path with a `Cellar` segment, or under
+  `/opt/homebrew/`, `/usr/local/Cellar/` or `/home/linuxbrew/.linuxbrew/`, is
+  not replaced; the command prints `brew upgrade jthegunner/tap/omnishell`
+  and exits 0.
+- **Versions:** only a strictly newer semver tag updates. A binary that is
+  ahead of the latest release counts as up to date. A development build
+  (`dev` or no semver) never replaces itself, but `--check` still prints the
+  latest tag.
+- **Not covered:** background updates and module updates.
+
 ## Deferred ideas
 
 Not planned, not tracked in the issue tracker yet.
@@ -54,5 +81,4 @@ Not planned, not tracked in the issue tracker yet.
 | **Profiles** | A `--profile` flag plus a namespaced `config.toml` section; touches `config` and `ComputePlan`. |
 | **Presets / bundles** | Named groups of modules enabled together; a larger change to the config model. |
 | **Remote module registry** | Reuse the checksum and signature pattern of `install.sh` for authenticity. |
-| **`omnishell self-update`** | For hosts without Homebrew. |
 | **`keychain` (ssh-agent) module** | Not selected so far. |
