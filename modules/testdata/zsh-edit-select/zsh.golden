@@ -1,0 +1,3 @@
+if [[ -r '/home/j/.config/omnishell/vendor/zsh-edit-select/zsh-edit-select.plugin.zsh' ]]; then
+  source '/home/j/.config/omnishell/vendor/zsh-edit-select/zsh-edit-select.plugin.zsh'
+fi

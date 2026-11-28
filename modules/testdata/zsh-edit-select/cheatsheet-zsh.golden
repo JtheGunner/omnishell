@@ -1,0 +1,7 @@
+- `Shift` + arrow keys — select text on the command line; type or paste to replace the selection
+- `Cmd+A` select all, `Cmd+C` copy, `Cmd+X` cut, `Cmd+Z` undo, `Cmd+Shift+Z` redo
+- Paste with your terminal's own paste shortcut; it replaces a selection
+- Run `edit-select config` to change the mouse behaviour and the key bindings
+- Needs terminal key bindings that send these sequences to the shell (examples for Ghostty, iTerm2, Kitty, WezTerm and VS Code are in the plugin's README); restart the terminal afterwards
+- Mouse selections need Accessibility permission for your terminal: run `edit-select setup-ax`
+- A manual install of the plugin blocks this module: remove its `source` line from `~/.zshrc`, delete the old clone and stop its agent, otherwise nothing is loaded from here
