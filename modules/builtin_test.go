@@ -97,6 +97,56 @@ func TestCompletion(t *testing.T) {
 	assertGolden(t, "completion", "bash", renderModule(t, "completion", "bash", nil))
 }
 
+func TestCompletionBashSnippet(t *testing.T) {
+	got := renderModule(t, "completion", "bash", nil)
+	for _, want := range []string{
+		"BASH_VERSINFO[0]", "BASH_VERSINFO[1]",
+		"/opt/homebrew/etc/profile.d/bash_completion.sh",
+		"/usr/local/etc/profile.d/bash_completion.sh",
+		"/usr/share/bash-completion/bash_completion",
+		"/etc/bash_completion",
+		"shopt -oq posix",
+		"completion-ignore-case",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("bash snippet lacks %q", want)
+		}
+	}
+	if strings.Contains(got, "brew --prefix") {
+		t.Error("bash snippet must not call brew --prefix")
+	}
+	if strings.Index(got, "/opt/homebrew/") > strings.Index(got, "/usr/share/bash-completion") {
+		t.Error("Homebrew paths must be searched before the distro paths")
+	}
+	if bash, err := exec.LookPath("bash"); err == nil {
+		cmd := exec.Command(bash, "-n")
+		cmd.Stdin = strings.NewReader(got)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("bash -n failed: %v\n%s", err, out)
+		}
+	}
+}
+
+func TestCompletionPackages(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("completion")
+	if !ok {
+		t.Fatal("module completion missing")
+	}
+	want := map[string]string{
+		"brew": "bash-completion@2", "apt": "bash-completion", "dnf": "bash-completion",
+		"pacman": "bash-completion", "zypper": "bash-completion", "apk": "bash-completion",
+	}
+	for mgr, pkg := range want {
+		if got := m.Manifest.Packages.ForManager(mgr); len(got) != 1 || got[0] != pkg {
+			t.Errorf("%s packages = %v, want [%s]", mgr, got, pkg)
+		}
+	}
+}
+
 func TestHistory(t *testing.T) {
 	opts := map[string]any{"size": int64(50000)}
 	assertGolden(t, "history", "zsh", renderModule(t, "history", "zsh", opts))

@@ -8,3 +8,13 @@ name        = "Completion"
 description = "Enable shell completion with case-insensitive matching"
 version     = "1.0.0"
 schema      = 1
+
+# bash-completion 2 provides the framework the bash snippet sources. Packages
+# are not shell-specific, so zsh-only hosts get it installed too.
+[packages]
+brew   = ["bash-completion@2"]
+apt    = ["bash-completion"]
+dnf    = ["bash-completion"]
+pacman = ["bash-completion"]
+zypper = ["bash-completion"]
+apk    = ["bash-completion"]
