@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `you-should-use` module (zsh only): installs
+  [zsh-you-should-use](https://github.com/MichaelAquilina/zsh-you-should-use)
+  and hints at an existing alias when you type the long command it stands for.
+  Homebrew provides the package; other managers use a git clone pinned to
+  `1.11.1`. It loads after `modern-aliases`, and `autosuggestions` and
+  `syntax-highlighting` still render last. Options: `message_position`, `mode`
+  and `ignored_aliases`.
 - `tealdeer` module: installs the `tldr` client (package `tealdeer` on every
   supported package manager, with a verified release binary pinned to `v1.9.1`
   on Linux x86_64, arm64 and armv7). `apply` does not download the page cache;
