@@ -71,6 +71,54 @@ not built. For how the features work, see the [README](../README.md),
   latest tag.
 - **Not covered:** background updates and module updates.
 
+## Remote module registry (proposal, not implemented)
+
+Modules come from the binary (built-in) and `~/.config/omnishell/modules/`.
+A remote registry would add a third source. A module's templates are shell code
+that runs in every new shell, so the registry is a code-distribution channel:
+authenticity and least privilege matter more than convenience. This section
+records the proposed design; nothing here is built yet.
+
+- **Hosting:** no registry is operated by this project. A registry is any
+  HTTPS location that serves an `index.toml` plus one `<id>-<version>.tar.gz`
+  per module. The user adds it explicitly (`[registries]` in `config.toml`);
+  there is no default registry.
+- **Authenticity:** a registry publishes `index.toml` signed with an Ed25519
+  key (detached `index.toml.sig`). The user pins the public key in
+  `config.toml` next to the registry URL (trust on explicit configuration,
+  never trust on first use). The index lists each archive's SHA-256. The
+  archive is verified against the index entry before anything is extracted, and
+  extraction follows the same rules as `self-update` (single known layout, size
+  limit, no absolute or `..` paths). A failed signature or checksum stops the
+  install and leaves the module directory untouched. Ed25519 is in the Go
+  standard library, so no new dependency is needed; `minisign` or `cosign` would
+  add one for little gain.
+- **Key management:** owned by whoever runs a registry. Rotation is a config
+  edit (add the new key, remove the old one). omnishell never fetches keys from
+  the network.
+- **Storage and precedence:** an installed registry module is copied to
+  `~/.config/omnishell/modules/<id>/` together with a `.registry.toml` record
+  (registry URL, version, archive SHA-256). It is then a normal user module, so
+  `rollback`, `doctor` and hand-edit detection need no new code path. A module
+  whose id equals a built-in is refused unless the user passes `--override`
+  explicitly; the existing override rule and its `doctor` warning then apply.
+- **Privileges:** a registry module gets exactly what a user module has today,
+  which is shell snippets, packages and hooks, all shown in the plan. Because a
+  remote author can ship arbitrary code, `install` prints the module's packages,
+  hooks and fallbacks and asks for confirmation. Hooks and git/release
+  fallbacks from a registry module are disabled unless the user passes
+  `--allow-hooks` at install time; the choice is recorded in `.registry.toml`.
+- **Offline behaviour:** only `registry install` and `registry update` touch the
+  network. `apply`, `doctor` and every other command read the local copy, so
+  built-in and local modules behave as before without a network.
+- **Updates:** explicit only (`registry update <id>`); a changed archive hash
+  or version is shown before it replaces the local copy.
+- **Out of scope:** operating a public registry, ratings, search.
+
+Suggested build order: signature and checksum verification as a standalone
+package, then `registry install` writing a user module, then update and the
+`--allow-hooks` gate.
+
 ## Deferred ideas
 
 Not planned, not tracked in the issue tracker yet.
@@ -80,5 +128,4 @@ Not planned, not tracked in the issue tracker yet.
 | **fish support** | Touches `rcfile`, `initfile` and `platform/shells.go`; needs a `fish.tmpl` per module; `~/.config/fish/config.fish` uses different marker and comment syntax. |
 | **Profiles** | A `--profile` flag plus a namespaced `config.toml` section; touches `config` and `ComputePlan`. |
 | **Presets / bundles** | Named groups of modules enabled together; a larger change to the config model. |
-| **Remote module registry** | Reuse the checksum and signature pattern of `install.sh` for authenticity. |
 | **`keychain` (ssh-agent) module** | Not selected so far. |
