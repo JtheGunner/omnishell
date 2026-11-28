@@ -427,3 +427,52 @@ func TestRootLoopsCheatsheetFollowsAppearance(t *testing.T) {
 		t.Errorf("appearance = light must force light:\n%s", light)
 	}
 }
+
+func TestDeltaCheatsheetFollowsOptions(t *testing.T) {
+	def := renderCheatsheet(t, "delta", "zsh", nil)
+	for _, want := range []string{"`--navigate`", "`--line-numbers`", "`n` / `N`"} {
+		if !strings.Contains(def, want) {
+			t.Errorf("default must contain %s:\n%s", want, def)
+		}
+	}
+	if strings.Contains(def, "--side-by-side") {
+		t.Errorf("default must not mention side-by-side:\n%s", def)
+	}
+
+	got := renderCheatsheet(t, "delta", "bash", map[string]any{
+		"navigate": false, "line_numbers": false, "side_by_side": true,
+	})
+	if !strings.Contains(got, "`--side-by-side`") {
+		t.Errorf("side_by_side must be listed:\n%s", got)
+	}
+	for _, bad := range []string{"--navigate", "--line-numbers", "`n` / `N`"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("must not mention %s when off:\n%s", bad, got)
+		}
+	}
+
+	none := renderCheatsheet(t, "delta", "zsh", map[string]any{
+		"navigate": false, "line_numbers": false,
+	})
+	if !strings.Contains(none, "Active flags: none") {
+		t.Errorf("all flags off must say none:\n%s", none)
+	}
+}
+
+func TestNaviCheatsheetFollowsKey(t *testing.T) {
+	def := renderCheatsheet(t, "navi", "zsh", nil)
+	if !strings.Contains(def, "`ctrl-g` — open navi") {
+		t.Errorf("default key must be listed:\n%s", def)
+	}
+	if strings.Contains(def, "no longer bound") {
+		t.Errorf("default key must not mention a rebind:\n%s", def)
+	}
+
+	got := renderCheatsheet(t, "navi", "bash", map[string]any{"key": "alt-n"})
+	if !strings.Contains(got, "`alt-n` — open navi") {
+		t.Errorf("custom key must be listed:\n%s", got)
+	}
+	if !strings.Contains(got, "`ctrl-g` is no longer bound") {
+		t.Errorf("a custom key must say ctrl-g is released:\n%s", got)
+	}
+}

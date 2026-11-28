@@ -1,0 +1,4 @@
+- `git diff`, `git log -p`, `git show` — shown through `delta` with syntax highlighting (set via `GIT_PAGER`; `~/.gitconfig` is not touched)
+- Active flags: `--navigate` `--line-numbers`
+- `n` / `N` — in the pager, jump to the next / previous file or hunk
+- If `GIT_PAGER` is already set when the shell starts, it is left alone and delta is not used

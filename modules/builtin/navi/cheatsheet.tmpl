@@ -1,0 +1,6 @@
+- `{{ .Options.key }}` — open navi at the prompt: pick a command from your cheatsheets, fill in its arguments, and it is pasted at the prompt
+{{ if ne .Options.key "ctrl-g" -}}
+- `ctrl-g` is no longer bound to navi and keeps its shell default (bash older than 4.0 keeps it bound to navi)
+{{ end -}}
+- `navi` — browse the cheatsheets outside the prompt (`navi --help` lists the options)
+- Needs `fzf` as its selector (the `fzf` module is required)
