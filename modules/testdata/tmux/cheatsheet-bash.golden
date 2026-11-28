@@ -1,0 +1,10 @@
+- Every new interactive shell outside tmux attaches to the tmux session `default`, or creates it if it does not exist yet
+- Inside tmux (`$TMUX` is set) nothing happens
+- Without `tmux` installed the shell starts normally
+- `tmux ls` — list sessions
+- Default key bindings (this module ships no tmux config); press `Ctrl-b` first, then:
+  - `Ctrl-b d` — detach; the session keeps running
+  - `Ctrl-b c` — new window; `Ctrl-b n` / `Ctrl-b p` — next / previous window
+  - `Ctrl-b %` — split left/right; `Ctrl-b "` — split top/bottom
+  - `Ctrl-b [` — copy mode (scroll back through the output)
+  - `Ctrl-b ?` — list all key bindings

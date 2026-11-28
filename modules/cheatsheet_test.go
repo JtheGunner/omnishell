@@ -281,3 +281,79 @@ func TestYouShouldUseCheatsheetFollowsOptions(t *testing.T) {
 		}
 	}
 }
+
+func TestOmnishellPromptCheatsheetFollowsOptions(t *testing.T) {
+	const userHost = "`user@host`"
+	const duration = "Commands that ran for 1 second or longer show their duration"
+	const bashNote = "`show_duration` has no effect in bash"
+
+	def := renderCheatsheet(t, "omnishell-prompt", "zsh", nil)
+	full := renderCheatsheet(t, "omnishell-prompt", "bash", map[string]any{"style": "full"})
+	zshDur := renderCheatsheet(t, "omnishell-prompt", "zsh", map[string]any{"show_duration": true})
+	bashDur := renderCheatsheet(t, "omnishell-prompt", "bash", map[string]any{"show_duration": true})
+
+	if strings.Contains(def, userHost) || strings.Contains(def, duration) || strings.Contains(def, bashNote) {
+		t.Errorf("default shows neither user@host nor duration:\n%s", def)
+	}
+	if !strings.Contains(full, userHost) {
+		t.Errorf("style = full must list user@host:\n%s", full)
+	}
+	if !strings.Contains(zshDur, duration) {
+		t.Errorf("zsh show_duration must be described:\n%s", zshDur)
+	}
+	if strings.Contains(bashDur, duration) || !strings.Contains(bashDur, bashNote) {
+		t.Errorf("bash show_duration is a no-op and must say so:\n%s", bashDur)
+	}
+}
+
+func TestTmuxCheatsheetFollowsOptions(t *testing.T) {
+	const attach = "attaches to the tmux session `default`, or creates it"
+	def := renderCheatsheet(t, "tmux", "zsh", nil)
+	named := renderCheatsheet(t, "tmux", "bash", map[string]any{"session": "work"})
+	off := renderCheatsheet(t, "tmux", "zsh", map[string]any{"auto_attach": false})
+
+	if !strings.Contains(def, attach) {
+		t.Errorf("default must describe the auto-attach to default:\n%s", def)
+	}
+	if !strings.Contains(named, "`work`") || strings.Contains(named, "`default`") {
+		t.Errorf("session = work must replace default:\n%s", named)
+	}
+	if strings.Contains(off, "attaches to") || strings.Contains(off, "`default`") {
+		t.Errorf("auto_attach = false must not promise an attach:\n%s", off)
+	}
+	if !strings.Contains(off, "Nothing starts automatically") {
+		t.Errorf("auto_attach = false must say so:\n%s", off)
+	}
+	for _, s := range []string{def, named, off} {
+		if !strings.Contains(s, "`Ctrl-b d`") {
+			t.Errorf("tmux keys must be listed:\n%s", s)
+		}
+	}
+}
+
+func TestWelcomeCheatsheetFollowsOnlySSH(t *testing.T) {
+	def := renderCheatsheet(t, "welcome", "zsh", nil)
+	ssh := renderCheatsheet(t, "welcome", "bash", map[string]any{"only_ssh": true})
+	if !strings.Contains(def, "on every interactive shell start") {
+		t.Errorf("default shows the summary on every start:\n%s", def)
+	}
+	if !strings.Contains(ssh, "only when `SSH_CONNECTION` or `SSH_TTY` is set") ||
+		strings.Contains(ssh, "every interactive shell start") {
+		t.Errorf("only_ssh = true must restrict the summary:\n%s", ssh)
+	}
+}
+
+func TestRootLoopsCheatsheetFollowsAppearance(t *testing.T) {
+	auto := renderCheatsheet(t, "root-loops", "zsh", nil)
+	dark := renderCheatsheet(t, "root-loops", "bash", map[string]any{"appearance": "dark"})
+	light := renderCheatsheet(t, "root-loops", "zsh", map[string]any{"appearance": "light"})
+	if !strings.Contains(auto, "follows the system light/dark setting") {
+		t.Errorf("auto must follow the system:\n%s", auto)
+	}
+	if !strings.Contains(dark, "Always applies the dark palette") || strings.Contains(dark, "follows the system") {
+		t.Errorf("appearance = dark must force dark:\n%s", dark)
+	}
+	if !strings.Contains(light, "Always applies the light palette") || strings.Contains(light, "follows the system") {
+		t.Errorf("appearance = light must force light:\n%s", light)
+	}
+}

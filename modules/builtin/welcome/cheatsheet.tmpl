@@ -1,0 +1,6 @@
+- No new commands: a `fastfetch` system summary is printed
+{{- if .Options.only_ssh }}, only when `SSH_CONNECTION` or `SSH_TTY` is set (an SSH session)
+{{ else }} on every interactive shell start
+{{ end -}}
+- Nothing is printed when `fastfetch` is not installed
+- `fastfetch` — run the summary yourself at any time
