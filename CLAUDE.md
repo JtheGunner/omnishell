@@ -11,7 +11,8 @@ reversible way. Users list enabled *modules* in `~/.config/omnishell/config.toml
 and writes everything into one tool-managed `init.zsh` / `init.bash` sourced
 from the user's rc file via a single marker block. See README.md for the full
 user-facing command reference, on-disk layout, and safety model — don't
-duplicate it here.
+duplicate it here. Non-obvious design rationale and deferred ideas are in
+docs/design-decisions.md.
 
 ## Commands
 
