@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🐚 omnishell
+<img src="docs/assets/logo/omnishell-logo-glyph.svg" alt="omnishell logo: a hexagon of six module segments around an amber shell prompt" width="112" height="112">
+
+# omnishell
 
 **Modular, declarative, reversible terminal configuration for macOS and Linux.**
 One `config.toml` lists the modules you want; `omnishell apply` installs, renders and wires them into a single tool-managed init file.

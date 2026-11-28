@@ -10,6 +10,11 @@ The logo is a hexagon of six module segments around an amber shell prompt
 | [`omnishell-logo.svg`](omnishell-logo.svg) | Main mark on a dark tile; also usable as an avatar |
 | [`omnishell-logo-glyph.svg`](omnishell-logo-glyph.svg) | Same mark without the tile, for READMEs on light or dark pages |
 | [`omnishell-logo-small.svg`](omnishell-logo-small.svg) | Same mark with coarser details (thicker segments, narrower gaps, bolder prompt) for 32 and 16 px |
+| [`social-preview.svg`](social-preview.svg) | 1280×640 social preview source: glyph, name and tagline on the ink background |
+| [`social-preview.png`](social-preview.png) | Rendered with `rsvg-convert -w 1280 -h 640 social-preview.svg -o social-preview.png` |
+
+The PNG must be uploaded by hand under the GitHub repository's
+Settings → Social preview.
 
 [`overview.svg`](overview.svg) shows all three on light and dark backgrounds,
 at 64/32/16 px. There is no designed wordmark yet.
