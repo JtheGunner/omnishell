@@ -1,0 +1,22 @@
+# Put the first zsh-completions directory that exists on fpath. This must run
+# before compinit (module "completion"), which only sees directories already on
+# fpath. The list is fixed on purpose: `brew --prefix` would start a process on
+# every shell start. Keep it in sync with completionDirCandidates in
+# internal/engine/completiondirs.go.
+for _oms_d in \
+  /opt/homebrew/share/zsh-completions \
+  /usr/local/share/zsh-completions \
+  /usr/share/zsh-completions \
+  {{ pathjoin .VendorDir "zsh-completions" "src" | shellquote }}
+do
+  if [[ -d "$_oms_d" ]]; then
+    fpath=("$_oms_d" $fpath)
+    # A dump built before this directory changed does not list its functions.
+    # The directory is newer than the dump only once after an install or an
+    # upgrade; compinit then writes a fresh dump, so this is not repeated.
+    [[ -f "${ZDOTDIR:-$HOME}/.zcompdump" && "$_oms_d" -nt "${ZDOTDIR:-$HOME}/.zcompdump" ]] \
+      && rm -f "${ZDOTDIR:-$HOME}/.zcompdump"
+    break
+  fi
+done
+unset _oms_d

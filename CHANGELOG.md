@@ -4,6 +4,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `zsh-completions` module (zsh only): installs the `zsh-completions` package
+  through the package manager (git fallback pinned to `0.9.0`) and puts its
+  directory on `fpath` before `compinit` runs, so the extra completions work
+  without hand edits to `.zshrc`. The `completion` module now orders itself
+  after it. A stale `~/.zcompdump` is removed once after an install or upgrade,
+  not on every shell start.
+- `omnishell doctor` warns when a `zsh-completions` directory, or its parent, is
+  writable by group or others (`compinit` then reports "insecure directories")
+  and prints the `chmod go-w` command to fix it. It never changes permissions.
+
 ## [0.8.0] - 2026-11-22
 
 ### Added

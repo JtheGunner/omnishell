@@ -1,0 +1,24 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh"]
+
+[module]
+id          = "zsh-completions"
+name        = "zsh-completions"
+description = "Additional zsh completion definitions, put on fpath before compinit runs (zsh)"
+homepage    = "https://github.com/zsh-users/zsh-completions"
+version     = "1.0.0"
+schema      = 1
+
+[packages]
+brew   = ["zsh-completions"]
+apt    = ["zsh-completions"]
+dnf    = ["zsh-completions"]
+pacman = ["zsh-completions"]
+zypper = ["zsh-completions"]
+apk    = ["zsh-completions"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/zsh-users/zsh-completions.git"
+dest = "{{.VendorDir}}/zsh-completions"
+ref  = "0.9.0"

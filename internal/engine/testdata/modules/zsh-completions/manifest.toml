@@ -1,0 +1,11 @@
+platforms = ["macos", "linux"]
+shells    = ["zsh", "bash"]
+requires  = []
+after     = []
+
+[module]
+id          = "zsh-completions"
+name        = "zsh-completions"
+description = "Fixture: stands in for the built-in module so Doctor's completion directory check can run in a bash-only test engine"
+version     = "1.0.0"
+schema      = 1
