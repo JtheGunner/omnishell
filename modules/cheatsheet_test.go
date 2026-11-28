@@ -165,6 +165,17 @@ func TestZoxideCheatsheetFollowsCmd(t *testing.T) {
 			t.Errorf("cmd = j must not mention %s:\n%s", bad, got)
 		}
 	}
+	if !strings.Contains(got, "plain `cd` is unchanged") {
+		t.Errorf("cmd = j leaves cd alone:\n%s", got)
+	}
+
+	cd := renderCheatsheet(t, "zoxide", "bash", map[string]any{"cmd": "cd"})
+	if strings.Contains(cd, "unchanged") {
+		t.Errorf("cmd = cd replaces cd, it must not be called unchanged:\n%s", cd)
+	}
+	if !strings.Contains(cd, "`cdi foo`") {
+		t.Errorf("cmd = cd must list cdi:\n%s", cd)
+	}
 }
 
 func TestBrootCheatsheetFollowsCmd(t *testing.T) {

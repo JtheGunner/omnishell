@@ -1,5 +1,5 @@
 {{ if eq .Options.mode "shims" -}}
-- Tools resolve through `mise` shims on `PATH`, so they also work in non-interactive shells
+- Tools resolve through `mise` shims on `PATH`, so they also work for tools launched from your shell
 {{ else -}}
 - The versions a project asks for are put on `PATH` at each prompt when you enter its directory
 {{ end -}}
