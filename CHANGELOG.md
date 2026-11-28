@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `dynamic-completion` module (bash only, opt-in): registers completion for
+  CLIs that complete themselves (`terraform`, `vault`, `aws`) with bash's native
+  `complete -C <binary> <name>`. The `commands` option takes `name` or
+  `name=binary` (for example `aws=aws_completer`); only binaries found on `PATH`
+  at shell start are registered, missing ones are skipped silently. Bash only by
+  decision: zsh users use `completion` and `zsh-completions`.
 - `completion` module (bash): installs `bash-completion` through the detected
   package manager (`bash-completion@2` on Homebrew) and finds it under the macOS
   Homebrew paths (`/opt/homebrew`, `/usr/local`) before the distro paths. It is

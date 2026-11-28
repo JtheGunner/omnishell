@@ -1,0 +1,17 @@
+platforms   = ["macos", "linux"]
+shells      = ["bash"]
+after       = ["completion"]
+
+[module]
+id          = "dynamic-completion"
+name        = "Dynamic completion"
+description = "Register bash completion for CLIs that complete themselves (terraform, vault, aws) via 'complete -C' (bash)"
+homepage    = "https://www.gnu.org/software/bash/manual/html_node/Programmable-Completion-Builtins.html"
+version     = "1.0.0"
+schema      = 1
+
+[options.commands]
+type    = "list<string>"
+default = []
+pattern = "^[A-Za-z0-9_][A-Za-z0-9_.+-]*(=[A-Za-z0-9_][A-Za-z0-9_.+-]*)?$"
+help    = "Commands that complete themselves: 'name' registers 'complete -C name name', 'name=binary' uses another binary as the completer (for example aws=aws_completer). Only binaries found on PATH when the shell starts are registered; missing ones are skipped silently."
