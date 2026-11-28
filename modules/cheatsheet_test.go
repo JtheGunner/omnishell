@@ -67,6 +67,29 @@ func TestBuiltinCheatsheets(t *testing.T) {
 	}
 }
 
+// TestEveryBuiltinModuleHasACheatsheet fails for a built-in module that ships
+// no cheatsheet.tmpl, or one that renders empty for a shell it supports.
+func TestEveryBuiltinModuleHasACheatsheet(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range reg.All() {
+		id := m.Manifest.Module.ID
+		t.Run(id, func(t *testing.T) {
+			if _, has, err := m.Cheatsheet(); err != nil || !has {
+				t.Fatalf("module %q needs a cheatsheet: add modules/builtin/%s/cheatsheet.tmpl (has=%v err=%v)",
+					id, id, has, err)
+			}
+			for _, shell := range m.Manifest.Shells {
+				if strings.TrimSpace(renderCheatsheet(t, id, shell, nil)) == "" {
+					t.Errorf("module %q: cheatsheet renders empty for %s", id, shell)
+				}
+			}
+		})
+	}
+}
+
 func TestSpellCorrectionCheatsheetFollowsOptions(t *testing.T) {
 	def := renderCheatsheet(t, "spell-correction", "zsh", nil)
 	all := renderCheatsheet(t, "spell-correction", "zsh", map[string]any{"scope": "all"})
