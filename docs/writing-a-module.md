@@ -13,6 +13,7 @@ module wins and `omnishell doctor` flags the shadowing.
 ├── manifest.toml     # required: metadata, platforms/shells, deps, packages, option schema
 ├── zsh.tmpl          # optional: the zsh snippet (Go text/template)
 ├── bash.tmpl         # optional: the bash snippet
+├── cheatsheet.tmpl   # optional: Markdown for `omnishell cheatsheet`, one file for all shells
 └── hooks/            # optional: escape hatch for logic the manifest can't express
     ├── check.sh      #   exit 0 = requirement satisfied, exit 1 = missing
     ├── install.sh    #   run when check.sh fails and the package path didn't help
@@ -221,6 +222,38 @@ unquoted. A missed `shellquote` on a free-form string option is arbitrary code
 execution: `omnishell set <id>.<key> 'x; rm -rf ~'` would otherwise run at every
 login. The `modules` test suite fails the build if a builtin template emits a
 string option without `shellquote`.
+
+## Cheatsheet
+
+A module can ship an optional `cheatsheet.tmpl` that `omnishell cheatsheet`
+renders for the active modules. It is Markdown, written for a person at the
+prompt who wants to remember what the module gave them.
+
+- It is a `text/template` with the same context and functions as `zsh.tmpl`
+  (see [Templates](#templates)). There is **one file for all shells**: branch
+  on `.Shell` where zsh and bash differ.
+- List what the user can type: commands, aliases, shell functions and key
+  bindings.
+- Describe only what **this module** sets up. Do not document the tool's whole
+  feature set; link to its homepage instead.
+- Reflect the user's options: show an alias only when the option that creates
+  it is on, with `if` / `has_item`.
+- The command prints the body under a heading made from the manifest's `name`
+  and `id`, so do not add a title. Control characters are stripped before
+  printing.
+
+A template error does not break anything else: the module is reported on
+stderr and the others still print. A module without the file is simply listed
+under "No cheatsheet".
+
+Example `~/.config/omnishell/modules/my-aliases/cheatsheet.tmpl`:
+
+```
+{{ if has_item .Options.replace "ls" }}- `ls` — [eza](https://github.com/eza-community/eza) instead of the system `ls`
+{{ end }}{{ if has_item .Options.replace "cat" }}- `cat` — [bat](https://github.com/sharkdp/bat) with syntax highlighting
+{{ end }}{{ if eq .Shell "zsh" }}- `Ctrl+X Ctrl+E` — edit the current line in `$EDITOR`
+{{ end }}
+```
 
 ## `requires` vs `after` vs `conflicts`
 

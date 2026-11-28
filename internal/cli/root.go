@@ -21,6 +21,7 @@ func NewRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newVersionCmd(stdout))
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newListCmd())
+	root.AddCommand(newCheatsheetCmd())
 	root.AddCommand(newTUICmd())
 	root.AddCommand(newEnableCmd())
 	root.AddCommand(newDisableCmd())
