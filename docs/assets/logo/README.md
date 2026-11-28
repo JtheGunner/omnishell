@@ -47,6 +47,20 @@ single silhouette, and survives as a small square avatar.
 Concept 4 is the fallback if a calmer, more minimal look is preferred; it also
 works as a favicon next to the full mark.
 
+## Refined direction: Modules
+
+Concept 2 was refined in [`overview-modules.svg`](overview-modules.svg)
+([PNG](overview-modules.png)):
+
+| File | Use |
+|:--|:--|
+| `omnishell-logo-2-modules.svg` | Main mark: six segments, one amber, on a dark tile |
+| `omnishell-logo-2-modules-glyph.svg` | Same mark without the tile, for READMEs on light or dark pages |
+| `omnishell-logo-2-modules-small.svg` | Three-part cube for 32 and 16 px, where six segments blur |
+
+Changes from the first draft: three tones instead of four, clearly separated
+segments, a larger hexagon inside the tile, and a simplified small-size variant.
+
 ## Palette
 
 Tiles and strokes use the README accent palette: green `#22c55e`, blue
