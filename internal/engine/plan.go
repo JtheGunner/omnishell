@@ -292,6 +292,14 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, 
 		if len(mf.Packages.Brew)+len(mf.Packages.Apt)+len(mf.Packages.Dnf)+
 			len(mf.Packages.Pacman)+len(mf.Packages.Zypper)+len(mf.Packages.Apk) > 0 {
 			mp.DegradedReason = "no package manager detected"
+			return
+		}
+		// A module with no manager packages at all gets its software only from
+		// the fallback, which needs the Runner and not a package manager.
+		// Returning here would drop it without a plan or a degradation.
+		if len(mf.Packages.Fallback) > 0 {
+			mp.PackagesPlanned = true
+			planFallback(mp, e, prev)
 		}
 		return
 	}
