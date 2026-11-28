@@ -7,6 +7,8 @@ permissions:
   pull-requests: write
 jobs:
   update:
+    # GitHub-hosted on purpose: a nightly cron job that writes with a PAT must
+    # not depend on a laptop being online.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
