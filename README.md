@@ -61,6 +61,10 @@ The installer resolves the latest release through the `github.com` redirect, so
 it does not use the rate-limited GitHub API. To install a specific release, set
 `OMNISHELL_VERSION` (for example `OMNISHELL_VERSION=v0.5.0`).
 
+To update an installation that did not come from Homebrew, run
+`omnishell self-update` (`--check` only reports whether a newer release exists).
+Homebrew installs update with `brew upgrade jthegunner/tap/omnishell`.
+
 Go:
 
 ```sh
@@ -118,6 +122,7 @@ your system until you run `omnishell apply`.
 | `omnishell rollback`                   | List backup snapshots, or restore files/lockfile to their state before a chosen one (`--to <timestamp>`), undoing that run and everything after it. Never touches packages; `config.toml` only when you roll back an `omnishell config sync` snapshot.                                                                                                               | `--to <timestamp>`, `--dry-run`, `-y` / `--yes`                                                                                                                                                                                                                                                                 |
 | `omnishell remove <id>`                | Disable a module and drop its shell section, then re-apply.                                                                                                                                                                                                                                                | `--dry-run`, `--purge` (also uninstall the module's packages, run its remove hook, and delete vendored files), `-y` / `--yes`                                                                                                                                                                                   |
 | `omnishell uninstall`                  | Remove omnishell's shell integration (marker block + generated `init.<shell>` files). Every touched file is backed up first.                                                                                                                                                                               | `--purge` (also delete `~/.config/omnishell` entirely), `-y` / `--yes`                                                                                                                                                                                                                                          |
+| `omnishell self-update` | Update the binary to the latest release, for hosts without Homebrew: resolves the newest tag through the `github.com` redirect (like `install.sh`), verifies the archive against `checksums.txt` (SHA-256), then atomically replaces the running binary. Only a strictly newer release updates; on any failure the old binary stays. On a Homebrew install it points to `brew upgrade jthegunner/tap/omnishell` instead. It never uses sudo, and a development build is never replaced. | `--check` (only report whether a newer release exists) |
 | `omnishell version`                    | Print the omnishell version.                                                                                                                                                                                                                                                                               | —                                                                                                                                                                                                                                                                                                               |
 | `omnishell completion`                 | Cobra-generated shell autocompletion script generator (distinct from the `completion` module).                                                                                                                                                                                                             | —                                                                                                                                                                                                                                                                                                               |
 
@@ -298,7 +303,6 @@ reference, the template context, and a worked example.
 - fish support
 - remote module registry / installing modules from a URL
 - profiles (different module sets per machine)
-- self-update (`brew` / `install.sh` cover it)
 - Windows / PowerShell
 
 ---
