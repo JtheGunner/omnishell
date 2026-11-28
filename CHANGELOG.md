@@ -10,7 +10,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   selection, copy, cut, paste, undo, mouse selection). Installed from a pinned
   clone (`v0.7.01`); on macOS `apply` builds the clipboard agent from that clone
   with `make`, so a failed build degrades the module instead of surfacing on the
-  first shell start. It loads after `autosuggestions` and `syntax-highlighting`.
+  first shell start. On Linux the plugin still downloads its agent itself on the
+  first shell start, from its latest release instead of the pinned tag.
+  It loads after `autosuggestions` and `syntax-highlighting`.
   The terminal needs key bindings for it, which omnishell does not write; the
   cheatsheet lists them. A manual install of the plugin blocks the module until
   its `source` line is removed.
