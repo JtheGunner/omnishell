@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `omnishell self-update` updates the binary to the latest release on hosts
+  without Homebrew. It resolves the newest tag like `install.sh`, verifies the
+  archive's SHA-256 against `checksums.txt`, and atomically replaces the running
+  binary; on any failure the old binary stays. `--check` only reports whether a
+  newer release exists. Homebrew installs are pointed to `brew upgrade`, and
+  development builds are never replaced.
+- `delta` module: installs [delta](https://github.com/dandavison/delta)
+  (`git-delta`, `delta` on Alpine) and exports `GIT_PAGER` so git uses it, only
+  when `delta` is on `PATH` and `GIT_PAGER` is unset. Options `side_by_side`,
+  `navigate` and `line_numbers`. `~/.gitconfig` is not touched: omnishell
+  writes no non-shell files (see `docs/design-decisions.md`).
+- `ble-sh` module (bash only, opt-in): autosuggestions and syntax highlighting
+  for bash through [ble.sh](https://github.com/akinomyoga/ble.sh), installed
+  from a pinned clone (`v0.4.0-devel3`) built with `make` (needs `make`, `gawk`
+  and `git`). It replaces parts of Readline, so it conflicts with `fzf` and
+  `atuin` and loads after `completion` and `history`. `remove` drops its init
+  section; the clone under `vendor/` is deleted with `remove --purge`.
+- `navi` module: installs the [navi](https://github.com/denisidoro/navi)
+  cheatsheet browser (package `navi` on every supported package manager, with a
+  verified release binary pinned to `v2.24.0` on Linux x86_64, arm64 and
+  armv7) and wires its shell widget in zsh and bash. It requires `fzf`, which
+  navi uses as its selector. The widget opens on Ctrl+G, a key `fzf` and
+  `atuin` leave free; the `key` option (`ctrl-<letter>` or `alt-<letter>`)
+  rebinds it and restores Ctrl+G to its shell default. No cheatsheets are
+  shipped.
 - `dynamic-completion` module (bash only, opt-in): registers completion for
   CLIs that complete themselves (`terraform`, `vault`, `aws`) with bash's native
   `complete -C <binary> <name>`. The `commands` option takes `name` or

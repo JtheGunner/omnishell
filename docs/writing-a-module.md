@@ -255,6 +255,16 @@ Example `~/.config/omnishell/modules/my-aliases/cheatsheet.tmpl`:
 {{ end }}
 ```
 
+## Modules only write the init file
+
+A module contributes shell code to the managed `init.<shell>` and nothing
+else. Do not write other files (`~/.gitconfig`, tool config files, dotfiles)
+from a template or a hook: backup, rollback, `doctor` and drift detection only
+cover the init files and the rc marker block. Steer a tool through environment
+variables, aliases, functions or its own CLI flags instead (the built-in
+`delta` module sets `GIT_PAGER` this way). See
+[design-decisions.md](design-decisions.md#non-shell-files).
+
 ## `requires` vs `after` vs `conflicts`
 
 - `requires` is a **hard** dependency. If module A `requires` B and B is not

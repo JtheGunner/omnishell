@@ -1,0 +1,16 @@
+{{- $key := .Options.key -}}
+{{- if eq $key "ctrl-g" -}}
+command -v navi >/dev/null 2>&1 && eval "$(navi widget bash)"
+{{- else -}}
+{{- $seq := printf "\\C-%s" (slice $key 5) -}}
+{{- if eq (slice $key 0 3) "alt" -}}
+{{- $seq = printf "\\e%s" (slice $key 4) -}}
+{{- end -}}
+if command -v navi >/dev/null 2>&1; then
+  eval "$(navi widget bash)"
+  if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+    bind -x {{ printf "\"%s\": _navi_widget" $seq | shellquote }}
+    bind '"\C-g": abort'
+  fi
+fi
+{{- end }}
