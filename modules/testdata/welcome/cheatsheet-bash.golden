@@ -1,3 +1,3 @@
-- No new commands: a `fastfetch` system summary is printed on every interactive shell start
+- No new aliases or functions: a `fastfetch` system summary is printed on every interactive shell start
 - Nothing is printed when `fastfetch` is not installed
 - `fastfetch` — run the summary yourself at any time

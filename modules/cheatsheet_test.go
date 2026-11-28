@@ -13,6 +13,16 @@ import (
 // `omnishell cheatsheet` does (platform macos, no other module active).
 func renderCheatsheet(t *testing.T, id, shell string, opts map[string]any) string {
 	t.Helper()
+	return renderCheatsheetWith(t, id, shell, opts, nil)
+}
+
+// renderCheatsheetWith is renderCheatsheet with the given modules active.
+func renderCheatsheetWith(t *testing.T, id, shell string, opts map[string]any, active []string) string {
+	t.Helper()
+	activeSet := map[string]bool{}
+	for _, a := range active {
+		activeSet[a] = true
+	}
 	reg, err := module.LoadRegistry(modules.FS(), "")
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +43,7 @@ func renderCheatsheet(t *testing.T, id, shell string, opts map[string]any) strin
 		Options: norm, Platform: "macos", Shell: shell,
 		VendorDir: "/home/j/.config/omnishell/vendor",
 		ConfigDir: "/home/j/.config/omnishell",
-		Bin:       map[string]string{}, Active: map[string]bool{},
+		Bin:       map[string]string{}, Active: activeSet,
 	})
 	if err != nil {
 		t.Fatalf("render: %v", err)
@@ -295,8 +305,11 @@ func TestYouShouldUseCheatsheetFollowsOptions(t *testing.T) {
 	if !strings.Contains(def, "closest") || !strings.Contains(opt, "every") {
 		t.Errorf("mode must change the text:\ndef:\n%s\nopt:\n%s", def, opt)
 	}
-	if strings.Contains(def, "never") {
+	if strings.Contains(def, "Never hinted") {
 		t.Errorf("default has no ignored aliases:\n%s", def)
+	}
+	if !strings.Contains(opt, "Never hinted") {
+		t.Errorf("ignored_aliases must produce the \"Never hinted\" line:\n%s", opt)
 	}
 	for _, want := range []string{"`g`", "`ll`"} {
 		if !strings.Contains(opt, want) {
@@ -363,6 +376,40 @@ func TestWelcomeCheatsheetFollowsOnlySSH(t *testing.T) {
 	if !strings.Contains(ssh, "only when `SSH_CONNECTION` or `SSH_TTY` is set") ||
 		strings.Contains(ssh, "every interactive shell start") {
 		t.Errorf("only_ssh = true must restrict the summary:\n%s", ssh)
+	}
+}
+
+func TestZshCompletionsCheatsheetFollowsCompletionModule(t *testing.T) {
+	without := renderCheatsheetWith(t, "zsh-completions", "zsh", nil, nil)
+	with := renderCheatsheetWith(t, "zsh-completions", "zsh", nil, []string{"completion"})
+
+	if strings.Contains(without, "`Tab`") {
+		t.Errorf("without the completion module Tab gains nothing:\n%s", without)
+	}
+	if !strings.Contains(without, "`completion` module") {
+		t.Errorf("without the completion module the sheet must say it is needed:\n%s", without)
+	}
+	if !strings.Contains(with, "`Tab`") {
+		t.Errorf("with the completion module Tab must be listed:\n%s", with)
+	}
+	assertGoldenNamed(t, "zsh-completions", "cheatsheet-zsh-with-completion", with)
+}
+
+func TestAutosuggestionsCheatsheetStatesAcceptConditions(t *testing.T) {
+	got := renderCheatsheet(t, "autosuggestions", "zsh", nil)
+	if strings.Contains(got, "grey") {
+		t.Errorf("the suggestion colour is configurable, do not call it grey:\n%s", got)
+	}
+	if !strings.Contains(got, "cursor is at the end of the line") {
+		t.Errorf("accepting only works at the end of the line:\n%s", got)
+	}
+}
+
+func TestDynamicCompletionCheatsheetExplainsEntries(t *testing.T) {
+	got := renderCheatsheet(t, "dynamic-completion", "bash",
+		map[string]any{"commands": []any{"aws=aws_completer"}})
+	if !strings.Contains(got, "You type `name`") {
+		t.Errorf("must say which part of an entry is typed:\n%s", got)
 	}
 }
 

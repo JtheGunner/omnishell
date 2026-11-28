@@ -1,2 +1,6 @@
+{{ if has "completion" -}}
 - `Tab` — completes more tools than zsh knows by default, because the extra definitions are put on `fpath` before completion starts
+{{ else -}}
+- Nothing changes until the `completion` module is enabled: it runs the completion system that reads the extra definitions this module puts on `fpath`
+{{ end -}}
 - Adds no commands of its own
