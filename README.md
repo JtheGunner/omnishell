@@ -15,6 +15,8 @@ One `config.toml` lists the modules you want; `omnishell apply` installs, render
 ![Shells](https://img.shields.io/badge/shells-zsh%20·%20bash-8b5cf6?style=flat-square)
 ![Dependencies](https://img.shields.io/badge/runtime%20deps-none-f59e0b?style=flat-square)
 
+<a href="https://www.producthunt.com/products/omnishell?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-omnishell" target="_blank" rel="noopener noreferrer"><img alt="omnishell - Modular, declarative, reversible terminal configuration | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1334552&amp;theme=light&amp;t=1795870899595"></a>
+
 </div>
 
 ---
