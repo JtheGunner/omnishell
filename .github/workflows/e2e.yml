@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: sh test/e2e/run.sh
   macos:
+    # GitHub-hosted on purpose: needs a macOS runner.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
