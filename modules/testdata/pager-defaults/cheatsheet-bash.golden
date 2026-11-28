@@ -1,0 +1,3 @@
+- `less` — passes colour through, exits at once when the text fits one screen, leaves the output on screen after quitting, searches case-insensitively unless you type capitals, and shows a more verbose prompt
+- Search history is kept in `$XDG_CACHE_HOME/less/history` (default `~/.cache/less/history`)
+- Adds no commands of its own

@@ -210,3 +210,74 @@ func TestMiseCheatsheetFollowsMode(t *testing.T) {
 		t.Errorf("shims mode must say so:\n%s", shims)
 	}
 }
+
+func TestModernAliasesCheatsheetFollowsReplace(t *testing.T) {
+	ls := renderCheatsheet(t, "modern-aliases", "zsh", map[string]any{"replace": []any{"ls"}})
+	for _, want := range []string{"`ls`", "`ll`"} {
+		if !strings.Contains(ls, want) {
+			t.Errorf("replace = [ls] must mention %s:\n%s", want, ls)
+		}
+	}
+	for _, bad := range []string{"`cat`", "`find`"} {
+		if strings.Contains(ls, bad) {
+			t.Errorf("replace = [ls] must not mention %s:\n%s", bad, ls)
+		}
+	}
+
+	rest := renderCheatsheet(t, "modern-aliases", "bash", map[string]any{"replace": []any{"cat", "find"}})
+	for _, want := range []string{"`cat`", "`find`"} {
+		if !strings.Contains(rest, want) {
+			t.Errorf("replace = [cat find] must mention %s:\n%s", want, rest)
+		}
+	}
+	for _, bad := range []string{"`ls`", "`ll`"} {
+		if strings.Contains(rest, bad) {
+			t.Errorf("replace = [cat find] must not mention %s:\n%s", bad, rest)
+		}
+	}
+
+	none := renderCheatsheet(t, "modern-aliases", "zsh", map[string]any{"replace": []any{}})
+	for _, bad := range []string{"`ls`", "`ll`", "`cat`", "`find`"} {
+		if strings.Contains(none, bad) {
+			t.Errorf("replace = [] must not mention %s:\n%s", bad, none)
+		}
+	}
+}
+
+func TestPayRespectsCheatsheetFollowsAlias(t *testing.T) {
+	def := renderCheatsheet(t, "pay-respects", "zsh", nil)
+	got := renderCheatsheet(t, "pay-respects", "bash", map[string]any{"alias": "oops"})
+	if !strings.Contains(def, "`f`") {
+		t.Errorf("default alias f must be listed:\n%s", def)
+	}
+	if !strings.Contains(got, "`oops`") {
+		t.Errorf("custom alias must be listed:\n%s", got)
+	}
+	if strings.Contains(got, "`f`") {
+		t.Errorf("alias = oops must not mention f:\n%s", got)
+	}
+}
+
+func TestYouShouldUseCheatsheetFollowsOptions(t *testing.T) {
+	def := renderCheatsheet(t, "you-should-use", "zsh", nil)
+	opt := renderCheatsheet(t, "you-should-use", "zsh", map[string]any{
+		"message_position": "after", "mode": "ALL", "ignored_aliases": []any{"g", "ll"},
+	})
+	if !strings.Contains(def, "before the command") || strings.Contains(def, "after the command") {
+		t.Errorf("default hint comes before the command:\n%s", def)
+	}
+	if !strings.Contains(opt, "after the command") || strings.Contains(opt, "before the command") {
+		t.Errorf("message_position = after must say so:\n%s", opt)
+	}
+	if !strings.Contains(def, "closest") || !strings.Contains(opt, "every") {
+		t.Errorf("mode must change the text:\ndef:\n%s\nopt:\n%s", def, opt)
+	}
+	if strings.Contains(def, "never") {
+		t.Errorf("default has no ignored aliases:\n%s", def)
+	}
+	for _, want := range []string{"`g`", "`ll`"} {
+		if !strings.Contains(opt, want) {
+			t.Errorf("ignored alias %s must be listed:\n%s", want, opt)
+		}
+	}
+}

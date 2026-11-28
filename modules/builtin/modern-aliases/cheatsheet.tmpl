@@ -1,0 +1,15 @@
+{{ if has_item .Options.replace "ls" -}}
+- `ls` — eza with icons, git status and directories first (when eza is installed)
+- `ll` — long listing of all files with eza (when eza is installed)
+{{ end -}}
+{{ if has_item .Options.replace "cat" -}}
+- `cat` — bat with syntax highlighting (when bat or batcat is installed)
+{{ end -}}
+{{ if has_item .Options.replace "find" -}}
+- `find` — fd, so use fd syntax (`find pattern`), not find flags (when fd or fdfind is installed)
+{{ end -}}
+{{ if gt (len .Options.replace) 0 -}}
+- Run the original command with a leading backslash or with `command`
+{{ else -}}
+- No aliases are active (the `replace` option is empty)
+{{ end -}}
