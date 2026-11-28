@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -186,6 +187,10 @@ func ComputePlan(e Engine, cfg config.Config, lock lockfile.Lock, noPackages boo
 	for _, id := range activeIDs {
 		norm, err := module.ValidateOptions(active[id].Options, cfg.Modules[id].Options)
 		if err != nil {
+			var optErr module.OptionError
+			if errors.As(err, &optErr) && optErr.IsUnknown() {
+				err = fmt.Errorf("module %q: %w; %s", id, err, StaleConfigHint)
+			}
 			return Plan{}, ConfigError{Err: err}
 		}
 		optsByID[id] = norm
@@ -287,6 +292,14 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, 
 		if len(mf.Packages.Brew)+len(mf.Packages.Apt)+len(mf.Packages.Dnf)+
 			len(mf.Packages.Pacman)+len(mf.Packages.Zypper)+len(mf.Packages.Apk) > 0 {
 			mp.DegradedReason = "no package manager detected"
+			return
+		}
+		// A module with no manager packages at all gets its software only from
+		// the fallback, which needs the Runner and not a package manager.
+		// Returning here would drop it without a plan or a degradation.
+		if len(mf.Packages.Fallback) > 0 {
+			mp.PackagesPlanned = true
+			planFallback(mp, e, prev)
 		}
 		return
 	}
@@ -311,8 +324,31 @@ func planPackages(mp *ModulePlan, e Engine, mod module.Module, shells []string, 
 			}
 		}
 		if len(unavailable) > 0 {
-			mp.UnavailablePackages = unavailable
-			planFallback(mp, e, prev)
+			fb, ok := selectFallback(mf.Packages.Fallback, e.Platform)
+			if !ok || len(fb.Replaces) == 0 {
+				// The fallback stands in for the whole package list.
+				mp.UnavailablePackages = unavailable
+				planFallback(mp, e, prev)
+				return
+			}
+			// The fallback stands in for the packages it names only: every
+			// other missing package stays with the manager, where one the
+			// repositories cannot provide fails with the manager's error.
+			var replaced []string
+			for _, name := range unavailable {
+				if contains(fb.Replaces, name) {
+					replaced = append(replaced, name)
+				}
+			}
+			if len(replaced) > 0 {
+				mp.UnavailablePackages = replaced
+				planFallback(mp, e, prev)
+			}
+			for _, pp := range missing {
+				if !contains(replaced, pp.Name) {
+					mp.MissingPackages = append(mp.MissingPackages, pp)
+				}
+			}
 			return
 		}
 		mp.MissingPackages = append(mp.MissingPackages, missing...)

@@ -10,6 +10,7 @@ import (
 	"github.com/JtheGunner/omnishell/internal/initfile"
 	"github.com/JtheGunner/omnishell/internal/lockfile"
 	"github.com/JtheGunner/omnishell/internal/rcfile"
+	"github.com/JtheGunner/omnishell/internal/render"
 )
 
 // Severity values a Finding may carry.
@@ -203,6 +204,16 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 		}
 	}
 
+	// 5b. zsh-completions: compinit rejects group- or world-writable
+	// completion directories. Notice only; Doctor never changes permissions.
+	if mp, ok := plan.Modules["zsh-completions"]; ok && mp.Action != ActionSkip {
+		for _, dir := range writableCompletionDirs(completionDirCandidates(e.vendorDir())) {
+			add(SeverityNotice, "completion-dir-writable:"+dir,
+				fmt.Sprintf("completion directory %s is writable by group or others, so compinit reports insecure directories; fix with: chmod go-w %s",
+					dir, render.ShellQuote(dir)))
+		}
+	}
+
 	// 6. Orphan lock entries: a module recorded in the lock but gone from config.
 	orphanIDs := make([]string, 0, len(lock.Modules))
 	for id := range lock.Modules {
@@ -225,7 +236,7 @@ func (e Engine) Doctor(cfg config.Config, cfgPath, lockPath string) (DoctorRepor
 	// 7b. Enabled ids in the config that no registered module provides. Notice.
 	for _, id := range plan.UnknownModules {
 		add(SeverityNotice, "unknown-module:"+id,
-			fmt.Sprintf("config enables module %q but no module provides it", id))
+			fmt.Sprintf("config enables module %q but no module provides it; %s", id, StaleConfigHint))
 	}
 
 	// 7c. User module dirs that were skipped because they could not be loaded.

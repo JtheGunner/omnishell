@@ -13,6 +13,7 @@ module wins and `omnishell doctor` flags the shadowing.
 ├── manifest.toml     # required: metadata, platforms/shells, deps, packages, option schema
 ├── zsh.tmpl          # optional: the zsh snippet (Go text/template)
 ├── bash.tmpl         # optional: the bash snippet
+├── cheatsheet.tmpl   # optional: Markdown for `omnishell cheatsheet`, one file for all shells
 └── hooks/            # optional: escape hatch for logic the manifest can't express
     ├── check.sh      #   exit 0 = requirement satisfied, exit 1 = missing
     ├── install.sh    #   run when check.sh fails and the package path didn't help
@@ -120,6 +121,13 @@ help    = "Directories direnv trusts without an explicit `direnv allow`"
 #   type    = "string"
 #   default = "z"
 #   pattern = "^[A-Za-z_][A-Za-z0-9_-]*$"
+#
+# A type = "list<string>" option may carry `pattern` too; then every item, and
+# every item of the default, must match (from spell-correction):
+#   [options.nocorrect_commands]
+#   type    = "list<string>"
+#   default = []
+#   pattern = "^[A-Za-z0-9_][A-Za-z0-9_.+-]*$"
 ```
 
 `omnishell set <id>.<key> <value>` validates against this schema and rejects
@@ -153,6 +161,29 @@ member = "mise/bin/mise"                # file inside the .tar.gz / .zip; omit f
 - Prefer static (musl) builds: they run on glibc and musl systems alike, so no libc detection is needed. A host without a matching `(os, arch)` asset moves on to the next fallback entry.
 - On `arch = "arm"` an asset with `goarm` matches only that variant of the host; an asset without it matches every variant, and the variant-specific one wins when both exist. A host whose variant is unknown matches only variant-less assets.
 - `requires` is not allowed on a release entry; it belongs to the `git` entry.
+
+### A fallback for one package of several
+
+By default a fallback stands in for the module's whole package list: as soon as one listed package is unavailable, the fallback is used and the manager installs nothing for the module. That fits a module with one tool.
+
+A module that lists several packages can limit a fallback (either type) to the packages it provides with `replaces`:
+
+```toml
+[packages]
+apt = ["eza", "bat", "fd-find"]
+
+[[packages.fallback]]
+type     = "release"
+repo     = "https://github.com/eza-community/eza"
+ref      = "v0.23.5"
+bin      = "eza"
+replaces = ["eza"]                      # manager package names this entry stands in for
+```
+
+- The fallback is used only when a package named in `replaces` is unavailable. Every other missing package is still installed by the manager.
+- An unavailable package that `replaces` does not name stays with the manager, so its install error degrades the module as it would without a fallback.
+- Each name must be a package the manifest lists for at least one manager.
+- A module still has one active fallback: the first entry that fits the host.
 
 ## Templates
 
@@ -191,6 +222,48 @@ unquoted. A missed `shellquote` on a free-form string option is arbitrary code
 execution: `omnishell set <id>.<key> 'x; rm -rf ~'` would otherwise run at every
 login. The `modules` test suite fails the build if a builtin template emits a
 string option without `shellquote`.
+
+## Cheatsheet
+
+A module can ship an optional `cheatsheet.tmpl` that `omnishell cheatsheet`
+renders for the active modules. It is Markdown, written for a person at the
+prompt who wants to remember what the module gave them.
+
+- It is a `text/template` with the same context and functions as `zsh.tmpl`
+  (see [Templates](#templates)). There is **one file for all shells**: branch
+  on `.Shell` where zsh and bash differ.
+- List what the user can type: commands, aliases, shell functions and key
+  bindings.
+- Describe only what **this module** sets up. Do not document the tool's whole
+  feature set; link to its homepage instead.
+- Reflect the user's options: show an alias only when the option that creates
+  it is on, with `if` / `has_item`.
+- The command prints the body under a heading made from the manifest's `name`
+  and `id`, so do not add a title. Control characters are stripped before
+  printing.
+
+A template error does not break anything else: the module is reported on
+stderr and the others still print. A module without the file is simply listed
+under "No cheatsheet".
+
+Example `~/.config/omnishell/modules/my-aliases/cheatsheet.tmpl`:
+
+```
+{{ if has_item .Options.replace "ls" }}- `ls` — [eza](https://github.com/eza-community/eza) instead of the system `ls`
+{{ end }}{{ if has_item .Options.replace "cat" }}- `cat` — [bat](https://github.com/sharkdp/bat) with syntax highlighting
+{{ end }}{{ if eq .Shell "zsh" }}- `Ctrl+X Ctrl+E` — edit the current line in `$EDITOR`
+{{ end }}
+```
+
+## Modules only write the init file
+
+A module contributes shell code to the managed `init.<shell>` and nothing
+else. Do not write other files (`~/.gitconfig`, tool config files, dotfiles)
+from a template or a hook: backup, rollback, `doctor` and drift detection only
+cover the init files and the rc marker block. Steer a tool through environment
+variables, aliases, functions or its own CLI flags instead (the built-in
+`delta` module sets `GIT_PAGER` this way). See
+[design-decisions.md](design-decisions.md#non-shell-files).
 
 ## `requires` vs `after` vs `conflicts`
 

@@ -41,7 +41,8 @@ archives:
 checksum:
   name_template: checksums.txt
 brews:
-  - repository:
+  - directory: Formula
+    repository:
       owner: JtheGunner
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"

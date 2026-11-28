@@ -1,0 +1,3 @@
+- A mistyped command name triggers a prompt
+- Answer the prompt with `y` (accept), `n` (keep as typed), `a` (abort) or `e` (edit)
+- `git` — never corrected (aliased to `nocorrect git` unless something else already aliases it)

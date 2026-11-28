@@ -1,0 +1,2 @@
+- `br` — open the broot directory tree
+- `Alt-Enter` inside broot — `cd` to the selected directory and quit

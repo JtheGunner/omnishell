@@ -1,0 +1,10 @@
+- No new commands: a Root Loops colour palette is pushed into the terminal (OSC 4/10/11 escape sequences) each time an interactive shell starts
+{{ if eq .Options.appearance "dark" -}}
+- Always applies the dark palette (`appearance = "dark"`)
+{{ else if eq .Options.appearance "light" -}}
+- Always applies the light palette (`appearance = "light"`)
+{{ else -}}
+- Picks the light or dark palette once at shell start; it follows the system light/dark setting (macOS appearance, or the desktop setting via `gdbus` on Linux) and falls back to dark on Linux when it cannot tell
+- A changed system setting takes effect in the next new shell
+{{ end -}}
+- Skipped when stdout is not a terminal

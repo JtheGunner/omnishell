@@ -1,0 +1,13 @@
+{{ if eq .Options.message_position "after" -}}
+- Typing a long command that has an alias prints a hint after the command has run
+{{ else -}}
+- Typing a long command that has an alias prints a hint before the command runs
+{{ end -}}
+{{ if eq .Options.mode "ALL" -}}
+- The hint lists every alias that would shorten the command
+{{ else -}}
+- The hint shows only the closest matching alias
+{{ end -}}
+{{ if .Options.ignored_aliases -}}
+- Never hinted:{{ range $i, $a := .Options.ignored_aliases }}{{ if $i }},{{ end }} `{{ $a }}`{{ end }}
+{{ end -}}

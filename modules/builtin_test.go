@@ -3,8 +3,10 @@ package modules_test
 import (
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/JtheGunner/omnishell/internal/graph"
@@ -93,6 +95,56 @@ func assertGoldenNamed(t *testing.T, id, name, got string) {
 func TestCompletion(t *testing.T) {
 	assertGolden(t, "completion", "zsh", renderModule(t, "completion", "zsh", nil))
 	assertGolden(t, "completion", "bash", renderModule(t, "completion", "bash", nil))
+}
+
+func TestCompletionBashSnippet(t *testing.T) {
+	got := renderModule(t, "completion", "bash", nil)
+	for _, want := range []string{
+		"BASH_VERSINFO[0]", "BASH_VERSINFO[1]",
+		"/opt/homebrew/etc/profile.d/bash_completion.sh",
+		"/usr/local/etc/profile.d/bash_completion.sh",
+		"/usr/share/bash-completion/bash_completion",
+		"/etc/bash_completion",
+		"shopt -oq posix",
+		"completion-ignore-case",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("bash snippet lacks %q", want)
+		}
+	}
+	if strings.Contains(got, "brew --prefix") {
+		t.Error("bash snippet must not call brew --prefix")
+	}
+	if strings.Index(got, "/opt/homebrew/") > strings.Index(got, "/usr/share/bash-completion") {
+		t.Error("Homebrew paths must be searched before the distro paths")
+	}
+	if bash, err := exec.LookPath("bash"); err == nil {
+		cmd := exec.Command(bash, "-n")
+		cmd.Stdin = strings.NewReader(got)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("bash -n failed: %v\n%s", err, out)
+		}
+	}
+}
+
+func TestCompletionPackages(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("completion")
+	if !ok {
+		t.Fatal("module completion missing")
+	}
+	want := map[string]string{
+		"brew": "bash-completion@2", "apt": "bash-completion", "dnf": "bash-completion",
+		"pacman": "bash-completion", "zypper": "bash-completion", "apk": "bash-completion",
+	}
+	for mgr, pkg := range want {
+		if got := m.Manifest.Packages.ForManager(mgr); len(got) != 1 || got[0] != pkg {
+			t.Errorf("%s packages = %v, want [%s]", mgr, got, pkg)
+		}
+	}
 }
 
 func TestHistory(t *testing.T) {
@@ -423,6 +475,97 @@ func TestRootLoops(t *testing.T) {
 		renderModule(t, "root-loops", "zsh", map[string]any{"appearance": "light"}))
 }
 
+func TestSpellCorrection(t *testing.T) {
+	commands := renderModule(t, "spell-correction", "zsh", nil)
+	all := renderModule(t, "spell-correction", "zsh", map[string]any{"scope": "all"})
+	assertGoldenNamed(t, "spell-correction", "zsh-commands", commands)
+	assertGoldenNamed(t, "spell-correction", "zsh-all", all)
+
+	if !strings.Contains(commands, "setopt correct\n") || strings.Contains(commands, "correct_all") {
+		t.Errorf("default scope must set only CORRECT, got:\n%s", commands)
+	}
+	if !strings.Contains(all, "setopt correct_all") {
+		t.Errorf("scope=all must set CORRECT_ALL, got:\n%s", all)
+	}
+}
+
+func TestSpellCorrectionNocorrectCommands(t *testing.T) {
+	names := []any{"git", "mkdir", "g++"}
+	listed := renderModule(t, "spell-correction", "zsh", map[string]any{"nocorrect_commands": names})
+	listedAll := renderModule(t, "spell-correction", "zsh",
+		map[string]any{"scope": "all", "nocorrect_commands": names})
+	assertGoldenNamed(t, "spell-correction", "zsh-nocorrect", listed)
+	assertGoldenNamed(t, "spell-correction", "zsh-all-nocorrect", listedAll)
+
+	if strings.Contains(renderModule(t, "spell-correction", "zsh", nil), "alias") {
+		t.Error("an empty nocorrect_commands list must render no alias")
+	}
+	for _, name := range []string{"git", "mkdir", "g++"} {
+		want := "alias '" + name + "'='nocorrect " + name + "'"
+		if !strings.Contains(listed, want) {
+			t.Errorf("missing %s in:\n%s", want, listed)
+		}
+	}
+	if !strings.Contains(listed, "|| alias") {
+		t.Errorf("aliases must not overwrite one another module already set:\n%s", listed)
+	}
+}
+
+func TestSpellCorrectionKeepsAliasesOtherModulesSet(t *testing.T) {
+	zsh, err := exec.LookPath("zsh")
+	if err != nil {
+		t.Skip("zsh not installed")
+	}
+	rendered := renderModule(t, "spell-correction", "zsh",
+		map[string]any{"nocorrect_commands": []any{"mkdir", "g++", "touch"}})
+	script := "alias mkdir='eza-stand-in'\nalias 'g++'='other-stand-in'\n" + rendered + "\nalias\n"
+	out, err := exec.Command(zsh, "-f", "-c", script).CombinedOutput()
+	if err != nil {
+		t.Fatalf("zsh: %v\n%s", err, out)
+	}
+	got := string(out)
+	for _, want := range []string{"mkdir=eza-stand-in", "g++=other-stand-in", "touch='nocorrect touch'"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("alias output lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestSpellCorrectionRejectsUnsafeCommandNames(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("spell-correction")
+	if !ok {
+		t.Fatal("module spell-correction not embedded")
+	}
+	for _, bad := range []string{"git; rm -rf ~", "$(id)", "a b", "-rf", "x'y", ""} {
+		_, err := module.ValidateOptions(m.Manifest.Options,
+			map[string]any{"nocorrect_commands": []any{bad}})
+		if err == nil {
+			t.Errorf("command name %q was accepted", bad)
+		}
+	}
+}
+
+func TestSpellCorrectionIsZshOnly(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("spell-correction")
+	if !ok {
+		t.Fatal("module spell-correction not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Errorf("shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Errorf("bash template: has=%v err=%v, want none", has, err)
+	}
+}
+
 func TestPagerDefaults(t *testing.T) {
 	assertGolden(t, "pager-defaults", "zsh", renderModule(t, "pager-defaults", "zsh", nil))
 	assertGolden(t, "pager-defaults", "bash", renderModule(t, "pager-defaults", "bash", nil))
@@ -485,6 +628,31 @@ func TestBuiltinReleaseFallbacks(t *testing.T) {
 	}
 }
 
+// eza is missing from older distro releases. Its release binary stands in for
+// eza only, so bat and fd stay with the package manager.
+func TestModernAliasesEzaFallback(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("modern-aliases")
+	if !ok {
+		t.Fatal("module modern-aliases missing")
+	}
+	fbs := m.Manifest.Packages.Fallback
+	if len(fbs) != 1 || fbs[0].Type != "release" || fbs[0].Bin != "eza" {
+		t.Fatalf("fallbacks = %+v, want one release entry for eza", fbs)
+	}
+	if len(fbs[0].Replaces) != 1 || fbs[0].Replaces[0] != "eza" {
+		t.Fatalf("replaces = %v, want [eza]", fbs[0].Replaces)
+	}
+	for _, arch := range []string{"amd64", "arm64"} {
+		if _, ok := fbs[0].AssetFor("linux", arch, ""); !ok {
+			t.Errorf("release fallback has no linux/%s asset", arch)
+		}
+	}
+}
+
 // 32-bit ARM: starship ships one armv6-compatible binary, mise only armv7, and
 // broot nothing, so broot builds from source there.
 func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {
@@ -513,5 +681,210 @@ func TestBuiltinReleaseFallbacksOnArm32(t *testing.T) {
 		if got != c.want {
 			t.Errorf("%s goarm=%q: release asset = %v, want %v", c.id, c.goarm, got, c.want)
 		}
+	}
+}
+
+// tealdeer is packaged under one name by every supported manager; the pinned
+// release binary only covers hosts whose repositories lack it. The module
+// installs the tldr client and renders no shell code.
+func TestTealdeer(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("tealdeer")
+	if !ok {
+		t.Fatal("module tealdeer missing")
+	}
+	for _, mgr := range []string{"brew", "apt", "dnf", "pacman", "zypper", "apk"} {
+		if got := m.Manifest.Packages.ForManager(mgr); len(got) != 1 || got[0] != "tealdeer" {
+			t.Errorf("%s packages = %v, want [tealdeer]", mgr, got)
+		}
+	}
+	fbs := m.Manifest.Packages.Fallback
+	if len(fbs) != 1 || fbs[0].Type != "release" || fbs[0].Bin != "tldr" || fbs[0].Ref == "" {
+		t.Fatalf("fallbacks = %+v, want one pinned release entry for tldr", fbs)
+	}
+	for _, c := range []struct {
+		arch, goarm string
+		want        bool
+	}{
+		{"amd64", "", true},
+		{"arm64", "", true},
+		{"arm", "7", true},
+		{"arm", "6", false},
+	} {
+		if _, got := fbs[0].AssetFor("linux", c.arch, c.goarm); got != c.want {
+			t.Errorf("linux/%s goarm=%q: release asset = %v, want %v", c.arch, c.goarm, got, c.want)
+		}
+	}
+	for _, shell := range []string{"zsh", "bash"} {
+		if _, has, err := m.Template(shell); err != nil || has {
+			t.Errorf("%s template: has=%v err=%v, want none", shell, has, err)
+		}
+	}
+}
+
+func TestZshCompletions(t *testing.T) {
+	out := renderModule(t, "zsh-completions", "zsh", nil)
+	assertGolden(t, "zsh-completions", "zsh", out)
+}
+
+func TestZshCompletionsIsZshOnly(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("zsh-completions")
+	if !ok {
+		t.Fatal("zsh-completions not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Fatalf("zsh-completions shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Fatalf("zsh-completions must not ship a bash template: has=%v err=%v", has, err)
+	}
+	for _, mgr := range []string{"brew", "apt", "dnf", "pacman", "zypper", "apk"} {
+		if pkgs := m.Manifest.Packages.ForManager(mgr); len(pkgs) != 1 || pkgs[0] != "zsh-completions" {
+			t.Errorf("zsh-completions packages for %s = %v, want [zsh-completions]", mgr, pkgs)
+		}
+	}
+}
+
+// TestZshCompletionsFpathPrecedesCompinit pins the ordering the module exists
+// for: zsh-completions only takes effect when its directory is on fpath before
+// compinit runs, and compinit lives in the completion module.
+func TestZshCompletionsFpathPrecedesCompinit(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := map[string]module.Manifest{}
+	for _, id := range []string{"completion", "zsh-completions", "fzf", "fzf-tab", "autosuggestions"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %q not embedded", id)
+		}
+		active[id] = m.Manifest
+	}
+	order, err := graph.Order(active)
+	if err != nil {
+		t.Fatalf("graph.Order: %v", err)
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	if pos["zsh-completions"] > pos["completion"] {
+		t.Fatalf("zsh-completions must load before completion: %v", order)
+	}
+}
+
+// TestCompletionWithoutZshCompletions keeps the soft ordering hint harmless:
+// completion must still order cleanly when zsh-completions is not active.
+func TestCompletionWithoutZshCompletions(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("completion")
+	if !ok {
+		t.Fatal("completion not embedded")
+	}
+	order, err := graph.Order(map[string]module.Manifest{"completion": m.Manifest})
+	if err != nil || len(order) != 1 || order[0] != "completion" {
+		t.Fatalf("order = %v, err = %v", order, err)
+	}
+}
+
+func TestYouShouldUse(t *testing.T) {
+	def := renderModule(t, "you-should-use", "zsh", nil)
+	custom := renderModule(t, "you-should-use", "zsh", map[string]any{
+		"message_position": "after",
+		"mode":             "ALL",
+		"ignored_aliases":  []any{"g", "ll"},
+	})
+	assertGoldenNamed(t, "you-should-use", "zsh", def)
+	assertGoldenNamed(t, "you-should-use", "zsh-custom", custom)
+
+	if strings.Contains(def, "YSU_IGNORED_ALIASES") {
+		t.Errorf("an empty ignored_aliases list must set no variable:\n%s", def)
+	}
+	for _, want := range []string{
+		"YSU_MESSAGE_POSITION=after", "YSU_MODE=ALL", "YSU_IGNORED_ALIASES=('g' 'll')",
+	} {
+		if !strings.Contains(custom, want) {
+			t.Errorf("custom render lacks %q:\n%s", want, custom)
+		}
+	}
+	if strings.Contains(def+custom, "YSU_HARDCORE") {
+		t.Error("hardcore mode blocks commands and must not be offered")
+	}
+}
+
+func TestYouShouldUseManifest(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("you-should-use")
+	if !ok {
+		t.Fatal("module you-should-use not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Errorf("shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Errorf("bash template: has=%v err=%v, want none", has, err)
+	}
+	if got := m.Manifest.Packages.ForManager("brew"); len(got) != 1 || got[0] != "zsh-you-should-use" {
+		t.Errorf("brew packages = %v, want [zsh-you-should-use]", got)
+	}
+	fbs := m.Manifest.Packages.Fallback
+	if len(fbs) != 1 || fbs[0].Type != "git" || fbs[0].Ref == "" {
+		t.Fatalf("fallbacks = %+v, want one pinned git entry", fbs)
+	}
+	for _, bad := range []string{"g; rm -rf ~", "$(id)", "a b", "-rf", "x'y", ""} {
+		if _, err := module.ValidateOptions(m.Manifest.Options,
+			map[string]any{"ignored_aliases": []any{bad}}); err == nil {
+			t.Errorf("alias name %q was accepted", bad)
+		}
+	}
+	for _, bad := range []map[string]any{{"mode": "everything"}, {"message_position": "during"}} {
+		if _, err := module.ValidateOptions(m.Manifest.Options, bad); err == nil {
+			t.Errorf("options %v were accepted", bad)
+		}
+	}
+}
+
+// you-should-use reads the alias table, so modern-aliases must define its
+// aliases first; the two syntax modules keep rendering last.
+func TestYouShouldUseLoadOrder(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := map[string]module.Manifest{}
+	for _, id := range []string{"completion", "modern-aliases", "you-should-use", "autosuggestions", "syntax-highlighting"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %q not embedded", id)
+		}
+		active[id] = m.Manifest
+	}
+	order, err := graph.Order(active)
+	if err != nil {
+		t.Fatalf("graph.Order: %v", err)
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	if pos["you-should-use"] < pos["modern-aliases"] {
+		t.Errorf("you-should-use must load after modern-aliases: %v", order)
+	}
+	if pos["you-should-use"] > pos["autosuggestions"] || pos["you-should-use"] > pos["syntax-highlighting"] {
+		t.Errorf("you-should-use must load before autosuggestions and syntax-highlighting: %v", order)
 	}
 }

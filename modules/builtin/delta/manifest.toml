@@ -1,0 +1,37 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+after       = ["pager-defaults"]
+
+[module]
+id          = "delta"
+name        = "delta"
+description = "Syntax-highlighted git diffs: delta becomes git's pager through GIT_PAGER, without touching ~/.gitconfig"
+homepage    = "https://github.com/dandavison/delta"
+version     = "1.0.0"
+schema      = 1
+
+# The package is called git-delta on most managers (it provides the delta
+# binary); Alpine ships it as "delta". A manager whose repositories lack it
+# degrades the module. No release fallback is pinned.
+[packages]
+brew   = ["git-delta"]
+apt    = ["git-delta"]
+dnf    = ["git-delta"]
+pacman = ["git-delta"]
+zypper = ["git-delta"]
+apk    = ["delta"]
+
+[options.side_by_side]
+type    = "bool"
+default = false
+help    = "Show old and new code in two columns (--side-by-side)."
+
+[options.navigate]
+type    = "bool"
+default = true
+help    = "Let n / N jump between files and hunks in the pager (--navigate)."
+
+[options.line_numbers]
+type    = "bool"
+default = true
+help    = "Show line numbers next to the diff (--line-numbers)."

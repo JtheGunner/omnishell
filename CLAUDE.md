@@ -11,7 +11,8 @@ reversible way. Users list enabled *modules* in `~/.config/omnishell/config.toml
 and writes everything into one tool-managed `init.zsh` / `init.bash` sourced
 from the user's rc file via a single marker block. See README.md for the full
 user-facing command reference, on-disk layout, and safety model — don't
-duplicate it here.
+duplicate it here. Non-obvious design rationale and deferred ideas are in
+docs/design-decisions.md.
 
 ## Commands
 
@@ -91,6 +92,13 @@ files matters more than any single file:
    `enable`/`disable`/`set` edits (`edit.go`), validating option values against
    a module's schema before writing. Every command except `apply`/`remove`/
    `uninstall` only touches this package.
+   `omnishell config sync` (`internal/cli/config.go`, logic in
+   `internal/configsync`) is the one command that rewrites more than a line of
+   `config.toml`: `Plan` compares the file with the registry's option schemas,
+   `Apply` edits the lines (new options as commented defaults, stale options and
+   module tables removed, everything else untouched) and re-checks that the
+   result parses; the CLI takes a `backup.Session` (kind `config-sync`) first so
+   `rollback` can restore the file.
    The rules shared by `enable`/`disable`/`set`/`list` (unknown-id, shell
    compatibility, option validation, the per-module view) live in
    `internal/modedit`; the CLI commands are thin callers of it.
@@ -108,10 +116,13 @@ files matters more than any single file:
 8. **`internal/pkgmgr`** — `Manager` interface implemented per package manager
    (brew/apt/dnf/pacman/zypper/apk), detected via `DetectManager` in OS-specific
    priority order, plus a `git`-clone-based fallback (`gitfallback.go`) used
-   when a module has no package for the detected manager, none was found, or
+   when a module has no package for the detected manager, or
    `Manager.Available` reports the repositories cannot provide the package
    (`ComputePlan` probes only when the module has a fallback; a failed probe
-   means "unknown" and keeps the package path).
+   means "unknown" and keeps the package path). With no manager detected, a
+   module that lists no manager packages (fallback only, like `ble-sh`) still
+   plans its fallback, which needs the `Runner` and not a manager; a module
+   that does list manager packages is degraded instead.
    A fallback's `requires` (`"cargo>=1.85"`, `"cmake"`) is probed via the
    `Runner` inside `InstallGitFallback`, before the clone — never in `ComputePlan`.
    A fallback's optional `ref` pins the clone to a tag or branch; every
@@ -135,6 +146,10 @@ files matters more than any single file:
    pinned ref is adopted (its binary stays) and its leftovers (`leftovers.go`:
    source tree, this crate's `.crates.toml`/`.crates2.json` entries) are removed
    only with filesystem evidence that they are ours; the plan lists them.
+   A fallback's optional `replaces` names the manager packages it stands in
+   for: `planPackages` then uses it only when one of those is unavailable and
+   keeps every other missing package on the manager path (`modern-aliases`
+   does this for `eza`). Without it a fallback replaces the whole package list.
    All shelling out goes through the injectable `Runner` interface — tests use
    `mock.go`, never real `exec.Command`.
 

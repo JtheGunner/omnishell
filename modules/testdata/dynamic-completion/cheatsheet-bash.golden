@@ -1,0 +1,2 @@
+- Nothing is registered until you set the `commands` option (for example `terraform`, or `aws=aws_completer`)
+- Adds no commands of its own

@@ -1,0 +1,9 @@
+{{ if eq .Options.mode "shims" -}}
+- Tools resolve through `mise` shims on `PATH`, so they also work for tools launched from your shell
+{{ else -}}
+- The versions a project asks for are put on `PATH` at each prompt when you enter its directory
+{{ end -}}
+- `mise use node@24` — pin a tool in the project's `mise.toml` (installs it if needed)
+- `mise install` — install the tools the project config lists
+- `mise ls` — list installed tools; `mise ls --current` shows the active versions here
+- `mise doctor` — check the setup

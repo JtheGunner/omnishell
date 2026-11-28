@@ -1,0 +1,14 @@
+- No new commands: this module only replaces the prompt
+- First line: current directory, then the git branch (or short commit hash when detached)
+- `*` after the branch marks uncommitted changes to tracked files
+{{ if eq .Options.style "full" -}}
+- `user@host` is shown at the end of the first line (`style = "full"`)
+{{ end -}}
+{{ if and (eq .Shell "zsh") .Options.show_duration -}}
+- Commands that ran for 1 second or longer show their duration in seconds after the directory and branch
+{{ end -}}
+{{ if and (eq .Shell "bash") .Options.show_duration -}}
+- `show_duration` has no effect in bash
+{{ end -}}
+- Second line: the prompt character from the `char` option; a failed command shows its exit code in red before it
+- Conflicts with the `starship` module: enable only one of them

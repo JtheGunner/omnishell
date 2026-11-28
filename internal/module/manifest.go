@@ -34,7 +34,10 @@ type ModuleMeta struct {
 // "cmake"); they are checked before the clone. Ref optionally pins the clone
 // to a tag or branch; empty clones the repository's default branch. A
 // type = "release" entry instead names the installed binary (Bin) and one
-// download per OS and architecture (Assets); see release.go.
+// download per OS and architecture (Assets); see release.go. Replaces names
+// the manager packages the entry stands in for; the module's other packages
+// are still installed by the manager. Empty means the entry replaces the whole
+// package list.
 type Fallback struct {
 	Type     string   `toml:"type"`
 	Repo     string   `toml:"repo"`
@@ -44,6 +47,16 @@ type Fallback struct {
 	Requires []string `toml:"requires"`
 	Bin      string   `toml:"bin"`
 	Assets   []Asset  `toml:"assets"`
+	Replaces []string `toml:"replaces"`
+}
+
+// All returns every package name the manifest lists for any manager.
+func (p Packages) All() []string {
+	var out []string
+	for _, list := range [][]string{p.Brew, p.Apt, p.Dnf, p.Pacman, p.Zypper, p.Apk} {
+		out = append(out, list...)
+	}
+	return out
 }
 
 // Packages is the [packages] table.
@@ -211,6 +224,15 @@ func ValidateManifest(m Manifest) error {
 			}
 		}
 	}
+	listed := toSet(m.Packages.All())
+	for i, fb := range m.Packages.Fallback {
+		for _, name := range fb.Replaces {
+			if !listed[name] {
+				return e(fmt.Sprintf("packages.fallback[%d].replaces", i),
+					"not a package of any manager: "+name)
+			}
+		}
+	}
 	for _, fb := range m.Packages.Fallback {
 		if fb.Ref != "" && !fallbackRefRe.MatchString(fb.Ref) {
 			return e("packages.fallback.ref", "must match "+fallbackRefRe.String()+": "+fb.Ref)
@@ -224,8 +246,8 @@ func ValidateManifest(m Manifest) error {
 			return e("options."+key+".values", "enum types require a non-empty values list")
 		}
 		if opt.Pattern != "" {
-			if opt.Type != "string" {
-				return e("options."+key+".pattern", "pattern is only valid for type = \"string\"")
+			if opt.Type != "string" && opt.Type != "list<string>" {
+				return e("options."+key+".pattern", "pattern is only valid for type = \"string\" or \"list<string>\"")
 			}
 			if _, perr := compilePattern(opt.Pattern); perr != nil {
 				return e("options."+key+".pattern", "invalid regexp: "+perr.Error())
@@ -266,8 +288,16 @@ func checkDefault(opt OptionSchema) error {
 			return fmt.Errorf("%q is not in values", s)
 		}
 	case "list<string>", "list<enum>":
-		if _, ok := toStringSlice(opt.Default); !ok {
+		list, ok := toStringSlice(opt.Default)
+		if !ok {
 			return fmt.Errorf("must be a list")
+		}
+		if opt.Type == "list<string>" {
+			for _, v := range list {
+				if err := checkPattern(opt, v); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil

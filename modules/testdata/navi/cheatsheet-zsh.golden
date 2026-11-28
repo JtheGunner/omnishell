@@ -1,0 +1,3 @@
+- `ctrl-g` — open navi at the prompt: pick a command from your cheatsheets, fill in its arguments, and it is pasted at the prompt
+- `navi` — browse the cheatsheets outside the prompt (`navi --help` lists the options)
+- Needs `fzf` as its selector (the `fzf` module is required)

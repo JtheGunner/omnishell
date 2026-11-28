@@ -1,0 +1,13 @@
+export YSU_MESSAGE_POSITION={{ .Options.message_position }}
+export YSU_MODE={{ .Options.mode }}
+{{- if .Options.ignored_aliases }}
+YSU_IGNORED_ALIASES=({{ range $i, $alias := .Options.ignored_aliases }}{{ if $i }} {{ end }}{{ $alias | shellquote }}{{ end }})
+{{- end }}
+for _oms_f in \
+  /opt/homebrew/share/zsh-you-should-use/you-should-use.plugin.zsh \
+  /usr/local/share/zsh-you-should-use/you-should-use.plugin.zsh \
+  {{ pathjoin .VendorDir "zsh-you-should-use" "you-should-use.plugin.zsh" }}
+do
+  [[ -r "$_oms_f" ]] && { source "$_oms_f"; break; }
+done
+unset _oms_f

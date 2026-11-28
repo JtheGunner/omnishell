@@ -21,10 +21,12 @@ func NewRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newVersionCmd(stdout))
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newListCmd())
+	root.AddCommand(newCheatsheetCmd())
 	root.AddCommand(newTUICmd())
 	root.AddCommand(newEnableCmd())
 	root.AddCommand(newDisableCmd())
 	root.AddCommand(newSetCmd())
+	root.AddCommand(newConfigCmd())
 	root.AddCommand(newValidateCmd())
 	root.AddCommand(newApplyCmd())
 	root.AddCommand(newDiffCmd())
@@ -33,6 +35,7 @@ func NewRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newRemoveCmd())
 	root.AddCommand(newUninstallCmd())
 	root.AddCommand(newRollbackCmd())
+	root.AddCommand(newSelfUpdateCmd())
 	root.AddCommand(newDocsCmd())
 	return root
 }

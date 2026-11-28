@@ -1,0 +1,2 @@
+- `man <command>` — now syntax-highlighted through bat when bat is installed, otherwise coloured through less
+- Adds no commands of its own

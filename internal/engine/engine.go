@@ -32,6 +32,10 @@ func (e Engine) now() time.Time {
 	return time.Now()
 }
 
+// StaleConfigHint is appended to messages about config.toml entries that no
+// installed module defines (anymore); it names the command that cleans them up.
+const StaleConfigHint = "run 'omnishell config sync' to review stale entries"
+
 // ConfigError marks an error the CLI should map to exit code 2.
 type ConfigError struct{ Err error }
 

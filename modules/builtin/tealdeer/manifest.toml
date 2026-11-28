@@ -1,0 +1,46 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh", "bash"]
+
+[module]
+id          = "tealdeer"
+name        = "tealdeer"
+description = "A fast tldr client: short, practical command examples instead of long man pages"
+homepage    = "https://github.com/tealdeer-rs/tealdeer"
+version     = "1.0.0"
+schema      = 1
+
+# Every supported manager ships tealdeer under this name (it provides `tldr`).
+# The pinned release binary only covers hosts whose repositories lack it.
+[packages]
+brew   = ["tealdeer"]
+apt    = ["tealdeer"]
+dnf    = ["tealdeer"]
+pacman = ["tealdeer"]
+zypper = ["tealdeer"]
+apk    = ["tealdeer"]
+
+[[packages.fallback]]
+type = "release"
+repo = "https://github.com/tealdeer-rs/tealdeer"
+ref  = "v1.9.1"
+bin  = "tldr"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "amd64"
+url    = "https://github.com/tealdeer-rs/tealdeer/releases/download/{{.Ref}}/tealdeer-linux-x86_64-musl"
+sha256 = "5a9c3f0691b9cf375ee5c99de802885f3d50498cf686a539e2ddda028eb6b4f6"
+
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "arm64"
+url    = "https://github.com/tealdeer-rs/tealdeer/releases/download/{{.Ref}}/tealdeer-linux-aarch64-musl"
+sha256 = "247746dd2d18f0135da79b849bb6b49e45262e2fe4318adfc3082dc6ce3ee968"
+
+# tealdeer ships no armv6 build.
+[[packages.fallback.assets]]
+os     = "linux"
+arch   = "arm"
+goarm  = "7"
+url    = "https://github.com/tealdeer-rs/tealdeer/releases/download/{{.Ref}}/tealdeer-linux-armv7-musleabihf"
+sha256 = "5d5b86b016d80391e285a17bb69f03f9745920df98b81679cfe189eb3617ccf4"

@@ -1,0 +1,5 @@
+- `ls` — eza with icons, git status and directories first (when eza is installed)
+- `ll` — long listing of all files with eza (when eza is installed)
+- `cat` — bat with syntax highlighting (when bat or batcat is installed)
+- `find` — fd, so use fd syntax (`find pattern`), not find flags (when fd or fdfind is installed)
+- Run the original command with a leading backslash or with `command`

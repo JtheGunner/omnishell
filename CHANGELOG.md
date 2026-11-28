@@ -4,11 +4,119 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `omnishell self-update` updates the binary to the latest release on hosts
+  without Homebrew. It resolves the newest tag like `install.sh`, verifies the
+  archive's SHA-256 against `checksums.txt`, and atomically replaces the running
+  binary; on any failure the old binary stays. `--check` only reports whether a
+  newer release exists. Homebrew installs are pointed to `brew upgrade`, and
+  development builds are never replaced.
+- `delta` module: installs [delta](https://github.com/dandavison/delta)
+  (`git-delta`, `delta` on Alpine) and exports `GIT_PAGER` so git uses it, only
+  when `delta` is on `PATH` and `GIT_PAGER` is unset. Options `side_by_side`,
+  `navigate` and `line_numbers`. `~/.gitconfig` is not touched: omnishell
+  writes no non-shell files (see `docs/design-decisions.md`).
+- `ble-sh` module (bash only, opt-in): autosuggestions and syntax highlighting
+  for bash through [ble.sh](https://github.com/akinomyoga/ble.sh), installed
+  from a pinned clone (`v0.4.0-devel3`) built with `make` (needs `make`, `gawk`
+  and `git`). It replaces parts of Readline, so it conflicts with `fzf` and
+  `atuin` and loads after `completion` and `history`. `remove` drops its init
+  section; the clone under `vendor/` is deleted with `remove --purge`.
+- `navi` module: installs the [navi](https://github.com/denisidoro/navi)
+  cheatsheet browser (package `navi` on every supported package manager, with a
+  verified release binary pinned to `v2.24.0` on Linux x86_64, arm64 and
+  armv7) and wires its shell widget in zsh and bash. It requires `fzf`, which
+  navi uses as its selector. The widget opens on Ctrl+G, a key `fzf` and
+  `atuin` leave free; the `key` option (`ctrl-<letter>` or `alt-<letter>`)
+  rebinds it and restores Ctrl+G to its shell default. No cheatsheets are
+  shipped.
+- `dynamic-completion` module (bash only, opt-in): registers completion for
+  CLIs that complete themselves (`terraform`, `vault`, `aws`) with bash's native
+  `complete -C <binary> <name>`. The `commands` option takes `name` or
+  `name=binary` (for example `aws=aws_completer`); only binaries found on `PATH`
+  at shell start are registered, missing ones are skipped silently. Bash only by
+  decision: zsh users use `completion` and `zsh-completions`.
+- `completion` module (bash): installs `bash-completion` through the detected
+  package manager (`bash-completion@2` on Homebrew) and finds it under the macOS
+  Homebrew paths (`/opt/homebrew`, `/usr/local`) before the distro paths. It is
+  only sourced on Bash 4.2 or newer, so the macOS system Bash 3.2 is left alone.
+  The package is installed on zsh-only hosts too; the zsh snippet is unchanged.
+- `you-should-use` module (zsh only): installs
+  [zsh-you-should-use](https://github.com/MichaelAquilina/zsh-you-should-use)
+  and hints at an existing alias when you type the long command it stands for.
+  Homebrew provides the package; other managers use a git clone pinned to
+  `1.11.1`. It loads after `modern-aliases`, and `autosuggestions` and
+  `syntax-highlighting` still render last. Options: `message_position`, `mode`
+  and `ignored_aliases`.
+- `tealdeer` module: installs the `tldr` client (package `tealdeer` on every
+  supported package manager, with a verified release binary pinned to `v1.9.1`
+  on Linux x86_64, arm64 and armv7). `apply` does not download the page cache;
+  `tldr` fetches it on first use.
+
 ### Fixed
 - `apply` and `doctor --fix` no longer print the package manager's answers (for
   example `brew info fzf`) before the plan and the `Proceed?` prompt. Only the
   questions are silenced; installs, sudo prompts and hooks still show their
   output.
+- A module that only has a fallback and no manager packages (such as `ble-sh`)
+  is no longer dropped silently on a host without a detected package manager:
+  `apply` now plans and installs its fallback, and a failed prerequisite check
+  degrades the module and sets a non-zero exit code. Modules that list manager
+  packages stay degraded when no manager is found.
+
+## [0.9.0] - 2026-11-28
+
+### Added
+- `zsh-completions` module (zsh only): installs the `zsh-completions` package
+  through the package manager (git fallback pinned to `0.9.0`) and puts its
+  directory on `fpath` before `compinit` runs, so the extra completions work
+  without hand edits to `.zshrc`. The `completion` module now orders itself
+  after it. A stale `~/.zcompdump` is removed once after an install or upgrade,
+  not on every shell start.
+- `omnishell doctor` warns when a `zsh-completions` directory, or its parent, is
+  writable by group or others (`compinit` then reports "insecure directories")
+  and prints the `chmod go-w` command to fix it. It never changes permissions.
+- `spell-correction` module (zsh only, opt-in): turns on zsh's built-in
+  spelling correction. The `scope` option picks `commands` (`setopt correct`,
+  the default) or `all` (`setopt correct_all`, which also checks arguments).
+  `nocorrect_commands` lists commands to exempt from correction: each becomes
+  a `nocorrect` alias (empty by default), and a command another module already
+  aliases is left alone.
+- A `list<string>` option in a module manifest may carry `pattern`: every item
+  of a value, and of the default, must match it.
+- `omnishell config sync` brings `config.toml` up to date after an upgrade. It
+  lists the options a module gained and the options and module tables that no
+  longer exist; `--write` backs the file up (restore it with `omnishell
+  rollback`), adds new options as commented-out lines with their default and
+  removes the stale entries, keeping your comments, values and ordering.
+- `validate`, `apply` and `doctor` now point to `omnishell config sync` when
+  `config.toml` mentions a module or option that is no longer installed.
+
+## [0.8.0] - 2026-11-22
+
+### Added
+- `[[packages.fallback]]` accepts `replaces`: the manager packages the entry
+  stands in for. The fallback is then used only when one of them is
+  unavailable, and the manager still installs the module's other packages.
+  Without `replaces` a fallback stands in for the whole package list, as
+  before.
+
+### Fixed
+- `modern-aliases` no longer degrades where the distribution has no `eza`
+  package (Debian 12, Ubuntu 22.04): on Linux x86_64 and arm64 the upstream
+  release binary is installed instead, while `bat` and `fd` still come from the
+  package manager. Before, the failed `eza` install also dropped the `cat` and
+  `find` aliases.
+
+## [0.7.1] - 2026-11-22
+
+### Fixed
+- The generated init files now put `<vendor>/bin` on `PATH` (appended, in a
+  first section of their own) before the module snippets run. A tool installed
+  as a release binary or built from source was not found at shell start, so its
+  integration was skipped without a message: no `starship` prompt, no `mise`
+  or `broot` activation. The first `apply` after upgrading rewrites the init
+  files once.
 - `omnishell tui`: the filter and option-value fields move the cursor and
   delete by grapheme cluster, so a combining accent, an emoji sequence or a flag
   is handled as one character.
@@ -278,7 +386,10 @@ Initial release.
   Homebrew tap formula push, per-OS CI (vet, race tests, lint) and opt-in
   per-distro E2E tests.
 
-[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/JtheGunner/omnishell/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/JtheGunner/omnishell/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/JtheGunner/omnishell/compare/v0.7.1...v0.8.0
+[0.7.1]: https://github.com/JtheGunner/omnishell/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/JtheGunner/omnishell/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/JtheGunner/omnishell/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/JtheGunner/omnishell/compare/v0.4.0...v0.5.0

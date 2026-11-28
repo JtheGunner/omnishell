@@ -18,6 +18,9 @@ type ValidateProblem struct {
 	Module  string `json:"module"`
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	// stale marks an entry no installed module defines, which
+	// `omnishell config sync` can clean up.
+	stale bool
 }
 
 // ValidateReport is the full set of problems from one Validate call.
@@ -28,6 +31,17 @@ type ValidateReport struct {
 // OK reports whether the config passed validation.
 func (r ValidateReport) OK() bool { return len(r.Problems) == 0 }
 
+// HasStaleEntries reports whether any problem is a module or option that no
+// installed module defines.
+func (r ValidateReport) HasStaleEntries() bool {
+	for _, p := range r.Problems {
+		if p.stale {
+			return true
+		}
+	}
+	return false
+}
+
 // Validate checks every enabled module in cfg against the registry: the id
 // must resolve, its option values must satisfy the schema, and the set of
 // enabled modules must form a valid dependency graph (no missing `requires`,
@@ -37,6 +51,9 @@ func (e Engine) Validate(cfg config.Config) ValidateReport {
 	var rep ValidateReport
 	add := func(mod, code, msg string) {
 		rep.Problems = append(rep.Problems, ValidateProblem{Module: mod, Code: code, Message: msg})
+	}
+	addStale := func(mod, code, msg string) {
+		rep.Problems = append(rep.Problems, ValidateProblem{Module: mod, Code: code, Message: msg, stale: true})
 	}
 
 	ids := make([]string, 0, len(cfg.Modules))
@@ -51,11 +68,16 @@ func (e Engine) Validate(cfg config.Config) ValidateReport {
 	for _, id := range ids {
 		mod, ok := e.Registry.Get(id)
 		if !ok {
-			add(id, "unknown-module", "no registered module provides this id")
+			addStale(id, "unknown-module", "no registered module provides this id")
 			continue
 		}
 		if _, err := module.ValidateOptions(mod.Manifest.Options, cfg.Modules[id].Options); err != nil {
-			add(id, "bad-option", err.Error())
+			var optErr module.OptionError
+			if errors.As(err, &optErr) && optErr.IsUnknown() {
+				addStale(id, "bad-option", err.Error())
+			} else {
+				add(id, "bad-option", err.Error())
+			}
 		}
 		active[id] = mod.Manifest
 	}

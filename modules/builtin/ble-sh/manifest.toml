@@ -1,0 +1,23 @@
+platforms   = ["macos", "linux"]
+shells      = ["bash"]
+after       = ["completion", "history"]
+conflicts   = ["fzf", "atuin"]
+
+[module]
+id          = "ble-sh"
+name        = "ble.sh"
+description = "Autosuggestions and syntax highlighting for bash via ble.sh (replaces parts of Readline)"
+homepage    = "https://github.com/akinomyoga/ble.sh"
+version     = "1.0.0"
+schema      = 1
+
+# No package manager ships ble.sh in its base repositories, so it is always a
+# pinned clone that is built in place (needs GNU make and gawk; no compiler).
+# The `contrib` submodule is not needed and a shallow clone does not fetch it.
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/akinomyoga/ble.sh.git"
+dest = "{{.VendorDir}}/ble.sh"
+ref  = "v0.4.0-devel3"
+run  = ["make", "-C", "{{.VendorDir}}/ble.sh"]
+requires = ["make", "gawk", "git"]

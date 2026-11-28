@@ -1,0 +1,4 @@
+- `tldr <command>` — short, practical examples for a command
+- `tldr -l` — list the cached pages
+- `tldr -u` — update the local page cache
+- `tldr -p <platform> <command>` — show the page for another platform (for example `linux`)

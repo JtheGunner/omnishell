@@ -18,6 +18,12 @@ type OptionError struct {
 
 func (e OptionError) Error() string { return fmt.Sprintf("option %q: %s", e.Key, e.Msg) }
 
+const unknownOptionMsg = "not a known option for this module"
+
+// IsUnknown reports whether the option is not part of the module's schema at
+// all (as opposed to holding a value the schema rejects).
+func (e OptionError) IsUnknown() bool { return e.Msg == unknownOptionMsg }
+
 // ParseValue converts a CLI string into the canonical typed value for the schema.
 func (s OptionSchema) ParseValue(raw string) (any, error) {
 	switch s.Type {
@@ -47,6 +53,11 @@ func (s OptionSchema) ParseValue(raw string) (any, error) {
 			if s.Type == "list<enum>" && !toSet(s.Values)[v] {
 				return nil, fmt.Errorf("%q is not one of %s", v, strings.Join(s.Values, ", "))
 			}
+			if s.Type == "list<string>" {
+				if err := checkPattern(s, v); err != nil {
+					return nil, err
+				}
+			}
 			out = append(out, v)
 		}
 		return out, nil
@@ -55,7 +66,8 @@ func (s OptionSchema) ParseValue(raw string) (any, error) {
 	}
 }
 
-// checkPattern enforces a string option's pattern constraint, if any.
+// checkPattern enforces a pattern constraint, if any, on one string value: the
+// value of a string option or one item of a list<string> option.
 func checkPattern(spec OptionSchema, v string) error {
 	if spec.Pattern == "" {
 		return nil
@@ -74,7 +86,7 @@ func checkPattern(spec OptionSchema, v string) error {
 func ValidateOptions(schema map[string]OptionSchema, in map[string]any) (map[string]any, error) {
 	for k := range in {
 		if _, ok := schema[k]; !ok {
-			return nil, OptionError{Key: k, Msg: "not a known option for this module"}
+			return nil, OptionError{Key: k, Msg: unknownOptionMsg}
 		}
 	}
 	out := make(map[string]any, len(schema))
@@ -152,10 +164,15 @@ func coerce(spec OptionSchema, raw any) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("expected a list of strings, got %T", raw)
 		}
-		if spec.Type == "list<enum>" {
-			for _, v := range list {
+		for _, v := range list {
+			switch spec.Type {
+			case "list<enum>":
 				if !toSet(spec.Values)[v] {
 					return nil, fmt.Errorf("%q is not one of %s", v, strings.Join(spec.Values, ", "))
+				}
+			case "list<string>":
+				if err := checkPattern(spec, v); err != nil {
+					return nil, err
 				}
 			}
 		}

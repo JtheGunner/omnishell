@@ -24,6 +24,8 @@ import (
 // journey wants to assert, on any OS the suite runs on.
 func installedResponses() map[string]pkgmgr.MockResponse {
 	pkgs := []string{
+		"bash-completion@2",
+		"bash-completion",
 		"zsh-autosuggestions",
 		"zsh-syntax-highlighting",
 		"fzf",
@@ -210,7 +212,7 @@ func TestJourneyNoPackageManager(t *testing.T) {
 	if code, out := run("init"); code != 0 {
 		t.Fatalf("init: %d %s", code, out)
 	}
-	for _, m := range []string{"history", "completion", "fzf"} {
+	for _, m := range []string{"history", "ls-colors", "fzf"} {
 		if code, out := run("enable", m); code != 0 {
 			t.Fatalf("enable %s: %d %s", m, code, out)
 		}
@@ -228,8 +230,8 @@ func TestJourneyNoPackageManager(t *testing.T) {
 		t.Fatalf("init.zsh: %v", err)
 	}
 	got := string(body)
-	if !strings.Contains(got, "omnishell:history") || !strings.Contains(got, "omnishell:completion") {
-		t.Fatalf("expected history + completion applied:\n%s", got)
+	if !strings.Contains(got, "omnishell:history") || !strings.Contains(got, "omnishell:ls-colors") {
+		t.Fatalf("expected history + ls-colors applied:\n%s", got)
 	}
 	if strings.Contains(got, "omnishell:fzf") {
 		t.Fatalf("fzf section should have been skipped (degraded):\n%s", got)

@@ -1,0 +1,5 @@
+# ~/.gitconfig is never edited. GIT_PAGER takes precedence over core.pager, and
+# an already exported GIT_PAGER is left alone.
+if command -v delta >/dev/null 2>&1 && [ -z "${GIT_PAGER+x}" ]; then
+  export GIT_PAGER='delta --navigate --line-numbers --side-by-side'
+fi
