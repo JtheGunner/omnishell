@@ -1,6 +1,10 @@
+{{ if and (ne .Options.key "ctrl-g") (eq .Shell "bash") -}}
+- `{{ .Options.key }}` — open navi at the prompt (needs bash 4.0 or newer; older bash ignores this key and keeps `ctrl-g`): pick a command from your cheatsheets, fill in its arguments, and it is pasted at the prompt
+{{ else -}}
 - `{{ .Options.key }}` — open navi at the prompt: pick a command from your cheatsheets, fill in its arguments, and it is pasted at the prompt
+{{ end -}}
 {{ if ne .Options.key "ctrl-g" -}}
-- `ctrl-g` is no longer bound to navi and keeps its shell default (bash older than 4.0 keeps it bound to navi)
+- `ctrl-g` is no longer bound to navi and keeps its shell default{{ if eq .Shell "bash" }} (bash 4.0 or newer){{ end }}
 {{ end -}}
 - `navi` — browse the cheatsheets outside the prompt (`navi --help` lists the options)
 - Needs `fzf` as its selector (the `fzf` module is required)

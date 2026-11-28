@@ -475,4 +475,11 @@ func TestNaviCheatsheetFollowsKey(t *testing.T) {
 	if !strings.Contains(got, "`ctrl-g` is no longer bound") {
 		t.Errorf("a custom key must say ctrl-g is released:\n%s", got)
 	}
+	if !strings.Contains(got, "needs bash 4.0 or newer") {
+		t.Errorf("bash with a custom key must name the bash 4.0 requirement:\n%s", got)
+	}
+	zsh := renderCheatsheet(t, "navi", "zsh", map[string]any{"key": "alt-n"})
+	if strings.Contains(zsh, "bash") {
+		t.Errorf("zsh must not mention bash:\n%s", zsh)
+	}
 }
