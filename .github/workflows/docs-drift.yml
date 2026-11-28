@@ -10,7 +10,7 @@ jobs:
   docs-drift:
     # Local self-hosted runner (see CLAUDE.md). A fork PR must never run there:
     # the runner mounts the host's Docker socket, so it falls back to GitHub-hosted.
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

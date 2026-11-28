@@ -39,8 +39,9 @@ opens grouped weekly `gomod` / `github-actions` update PRs.
 a local self-hosted Docker runner (labels `self-hosted, local, docker, debian`,
 ephemeral, one job at a time). The public repo and the runner's mounted Docker
 socket make fork code a host risk, so those jobs fall back to `ubuntu-latest`
-for fork PRs (`github.event.pull_request.head.repo.fork`); keep "Require
-approval for all outside collaborators" enabled in the repo's Actions settings.
+for every PR whose head repo is not this one (a deleted fork counts too, so the
+check fails closed); keep "Require approval for all outside collaborators"
+enabled in the repo's Actions settings.
 Everything else stays GitHub-hosted, each with a reason in its workflow:
 macOS jobs need macOS, the `e2e.yml` distro matrix wants clean hosts,
 `release.yml` holds the release secrets, `fallback-tags.yml` is a nightly cron.

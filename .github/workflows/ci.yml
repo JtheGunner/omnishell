@@ -6,7 +6,7 @@ jobs:
   test:
     # Local self-hosted runner (see CLAUDE.md). A fork PR must never run there:
     # the runner mounts the host's Docker socket, so it falls back to GitHub-hosted.
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -26,7 +26,7 @@ jobs:
   vuln:
     # Local self-hosted runner (see CLAUDE.md). A fork PR must never run there:
     # the runner mounts the host's Docker socket, so it falls back to GitHub-hosted.
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: golang/govulncheck-action@v1
@@ -41,7 +41,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     # The ubuntu leg uses the local runner (fork PRs excepted); macOS needs a
     # GitHub-hosted macOS runner.
-    runs-on: ${{ matrix.os == 'macos-latest' && 'macos-latest' || (github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]')) }}
+    runs-on: ${{ matrix.os == 'macos-latest' && 'macos-latest' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || fromJSON('["self-hosted","local","docker","debian"]')) }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
