@@ -116,10 +116,13 @@ files matters more than any single file:
 8. **`internal/pkgmgr`** — `Manager` interface implemented per package manager
    (brew/apt/dnf/pacman/zypper/apk), detected via `DetectManager` in OS-specific
    priority order, plus a `git`-clone-based fallback (`gitfallback.go`) used
-   when a module has no package for the detected manager, none was found, or
+   when a module has no package for the detected manager, or
    `Manager.Available` reports the repositories cannot provide the package
    (`ComputePlan` probes only when the module has a fallback; a failed probe
-   means "unknown" and keeps the package path).
+   means "unknown" and keeps the package path). With no manager detected, a
+   module that lists no manager packages (fallback only, like `ble-sh`) still
+   plans its fallback, which needs the `Runner` and not a manager; a module
+   that does list manager packages is degraded instead.
    A fallback's `requires` (`"cargo>=1.85"`, `"cmake"`) is probed via the
    `Runner` inside `InstallGitFallback`, before the clone — never in `ComputePlan`.
    A fallback's optional `ref` pins the clone to a tag or branch; every

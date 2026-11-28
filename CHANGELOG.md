@@ -53,6 +53,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   on Linux x86_64, arm64 and armv7). `apply` does not download the page cache;
   `tldr` fetches it on first use.
 
+### Fixed
+- A module that only has a fallback and no manager packages (such as `ble-sh`)
+  is no longer dropped silently on a host without a detected package manager:
+  `apply` now plans and installs its fallback, and a failed prerequisite check
+  degrades the module and sets a non-zero exit code. Modules that list manager
+  packages stay degraded when no manager is found.
+
 ## [0.9.0] - 2026-11-28
 
 ### Added
