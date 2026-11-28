@@ -1,0 +1,40 @@
+platforms   = ["macos", "linux"]
+shells      = ["zsh"]
+after       = ["completion", "modern-aliases"]
+
+[module]
+id          = "you-should-use"
+name        = "You should use"
+description = "Remind you of an existing alias when you type the long command it stands for (zsh)"
+homepage    = "https://github.com/MichaelAquilina/zsh-you-should-use"
+version     = "1.0.0"
+schema      = 1
+
+# Only Homebrew ships a package; every other manager reaches the pinned clone.
+# The plugin is GPL-3.0: it is installed and sourced, never bundled or modified.
+[packages]
+brew = ["zsh-you-should-use"]
+
+[[packages.fallback]]
+type = "git"
+repo = "https://github.com/MichaelAquilina/zsh-you-should-use.git"
+dest = "{{.VendorDir}}/zsh-you-should-use"
+ref  = "1.11.1"
+
+[options.message_position]
+type    = "enum"
+values  = ["before", "after"]
+default = "before"
+help    = "Where the hint appears: 'before' prints it ahead of the command's output, 'after' once the command has run (YSU_MESSAGE_POSITION)"
+
+[options.mode]
+type    = "enum"
+values  = ["BESTMATCH", "ALL"]
+default = "BESTMATCH"
+help    = "'BESTMATCH' shows the closest alias only; 'ALL' lists every alias that would shorten the command (YSU_MODE)"
+
+[options.ignored_aliases]
+type    = "list<string>"
+default = []
+pattern = "^[A-Za-z0-9_][A-Za-z0-9_.+-]*$"
+help    = "Aliases that never trigger a hint (YSU_IGNORED_ALIASES), for example g or ll"

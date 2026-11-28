@@ -1,6 +1,6 @@
 platforms   = ["macos", "linux"]
 shells      = ["zsh"]
-after       = ["completion", "history", "fzf-tab"]
+after       = ["completion", "history", "fzf-tab", "you-should-use"]
 
 [module]
 id          = "autosuggestions"

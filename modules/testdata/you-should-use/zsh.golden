@@ -1,0 +1,10 @@
+export YSU_MESSAGE_POSITION=before
+export YSU_MODE=BESTMATCH
+for _oms_f in \
+  /opt/homebrew/share/zsh-you-should-use/you-should-use.plugin.zsh \
+  /usr/local/share/zsh-you-should-use/you-should-use.plugin.zsh \
+  /home/j/.config/omnishell/vendor/zsh-you-should-use/you-should-use.plugin.zsh
+do
+  [[ -r "$_oms_f" ]] && { source "$_oms_f"; break; }
+done
+unset _oms_f

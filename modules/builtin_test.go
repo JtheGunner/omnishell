@@ -747,3 +747,94 @@ func TestCompletionWithoutZshCompletions(t *testing.T) {
 		t.Fatalf("order = %v, err = %v", order, err)
 	}
 }
+
+func TestYouShouldUse(t *testing.T) {
+	def := renderModule(t, "you-should-use", "zsh", nil)
+	custom := renderModule(t, "you-should-use", "zsh", map[string]any{
+		"message_position": "after",
+		"mode":             "ALL",
+		"ignored_aliases":  []any{"g", "ll"},
+	})
+	assertGoldenNamed(t, "you-should-use", "zsh", def)
+	assertGoldenNamed(t, "you-should-use", "zsh-custom", custom)
+
+	if strings.Contains(def, "YSU_IGNORED_ALIASES") {
+		t.Errorf("an empty ignored_aliases list must set no variable:\n%s", def)
+	}
+	for _, want := range []string{
+		"YSU_MESSAGE_POSITION=after", "YSU_MODE=ALL", "YSU_IGNORED_ALIASES=('g' 'll')",
+	} {
+		if !strings.Contains(custom, want) {
+			t.Errorf("custom render lacks %q:\n%s", want, custom)
+		}
+	}
+	if strings.Contains(def+custom, "YSU_HARDCORE") {
+		t.Error("hardcore mode blocks commands and must not be offered")
+	}
+}
+
+func TestYouShouldUseManifest(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := reg.Get("you-should-use")
+	if !ok {
+		t.Fatal("module you-should-use not embedded")
+	}
+	if got := m.Manifest.Shells; len(got) != 1 || got[0] != "zsh" {
+		t.Errorf("shells = %v, want [zsh]", got)
+	}
+	if _, has, err := m.Template("bash"); err != nil || has {
+		t.Errorf("bash template: has=%v err=%v, want none", has, err)
+	}
+	if got := m.Manifest.Packages.ForManager("brew"); len(got) != 1 || got[0] != "zsh-you-should-use" {
+		t.Errorf("brew packages = %v, want [zsh-you-should-use]", got)
+	}
+	fbs := m.Manifest.Packages.Fallback
+	if len(fbs) != 1 || fbs[0].Type != "git" || fbs[0].Ref == "" {
+		t.Fatalf("fallbacks = %+v, want one pinned git entry", fbs)
+	}
+	for _, bad := range []string{"g; rm -rf ~", "$(id)", "a b", "-rf", "x'y", ""} {
+		if _, err := module.ValidateOptions(m.Manifest.Options,
+			map[string]any{"ignored_aliases": []any{bad}}); err == nil {
+			t.Errorf("alias name %q was accepted", bad)
+		}
+	}
+	for _, bad := range []map[string]any{{"mode": "everything"}, {"message_position": "during"}} {
+		if _, err := module.ValidateOptions(m.Manifest.Options, bad); err == nil {
+			t.Errorf("options %v were accepted", bad)
+		}
+	}
+}
+
+// you-should-use reads the alias table, so modern-aliases must define its
+// aliases first; the two syntax modules keep rendering last.
+func TestYouShouldUseLoadOrder(t *testing.T) {
+	reg, err := module.LoadRegistry(modules.FS(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := map[string]module.Manifest{}
+	for _, id := range []string{"completion", "modern-aliases", "you-should-use", "autosuggestions", "syntax-highlighting"} {
+		m, ok := reg.Get(id)
+		if !ok {
+			t.Fatalf("module %q not embedded", id)
+		}
+		active[id] = m.Manifest
+	}
+	order, err := graph.Order(active)
+	if err != nil {
+		t.Fatalf("graph.Order: %v", err)
+	}
+	pos := map[string]int{}
+	for i, id := range order {
+		pos[id] = i
+	}
+	if pos["you-should-use"] < pos["modern-aliases"] {
+		t.Errorf("you-should-use must load after modern-aliases: %v", order)
+	}
+	if pos["you-should-use"] > pos["autosuggestions"] || pos["you-should-use"] > pos["syntax-highlighting"] {
+		t.Errorf("you-should-use must load before autosuggestions and syntax-highlighting: %v", order)
+	}
+}
